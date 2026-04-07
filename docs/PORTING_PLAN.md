@@ -695,6 +695,10 @@ Use this session to clear the remaining blocked verification items in one pass.
   - FV-01
   - FV-02
   - Milestone A bundled-launch and native-config items
+- Terminal automation:
+  - Run `SKIP_BUILD=1 sh tests/run_macos_session1_check.sh` after a successful Debug build.
+  - This validates copied-app launch from a non-repo directory via `open`, machine config create/edit/relaunch persistence, and config rename/copy/delete behavior under `~/Library/Application Support/Arculator/configs/`.
+  - It does not replace the explicit Finder launch step required by FV-01.
 - Steps:
   1. Copy `build/Debug/Arculator.app` to a non-repo directory.
   2. Launch it from Finder.

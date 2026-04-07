@@ -28,6 +28,11 @@ void arc_update_menu(void);
 void *wx_getnativemenu(void *menu);
 void arc_main_loop(void);
 
+#ifdef __APPLE__
+int arc_is_session_active(void);
+int arc_is_paused(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

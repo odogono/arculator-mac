@@ -32,9 +32,10 @@ extern "C"
 #include "video.h"
 }
 
-#include "wx-config.h"
-#include "wx-config_sel.h"
 #include "wx-console.h"
+
+#import "NewWindowBridge.h"
+#import "EmulatorBridge.h"
 
 enum
 {
@@ -477,10 +478,10 @@ static void shell_set_window_title(void)
 	if (!shell_window || fullscreen)
 		return;
 
-	char title[160];
-	snprintf(title, sizeof(title), "Arculator %s - %i%% - %s", VERSION_STRING, inssec,
+	char subtitle[120];
+	snprintf(subtitle, sizeof(subtitle), "%s - %i%% - %s", machine_config_name, inssec,
 		 mousecapture ? "Press CMD-BACKSPACE to release mouse" : "Click to capture mouse");
-	[shell_window setTitle:[NSString stringWithUTF8String:title]];
+	[shell_window setSubtitle:[NSString stringWithUTF8String:subtitle]];
 }
 
 static void shell_enable_mouse_capture(void)
@@ -504,14 +505,6 @@ static int shell_config_exists(const char *config_name)
 
 	platform_path_machine_config(path, sizeof(path), config_name);
 	return !stat(path, &st);
-}
-
-static int shell_show_config_selection_if_needed(void)
-{
-	if (strlen(machine_config_name) != 0)
-		return 1;
-
-	return ShowConfigSelection() == 0;
 }
 
 static void shell_request_app_termination(void);
@@ -681,6 +674,7 @@ static void arc_shell_shutdown(void)
 
 	input_close();
 	video_renderer_close();
+	shell_video_view = nil;
 	shell_session_active = 0;
 }
 
@@ -697,16 +691,10 @@ static void shell_prompt_restart_or_quit(void)
 		return;
 	}
 
-	if (ShowConfigSelection() == 0)
-	{
-		arc_start_main_thread(NULL, NULL);
-		shell_stop_pending = 0;
-		return;
-	}
-
+	// Return to idle state. arc_shell_shutdown() already cleaned up
+	// shell_video_view; ContentHostingController's Combine subscription
+	// handles Metal view removal automatically.
 	shell_stop_pending = 0;
-	shell_should_quit_app = 1;
-	[NSApp terminate:nil];
 }
 
 static void shell_schedule_stop_handling(void)
@@ -728,8 +716,7 @@ static void shell_request_app_termination(void)
 		[NSApp terminate:nil];
 }
 
-@interface ArcMetalView : MTKView
-@end
+#import "ArcMetalView.h"
 
 @implementation ArcMetalView
 
@@ -797,7 +784,7 @@ static void shell_request_app_termination(void)
 			{
 				NSString *path = panel.URL.path;
 				if (path)
-					arc_disc_change(drive, (char *)[path fileSystemRepresentation]);
+					[EmulatorBridge changeDisc:drive path:path];
 			}
 		}
 		break;
@@ -806,7 +793,7 @@ static void shell_request_app_termination(void)
 		case MENU_DISC_EJECT_1:
 		case MENU_DISC_EJECT_2:
 		case MENU_DISC_EJECT_3:
-		arc_disc_eject((int)(command_id - MENU_DISC_EJECT_0));
+		[EmulatorBridge ejectDisc:(int)(command_id - MENU_DISC_EJECT_0)];
 		break;
 
 		case MENU_DISC_NOISE_0: disc_noise_gain = DISC_NOISE_DISABLED; break;
@@ -846,9 +833,9 @@ static void shell_request_app_termination(void)
 		case MENU_SETTINGS_CONFIGURE:
 		if (!indebug)
 		{
-			arc_pause_main_thread();
-			ShowConfig(true);
-			arc_resume_main_thread();
+			if (shell_session_active)
+				[NewWindowBridge navigateToConfigEditorInWindow:shell_window];
+			// else: sidebar + config editor already visible, no action needed
 		}
 		break;
 
@@ -948,16 +935,15 @@ static void shell_request_app_termination(void)
 	[shell_window orderFrontRegardless];
 	[shell_window displayIfNeeded];
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		if (!shell_show_config_selection_if_needed())
-		{
-			shell_should_quit_app = 1;
-			[NSApp terminate:nil];
-			return;
-		}
-
-		arc_start_main_thread(NULL, NULL);
-	});
+	// Start in idle state. If a config was specified on the command line,
+	// preselect it in the sidebar and auto-start emulation.
+	if (strlen(machine_config_name) != 0)
+	{
+		NSString *configName = [NSString stringWithUTF8String:machine_config_name];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[NewWindowBridge preselectAndRunConfig:configName inWindow:shell_window];
+		});
+	}
 }
 
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag
@@ -999,11 +985,13 @@ static void shell_request_app_termination(void)
 	(void)notification;
 	fullscreen = 1;
 	updatemips = 1;
+	[NewWindowBridge enterFullscreenForWindow:shell_window];
 }
 
 - (void)windowDidExitFullScreen:(NSNotification *)notification
 {
 	(void)notification;
+	[NewWindowBridge exitFullscreenForWindow:shell_window];
 	fullscreen = 0;
 	if (mousecapture)
 		shell_disable_mouse_capture();
@@ -1024,52 +1012,20 @@ static void shell_request_app_termination(void)
 
 static void shell_create_window(void)
 {
-	NSRect frame = NSMakeRect(0.0, 0.0, 768.0, 576.0);
-	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
-				      NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
-
-	shell_window = [[NSWindow alloc] initWithContentRect:frame
-						 styleMask:style
-						   backing:NSBackingStoreBuffered
-						     defer:NO];
-	shell_window.title = @"Arculator";
-	shell_window.releasedWhenClosed = NO;
-	shell_window.delegate = shell_delegate;
-	[shell_window center];
-
-	shell_video_view = [[ArcMetalView alloc] initWithFrame:frame device:nil];
-	shell_video_view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-	shell_video_view.colorPixelFormat = MTLPixelFormatBGRA8Unorm;
-	shell_video_view.framebufferOnly = YES;
-	shell_video_view.paused = YES;
-	shell_video_view.enableSetNeedsDisplay = NO;
-
-	[shell_window setContentView:shell_video_view];
-	[shell_window makeFirstResponder:shell_video_view];
+	shell_window = [NewWindowBridge createMainWindowWithDelegate:shell_delegate];
+	// shell_video_view stays nil until emulation starts (installed by ContentHostingController)
 }
 
 static void shell_apply_pending_resize(void)
 {
-	int width = 0;
-	int height = 0;
-
+	// Metal view auto-fills the content area via autoresizingMask.
+	// video_renderer_update_layout() reads actual view bounds each frame.
+	// Just consume the pending flag.
 	if (!win_doresize)
 		return;
-
 	pthread_mutex_lock(&shell_mutex);
-	if (!win_doresize || fullscreen)
-	{
-		pthread_mutex_unlock(&shell_mutex);
-		return;
-	}
-
 	win_doresize = 0;
-	width = winsizex;
-	height = winsizey;
 	pthread_mutex_unlock(&shell_mutex);
-
-	if (width > 0 && height > 0)
-		[shell_window setContentSize:NSMakeSize((CGFloat)width, (CGFloat)height)];
 }
 
 static void shell_apply_pending_fullscreen(void)
@@ -1294,6 +1250,26 @@ void arc_set_dblscan(int new_dblscan)
 	emulation_queue_command(&command);
 }
 
+int arc_is_session_active(void)
+{
+	return shell_session_active;
+}
+
+int arc_is_paused(void)
+{
+	return pause_main_thread;
+}
+
+void arc_set_video_view(MTKView *view)
+{
+	shell_video_view = view;
+}
+
+MTKView *arc_get_video_view(void)
+{
+	return shell_video_view;
+}
+
 void arc_stop_emulation(void)
 {
 	shell_schedule_stop_handling();
@@ -1351,6 +1327,22 @@ int main(int argc, char **argv)
 			char *p = (char *)get_filename(exname);
 			*p = 0;
 		}
+
+#ifndef NDEBUG
+		for (int i = 1; i < argc; i++)
+		{
+			if (!strcmp(argv[i], "-ArculatorTestSupportPath") && i + 1 < argc)
+			{
+				setenv("ARCULATOR_SUPPORT_PATH", argv[i + 1], 1);
+				i++;
+			}
+			else if (!strcmp(argv[i], "-ArculatorTestConfig") && i + 1 < argc)
+			{
+				strlcpy(machine_config_name, argv[i + 1], sizeof(machine_config_name));
+				i++;
+			}
+		}
+#endif
 
 		platform_paths_init(argv[0]);
 

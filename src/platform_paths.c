@@ -256,6 +256,12 @@ void platform_paths_init(const char *argv0)
 			snprintf(support_root, sizeof(support_root), "%s/Library/Application Support/Arculator", home);
 	}
 
+	{
+		const char *override = getenv("ARCULATOR_SUPPORT_PATH");
+		if (override && override[0])
+			copy_string(support_root, sizeof(support_root), override);
+	}
+
 	ensure_dir_recursive(support_root);
 	join_path(path, sizeof(path), support_root, "configs");
 	ensure_dir_recursive(path);

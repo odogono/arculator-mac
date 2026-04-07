@@ -69,13 +69,38 @@ SOURCE_FILES = %w[
   src/vidc.c
   src/macos/video_metal.m
   src/wd1770.c
-  src/macos/config_macos.mm
   src/macos/console_macos.mm
   src/macos/hd_macos.mm
   src/macos/joystick_config_macos.mm
   src/macos/podule_config_macos.mm
   src/macos/joystick_gc.m
   src/macos/sound_coreaudio.m
+  src/macos/EmulatorBridge.mm
+  src/macos/ConfigBridge.mm
+  src/macos/MachinePresetBridge.mm
+  src/macos/SwiftInteropSmoke.swift
+  src/macos/MachinePresets.swift
+  src/macos/MachineConfigModel.swift
+  src/macos/ConfigListModel.swift
+  src/macos/EmulatorState.swift
+  src/macos/EmulatorMetalView.swift
+  src/macos/MainSplitViewController.swift
+  src/macos/SidebarHostingController.swift
+  src/macos/ContentHostingController.swift
+  src/macos/ToolbarManager.swift
+  src/macos/NewWindowBridge.mm
+  src/macos/ConfigEditorBridge.mm
+  src/macos/HardwareEnumeration.swift
+  src/macos/MutabilityGating.swift
+  src/macos/ConfigEditorView.swift
+  src/macos/GeneralSettingsView.swift
+  src/macos/StorageSettingsView.swift
+  src/macos/PeripheralsSettingsView.swift
+  src/macos/DisplaySettingsView.swift
+  src/macos/SidebarView.swift
+  src/macos/ConfigListView.swift
+  src/macos/RunningControlsView.swift
+  src/macos/DiscSlotView.swift
 ].freeze
 
 RESOURCE_FILES = %w[
@@ -93,6 +118,7 @@ SYSTEM_FRAMEWORKS = %w[
   MetalKit
   OpenGL
   QuartzCore
+  SwiftUI
 ].freeze
 
 LEGACY_RUNTIME_SCRIPT = <<~SCRIPT.freeze
@@ -118,6 +144,7 @@ LEGACY_RUNTIME_SCRIPT = <<~SCRIPT.freeze
   }
 
   copy_dir "ddnoise" "ddnoise"
+  copy_dir "cmos" "cmos"
   copy_dir "roms" "roms"
   copy_dir "src/icons" "icons"
   copy_file "src/arculator.xrc" "arculator.xrc"
@@ -145,6 +172,7 @@ FileUtils.rm_rf(PROJECT_PATH)
 project = Xcodeproj::Project.new(PROJECT_PATH)
 project.root_object.attributes["LastUpgradeCheck"] = "2600"
 project.root_object.attributes["BuildIndependentTargetsInParallel"] = "1"
+project.root_object.project_dir_path = ""
 
 target = project.new_target(:application, PROJECT_NAME, :osx, "13.0")
 target.product_reference.name = "#{PROJECT_NAME}.app"
@@ -164,6 +192,9 @@ frameworks_group = project.frameworks_group || main_group.find_subpath("Framewor
 
 macos_group.new_file("macos/Info.plist")
 src_macos_group.new_file("src/macos/Shaders.metal")
+src_macos_group.new_file("src/macos/ArcMetalView.h")
+src_macos_group.new_file("src/macos/NewWindowBridge.h")
+src_macos_group.new_file("src/macos/ConfigEditorBridge.h")
 
 SOURCE_FILES.each do |path|
   group = path.start_with?("src/macos/") ? src_macos_group : (path.start_with?("src/") ? src_group : macos_group)
@@ -197,9 +228,12 @@ target.build_configurations.each do |config|
   settings["ASSETCATALOG_COMPILER_APPICON_NAME"] = "AppIcon"
   settings["ARCHS"] = "arm64"
   settings["CODE_SIGN_STYLE"] = "Automatic"
-  settings["CLANG_ENABLE_MODULES"] = "NO"
+  settings["CLANG_ENABLE_MODULES"] = "YES"
   settings["ENABLE_HARDENED_RUNTIME"] = "NO"
-  settings["ENABLE_PREVIEWS"] = "NO"
+  settings["DEFINES_MODULE"] = "YES"
+  settings["ENABLE_PREVIEWS"] = "YES"
+  settings["SWIFT_OBJC_BRIDGING_HEADER"] = "src/macos/Arculator-Bridging-Header.h"
+  settings["SWIFT_VERSION"] = "5.0"
   settings["GENERATE_INFOPLIST_FILE"] = "NO"
   settings["HEADER_SEARCH_PATHS"] = [
     "$(inherited)",
@@ -214,7 +248,8 @@ target.build_configurations.each do |config|
   settings["OTHER_CFLAGS"] = [
     "$(inherited)",
     "-D_FILE_OFFSET_BITS=64",
-    "-Winvalid-offsetof"
+    "-Winvalid-offsetof",
+    "-fno-modules"
   ]
   settings["OTHER_CPLUSPLUSFLAGS"] = settings["OTHER_CFLAGS"]
   settings["OTHER_LDFLAGS"] = ["$(inherited)", "-lz"]
@@ -229,6 +264,40 @@ target.build_configurations.each do |config|
     settings["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
     settings["ONLY_ACTIVE_ARCH"] = "NO"
     settings["SWIFT_COMPILATION_MODE"] = "wholemodule"
+  end
+end
+
+# --- ArculatorUITests target ---
+
+UI_TEST_FILES = Dir.glob("../tests/ArculatorUITests/*.swift").map { |p|
+  p.sub(%r{^\.\./}, "")
+}.sort.freeze
+
+unless UI_TEST_FILES.empty?
+  ui_test_target = project.new_target(:unit_test_bundle, "ArculatorUITests", :osx, "13.0")
+  ui_test_target.add_dependency(target)
+
+  # Override product type from unit test to UI test bundle
+  ui_test_target.product_type = "com.apple.product-type.bundle.ui-testing"
+  ui_test_target.product_reference.explicit_file_type = "wrapper.cfbundle"
+
+  ui_test_target.build_configurations.each do |config|
+    settings = config.build_settings
+    settings["TEST_TARGET_NAME"] = PROJECT_NAME
+    settings["SWIFT_VERSION"] = "5.0"
+    settings["CODE_SIGN_STYLE"] = "Automatic"
+    settings["PRODUCT_BUNDLE_IDENTIFIER"] = "com.arculator.mac.uitests"
+    settings["GENERATE_INFOPLIST_FILE"] = "YES"
+    settings["MACOSX_DEPLOYMENT_TARGET"] = "13.0"
+    # UI test bundles should NOT set TEST_HOST or BUNDLE_LOADER
+    settings.delete("TEST_HOST")
+    settings.delete("BUNDLE_LOADER")
+  end
+
+  ui_tests_group = main_group.find_subpath("tests/ArculatorUITests", true)
+  UI_TEST_FILES.each do |path|
+    ref = ui_tests_group.new_file(path)
+    ui_test_target.source_build_phase.add_file_reference(ref, true)
   end
 end
 

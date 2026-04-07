@@ -73,38 +73,69 @@ static const int rtc_days_in_month[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31
 
 static void cmos_get_time();
 
+static int cmos_read_file(const char *path)
+{
+	FILE *cmosf = fopen(path, "rb");
+
+	if (!cmosf)
+		return 0;
+
+	size_t bytes_read = fread(cmos.ram, 1, sizeof(cmos.ram), cmosf);
+	fclose(cmosf);
+
+	return (bytes_read == sizeof(cmos.ram));
+}
+
+static int cmos_ram_has_persistent_state(void)
+{
+	for (int i = 0; i < (int)sizeof(cmos.ram); i++)
+	{
+		/* Bytes 1-6 are refreshed from the host clock on every load. */
+		if (i >= 1 && i <= 6)
+			continue;
+		if (cmos.ram[i] != 0)
+			return 1;
+	}
+
+	return 0;
+}
+
 void cmos_load()
 {
 	char fn[512];
 	char fallback_fn[512];
 	char cmos_name[512];
-	FILE *cmosf;
+	int loaded = 0;
 
 	LOG_CMOS("Read cmos %i\n", romset);
 	snprintf(cmos_name, sizeof(cmos_name), "cmos/%s.%s.cmos.bin", machine_config_name, config_get_cmos_name(romset, fdctype));
 	platform_path_join_support(fn, cmos_name, sizeof(fn));
 
-	cmosf = fopen(fn, "rb");
-	if (cmosf)
+	loaded = cmos_read_file(fn);
+	if (loaded && cmos_ram_has_persistent_state())
 	{
-		fread(cmos.ram, 256, 1, cmosf);
-		fclose(cmosf);
 		LOG_CMOS("Read CMOS contents from %s\n", fn);
 	}
 	else
 	{
-		LOG_CMOS("%s doesn't exist; resetting CMOS\n", fn);
+		if (loaded)
+			LOG_CMOS("%s is effectively empty; restoring bundled defaults\n", fn);
+		else
+			LOG_CMOS("%s doesn't exist; restoring bundled defaults\n", fn);
+
 		snprintf(cmos_name, sizeof(cmos_name), "cmos/%s/cmos.bin", config_get_cmos_name(romset, fdctype));
 		platform_path_join_resource(fallback_fn, cmos_name, sizeof(fallback_fn));
 
-		cmosf = fopen(fallback_fn, "rb");
-		if (cmosf)
+		if (cmos_read_file(fallback_fn))
 		{
-			fread(cmos.ram, 256, 1, cmosf);
-			fclose(cmosf);
+			LOG_CMOS("Read CMOS defaults from %s\n", fallback_fn);
+			cmos_changed = CMOS_CHANGE_DELAY;
 		}
 		else
+		{
+			LOG_CMOS("%s doesn't exist; zeroing CMOS\n", fallback_fn);
 			memset(cmos.ram, 0, 256);
+		}
 	}
 	cmos_get_time();
 }

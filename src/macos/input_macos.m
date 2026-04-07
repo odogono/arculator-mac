@@ -71,10 +71,12 @@ static void warp_cursor_to_capture_center(void)
 
 static int capture_key_state_for_code(int code)
 {
-	if (code < 0 || code >= MACOS_VK_MAX)
+	int raw_code = KEYCODE_MACOS_TO_RAW(code);
+
+	if (raw_code < 0 || raw_code >= MACOS_VK_MAX)
 		return 0;
 
-	return CGEventSourceKeyState(kCGEventSourceStateHIDSystemState, (CGKeyCode)code) ? 1 : 0;
+	return CGEventSourceKeyState(kCGEventSourceStateHIDSystemState, (CGKeyCode)raw_code) ? 1 : 0;
 }
 
 static void capture_host_keys(int *state_copy)
@@ -257,7 +259,6 @@ void input_capture_host_snapshot(void)
 		else
 		{
 			CGGetLastMouseDelta(&delta_x, &delta_y);
-			delta_y = -delta_y;
 		}
 	}
 

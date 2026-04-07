@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.5 (unreleased)
+
+- macOS: Replace wxWidgets-based config dialog with native SwiftUI UI (MainSplitViewController, SidebarView, ConfigEditorView, etc.)
+- macOS: Add machine preset system with Swift bridge (MachinePresets.swift, MachinePresetBridge.mm)
+- macOS: Add macOS keycode bias mechanism for virtual key code handling
+- macOS: Improve CMOS loading to restore bundled defaults when saved state is empty
+- macOS: Add video view management API (arc_set_video_view, arc_get_video_view)
+- macOS: Add UI test target (ArculatorUITests)
+- macOS: Add subtitle support in window title bar
+- macOS: Generate Xcode project with Swift support, bridging header, and SwiftUI framework
+- macOS: Remove legacy config_macos.mm in favor of SwiftUI implementation
+
 ## v2.4 (unreleased)
 
 - core: Add emulation control command queue for thread-safe command handling
@@ -16,15 +28,6 @@
 - docs: Add PHASE0_INVENTORY.md and PORTING_PLAN.md documentation
 
 ## v2.3 (unreleased)
-
-- build: Update .gitignore to ignore autotools-generated files
-- build: macOS build fixes
-- build: Update AC_PREREQ to 2.73
-- build: Remove autotools-generated files from repository (Makefile, configure, etc.)
-
-- macOS: Fix mouse release binding on macOS
-
-## v2.2 (2023-06-24)
 
 - Fix append_filename() to work reliably
 - Use SDL_CFLAGS rather than substituting result from sdl2-config --cflags
