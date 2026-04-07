@@ -1,10 +1,10 @@
 /*
- * Snapshot loader: runtime bundle preparation and per-subsystem state
- * dispatch.
+ * Snapshot session: save orchestration, runtime bundle preparation,
+ * and per-subsystem state dispatch on load.
  *
  * Kept separate from snapshot.c so the standalone format tests don't
  * have to link against config / platform_paths / per-subsystem
- * load_state symbols.
+ * save_state / load_state symbols.
  */
 
 #include "snapshot.h"
@@ -26,6 +26,7 @@
 #include "arc.h"
 #include "arm.h"
 #include "config.h"
+#include "disc.h"
 #include "platform_paths.h"
 #include "timer.h"
 
@@ -377,4 +378,318 @@ int snapshot_apply_machine_state(snapshot_load_ctx_t *ctx,
 	}
 
 	return 1;
+}
+
+/* ----- snapshot_save -------------------------------------------------- *
+ *
+ * Orchestrates writing the full .arcsnap file. Runs on the emulation
+ * thread while paused, so the machine state is quiescent and safe to
+ * read directly. Order matches the fixed save order documented in the
+ * implementation plan; the reader tolerates order and skips unknown
+ * chunks, but keeping save order stable helps diffing and debugging.
+ */
+
+static int read_file_contents(const char *path, uint8_t **out_buf,
+                              size_t *out_size, char *err, size_t err_size)
+{
+	FILE *fp;
+	long size_long;
+	size_t size;
+	uint8_t *buf;
+
+	*out_buf = NULL;
+	*out_size = 0;
+
+	fp = fopen(path, "rb");
+	if (!fp)
+	{
+		set_errorf(err, err_size,
+		           "cannot open '%s': %s", path, strerror(errno));
+		return 0;
+	}
+	if (fseek(fp, 0, SEEK_END) != 0)
+	{
+		fclose(fp);
+		set_errorf(err, err_size, "cannot seek '%s'", path);
+		return 0;
+	}
+	size_long = ftell(fp);
+	if (size_long < 0)
+	{
+		fclose(fp);
+		set_errorf(err, err_size, "cannot size '%s'", path);
+		return 0;
+	}
+	rewind(fp);
+
+	size = (size_t)size_long;
+	buf = (uint8_t *)malloc(size ? size : 1);
+	if (!buf)
+	{
+		fclose(fp);
+		set_error(err, err_size, "out of memory");
+		return 0;
+	}
+	if (size && fread(buf, 1, size, fp) != size)
+	{
+		free(buf);
+		fclose(fp);
+		set_errorf(err, err_size, "read of '%s' failed", path);
+		return 0;
+	}
+	fclose(fp);
+
+	*out_buf = buf;
+	*out_size = size;
+	return 1;
+}
+
+/* Copies the last extension of `path` (without the dot) into `dest`.
+ * Writes an empty string if no extension is found. */
+static void extract_extension(const char *path, char *dest, size_t dest_size)
+{
+	const char *slash, *dot;
+
+	if (!dest || !dest_size)
+		return;
+	dest[0] = 0;
+	if (!path)
+		return;
+
+	slash = strrchr(path, '/');
+	dot = strrchr(path, '.');
+	if (!dot || (slash && dot < slash))
+		return;
+	snprintf(dest, dest_size, "%s", dot + 1);
+}
+
+static int write_meda_chunk(snapshot_writer_t *w, int drive,
+                            const uint8_t *bytes, size_t size)
+{
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_MEDA, 1u))
+		return 0;
+	snapshot_writer_append_i32(w, (int32_t)drive);
+	if (size)
+		snapshot_writer_append(w, bytes, size);
+	return snapshot_writer_end_chunk(w);
+}
+
+/* Writes a chunk whose payload is a single contiguous byte buffer.
+ * On failure sets `err` to "writer failed (<label> <stage>)" and
+ * returns 0. */
+static int write_data_chunk(snapshot_writer_t *w, uint32_t tag,
+                            const uint8_t *bytes, size_t size,
+                            const char *label,
+                            char *err, size_t err_size)
+{
+	if (!snapshot_writer_begin_chunk(w, tag, 1u))
+	{
+		set_errorf(err, err_size, "writer failed (%s begin)", label);
+		return 0;
+	}
+	if (size && !snapshot_writer_append(w, bytes, size))
+	{
+		set_errorf(err, err_size, "writer failed (%s payload)", label);
+		return 0;
+	}
+	if (!snapshot_writer_end_chunk(w))
+	{
+		set_errorf(err, err_size, "writer failed (%s end)", label);
+		return 0;
+	}
+	return 1;
+}
+
+static int save_subsystem_chunks(snapshot_writer_t *w)
+{
+	if (!arm_save_state(w)) return 0;
+	if (arm_has_cp15 && !cp15_save_state(w)) return 0;
+	if (fpaena && !fpa_save_state(w)) return 0;
+	if (!mem_save_state(w)) return 0;
+	if (!memc_save_state(w)) return 0;
+	if (!ioc_save_state(w)) return 0;
+	if (!vidc_save_state(w)) return 0;
+	if (!keyboard_save_state(w)) return 0;
+	if (!cmos_save_state(w)) return 0;
+	if (!ds2401_save_state(w)) return 0;
+	if (!sound_save_state(w)) return 0;
+	if (!ioeb_save_state(w)) return 0;
+	if (machine_type == MACHINE_TYPE_A4 && !lc_save_state(w)) return 0;
+	if (fdctype != FDC_82C711)
+	{
+		if (!wd1770_save_state(w)) return 0;
+	}
+	else
+	{
+		if (!c82c711_fdc_save_state(w)) return 0;
+	}
+	if (!disc_save_state(w)) return 0;
+	if (!timer_save_global(w)) return 0;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_END, 1u)) return 0;
+	if (!snapshot_writer_end_chunk(w)) return 0;
+	return 1;
+}
+
+static void fill_manifest(arcsnap_manifest_t *m,
+                          const uint8_t *preview_png, size_t preview_png_size,
+                          int preview_w, int preview_h)
+{
+	int i;
+
+	memset(m, 0, sizeof(*m));
+	m->version = ARCSNAP_MNFT_VERSION;
+
+	snprintf(m->original_config_name, sizeof(m->original_config_name),
+	         "%s", machine_config_name);
+	snprintf(m->machine, sizeof(m->machine), "%s", machine);
+	m->fdctype      = fdctype;
+	m->romset       = romset;
+	m->memsize      = memsize;
+	m->machine_type = machine_type;
+
+	if (arm_has_cp15) m->scope_flags |= ARCSNAP_SCOPE_HAS_CP15;
+	if (fpaena)       m->scope_flags |= ARCSNAP_SCOPE_HAS_FPA;
+	m->scope_flags |= ARCSNAP_SCOPE_HAS_IOEB;
+	if (machine_type == MACHINE_TYPE_A4)
+		m->scope_flags |= ARCSNAP_SCOPE_HAS_LC;
+	if (preview_png && preview_png_size)
+	{
+		m->scope_flags |= ARCSNAP_SCOPE_HAS_PREV;
+		m->preview_width  = preview_w;
+		m->preview_height = preview_h;
+	}
+
+	m->floppy_count = 0;
+	for (i = 0; i < 4 && m->floppy_count < ARCSNAP_MNFT_MAX_FLOPPIES; i++)
+	{
+		arcsnap_manifest_floppy_t *f;
+		struct stat st;
+
+		if (!discname[i][0])
+			continue;
+
+		f = &m->floppies[m->floppy_count++];
+		f->drive_index = i;
+		snprintf(f->original_path, sizeof(f->original_path),
+		         "%s", discname[i]);
+		f->file_size = 0;
+		if (stat(discname[i], &st) == 0)
+			f->file_size = (uint64_t)st.st_size;
+		f->write_protect = writeprot[i];
+		extract_extension(discname[i], f->extension, sizeof(f->extension));
+	}
+}
+
+int snapshot_save(const char *path,
+                  const uint8_t *preview_png, size_t preview_png_size,
+                  int preview_w, int preview_h,
+                  char *err, size_t err_size)
+{
+	snapshot_writer_t *w = NULL;
+	arcsnap_manifest_t manifest;
+	uint8_t *cfg_bytes = NULL;
+	size_t   cfg_size  = 0;
+	int      rc        = 0;
+	int      i;
+
+	if (err && err_size)
+		err[0] = 0;
+
+	if (!path || !path[0])
+	{
+		set_error(err, err_size, "no snapshot path");
+		return 0;
+	}
+
+	/* Defensive re-check: the menu / UI guards against this already,
+	 * but by the time we get to the emulation thread the state could
+	 * have changed. */
+	if (!snapshot_can_save(err, err_size))
+		return 0;
+
+	if (!machine_config_file[0])
+	{
+		set_error(err, err_size,
+		          "no machine config file is loaded");
+		return 0;
+	}
+
+	w = snapshot_writer_create();
+	if (!w)
+	{
+		set_error(err, err_size, "out of memory");
+		return 0;
+	}
+	if (!snapshot_writer_write_header(w))
+	{
+		set_error(err, err_size, "writer failed (header)");
+		goto out;
+	}
+
+	fill_manifest(&manifest, preview_png, preview_png_size,
+	              preview_w, preview_h);
+	if (!snapshot_writer_write_manifest(w, &manifest))
+	{
+		set_error(err, err_size, "writer failed (manifest)");
+		goto out;
+	}
+
+	if (!read_file_contents(machine_config_file, &cfg_bytes, &cfg_size,
+	                        err, err_size))
+		goto out;
+	if (!write_data_chunk(w, ARCSNAP_CHUNK_CFG, cfg_bytes, cfg_size,
+	                      "CFG", err, err_size))
+		goto out;
+
+	for (i = 0; i < 4; i++)
+	{
+		uint8_t *disc_bytes = NULL;
+		size_t   disc_size  = 0;
+		int      ok;
+
+		if (!discname[i][0])
+			continue;
+		if (!read_file_contents(discname[i], &disc_bytes, &disc_size,
+		                        err, err_size))
+			goto out;
+		ok = write_meda_chunk(w, i, disc_bytes, disc_size);
+		free(disc_bytes);
+		if (!ok)
+		{
+			set_errorf(err, err_size,
+			           "writer failed (MEDA drive %d)", i);
+			goto out;
+		}
+	}
+
+	if (preview_png && preview_png_size)
+	{
+		if (!write_data_chunk(w, ARCSNAP_CHUNK_PREV,
+		                      preview_png, preview_png_size,
+		                      "PREV", err, err_size))
+			goto out;
+	}
+
+	if (!save_subsystem_chunks(w))
+	{
+		set_error(err, err_size,
+		          "writer failed (subsystem chunk; out of memory?)");
+		goto out;
+	}
+
+	if (!snapshot_writer_save_to_file(w, path))
+	{
+		set_errorf(err, err_size,
+		           "cannot write snapshot to '%s': %s",
+		           path, strerror(errno));
+		goto out;
+	}
+
+	rc = 1;
+
+out:
+	free(cfg_bytes);
+	snapshot_writer_destroy(w);
+	return rc;
 }

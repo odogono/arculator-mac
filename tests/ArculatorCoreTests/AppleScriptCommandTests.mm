@@ -215,6 +215,39 @@ static NSDictionary<NSString *, id> *UserRecordFieldsFromDescriptor(NSAppleEvent
     return gCaptureScreenshotError;
 }
 
++ (BOOL)ensureVideoViewInstalled
+{
+    return YES;
+}
+
++ (BOOL)saveSnapshotToPath:(NSString *)path error:(NSString **)error
+{
+    (void)path;
+    if (error)
+        *error = nil;
+    return NO;
+}
+
++ (BOOL)startSnapshotSessionFromPath:(NSString *)path error:(NSString **)error
+{
+    (void)path;
+    if (error)
+        *error = nil;
+    return NO;
+}
+
++ (BOOL)canSaveSnapshotWithError:(NSString **)error
+{
+    if (error)
+        *error = nil;
+    return NO;
+}
+
++ (BOOL)canSaveSnapshot
+{
+    return NO;
+}
+
 @end
 
 @implementation ConfigBridge

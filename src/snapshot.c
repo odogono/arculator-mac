@@ -936,21 +936,9 @@ int snapshot_can_save(char *err, size_t err_size)
 	return 1;
 }
 
-int snapshot_save(const char *path,
-                  const uint8_t *preview_png, size_t preview_png_size,
-                  int preview_w, int preview_h,
-                  char *err, size_t err_size)
-{
-	(void)path;
-	(void)preview_png;
-	(void)preview_png_size;
-	(void)preview_w;
-	(void)preview_h;
-	/* Phase 1 stub: per-subsystem serializers arrive in Phase 2; the
-	 * full save flow is wired up in Phases 3-5. */
-	set_error(err, err_size, "snapshot save not yet implemented");
-	return 0;
-}
+/* snapshot_save() lives in snapshot_load.c because it links against
+ * every per-subsystem `*_save_state` symbol, which the standalone
+ * format tests deliberately avoid. */
 
 snapshot_load_ctx_t *snapshot_open(const char *path, char *err, size_t err_size)
 {

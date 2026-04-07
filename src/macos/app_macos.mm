@@ -2,6 +2,9 @@
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
 
+#include <dirent.h>
+#include <errno.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -12,6 +15,10 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 extern "C"
 {
@@ -28,6 +35,7 @@ extern "C"
 #include "plat_video.h"
 #include "podules.h"
 #include "romload.h"
+#include "snapshot.h"
 #include "sound.h"
 #include "video.h"
 }
@@ -40,6 +48,8 @@ extern "C"
 enum
 {
 	MENU_FILE_RESET = 1000,
+	MENU_FILE_SAVE_SNAPSHOT,
+	MENU_FILE_LOAD_SNAPSHOT,
 	MENU_FILE_EXIT,
 	MENU_DISC_CHANGE_0,
 	MENU_DISC_CHANGE_1,
@@ -131,6 +141,17 @@ static int shell_stop_pending = 0;
 static int shell_release_shortcut_down = 0;
 static int shell_fullscreen_shortcut_down = 0;
 
+/* Snapshot session state. Populated by arc_start_snapshot_session()
+ * before the emulation thread is spawned, consumed by
+ * arc_emulation_thread() when it calls arc_init_from_snapshot(). The
+ * runtime dir / synthetic config name are retained so arc_shell_shutdown()
+ * can clean them up after the session ends. */
+static snapshot_load_ctx_t *shell_pending_snapshot_ctx = NULL;
+static char shell_snapshot_runtime_dir[512];
+static char shell_snapshot_runtime_name[64];
+static char shell_snapshot_display_name[256];
+static int  shell_snapshot_session = 0;
+
 static uint64_t monotonic_millis(void)
 {
 	struct timespec ts;
@@ -147,6 +168,17 @@ static void shell_show_alert(NSString *message_text, NSString *informative_text)
 		alert.informativeText = informative_text;
 	[alert addButtonWithTitle:@"OK"];
 	[alert runModal];
+}
+
+static void shell_apply_snapshot_panel_defaults(NSSavePanel *panel)
+{
+	panel.allowedFileTypes = @[ @"arcsnap" ];
+
+	char support_snapshots[512];
+	platform_path_snapshots_dir(support_snapshots, sizeof(support_snapshots));
+	NSString *default_dir = [NSString stringWithUTF8String:support_snapshots];
+	if (default_dir.length)
+		panel.directoryURL = [NSURL fileURLWithPath:default_dir isDirectory:YES];
 }
 
 static void shell_register_menu_item(NSInteger command_id, NSMenuItem *item)
@@ -196,6 +228,9 @@ static NSMenu *shell_create_file_menu(void)
 	NSMenu *menu = [[NSMenu alloc] initWithTitle:@"File"];
 
 	shell_add_item(menu, @"Hard Reset", MENU_FILE_RESET, @selector(handleMenuCommand:));
+	[menu addItem:[NSMenuItem separatorItem]];
+	shell_add_item(menu, @"Save Snapshot\u2026", MENU_FILE_SAVE_SNAPSHOT, @selector(handleMenuCommand:));
+	shell_add_item(menu, @"Load Snapshot\u2026", MENU_FILE_LOAD_SNAPSHOT, @selector(handleMenuCommand:));
 	[menu addItem:[NSMenuItem separatorItem]];
 	shell_add_item(menu, @"Exit", MENU_FILE_EXIT, @selector(handleMenuCommand:));
 	return menu;
@@ -422,6 +457,12 @@ static void shell_update_menu_state(void)
 	shell_set_menu_state(MENU_SOUND_GAIN_9, sound_gain == 18 ? NSControlStateValueOn : NSControlStateValueOff);
 
 	shell_set_menu_state(MENU_DEBUGGER_ENABLE, debug ? NSControlStateValueOn : NSControlStateValueOff);
+
+	{
+		BOOL can_save = (shell_session_active && arc_is_paused() && snapshot_can_save(NULL, 0));
+		shell_set_menu_enabled(MENU_FILE_SAVE_SNAPSHOT, can_save);
+		shell_set_menu_enabled(MENU_FILE_LOAD_SNAPSHOT, !shell_session_active);
+	}
 }
 
 static void shell_create_menus(void)
@@ -478,8 +519,12 @@ static void shell_set_window_title(void)
 	if (!shell_window || fullscreen)
 		return;
 
+	const char *display_name = arc_snapshot_session_display_name();
+	if (!display_name || !display_name[0])
+		display_name = machine_config_name;
+
 	char subtitle[120];
-	snprintf(subtitle, sizeof(subtitle), "%s - %i%% - %s", machine_config_name, inssec,
+	snprintf(subtitle, sizeof(subtitle), "%s - %i%% - %s", display_name, inssec,
 		 mousecapture ? "Press CMD-BACKSPACE to release mouse" : "Click to capture mouse");
 	[shell_window setSubtitle:[NSString stringWithUTF8String:subtitle]];
 }
@@ -566,23 +611,51 @@ static void emulation_execute_command(const emulation_command_t *command)
 		dblscan = command->value;
 		clearbitmap();
 		break;
+
+		case EMU_COMMAND_SAVE_SNAPSHOT:
+		{
+			char err[256];
+			err[0] = 0;
+			rpclog("arc_save_snapshot: path=%s\n", command->path);
+			if (!snapshot_save(command->path, NULL, 0, 0, 0, err, sizeof(err)))
+			{
+				arc_print_error("Failed to save snapshot: %s",
+						err[0] ? err : "unknown error");
+			}
+		}
+		break;
 	}
 }
 
 static void *arc_emulation_thread(void *context)
 {
 	int initialized = 0;
+	int init_rc = 0;
 	struct timeval tp;
 	time_t last_seconds = 0;
 	uint64_t last_timer_ticks = 0;
 	int timer_offset = 0;
+	snapshot_load_ctx_t *snapshot_ctx = NULL;
 
 	(void)context;
 	rpclog("Arculator startup\n");
 
-	if (arc_init())
+	pthread_mutex_lock(&shell_mutex);
+	snapshot_ctx = shell_pending_snapshot_ctx;
+	shell_pending_snapshot_ctx = NULL;
+	pthread_mutex_unlock(&shell_mutex);
+
+	if (snapshot_ctx)
+		init_rc = arc_init_from_snapshot(snapshot_ctx);
+	else
+		init_rc = arc_init();
+
+	if (init_rc)
 	{
-		arc_print_error("Configured ROM set is not available.\nConfiguration could not be run.");
+		if (snapshot_ctx)
+			arc_print_error("Failed to restore snapshot.\nThe session could not be started.");
+		else
+			arc_print_error("Configured ROM set is not available.\nConfiguration could not be run.");
 		arc_stop_emulation();
 
 		pthread_mutex_lock(&shell_mutex);
@@ -659,6 +732,74 @@ static int arc_shell_init(void)
 	return 1;
 }
 
+static void shell_snapshot_session_cleanup(void)
+{
+	if (!shell_snapshot_session)
+		return;
+
+	/* Delete the per-snapshot CMOS file (written by cmos_save() under
+	 * the synthetic config name). Best-effort — any error here is
+	 * cosmetic. */
+	if (shell_snapshot_runtime_name[0])
+	{
+		char pattern[PATH_MAX];
+		DIR *dir;
+		char cmos_dir[PATH_MAX];
+
+		platform_path_join_support(cmos_dir, "cmos", sizeof(cmos_dir));
+		dir = opendir(cmos_dir);
+		if (dir)
+		{
+			struct dirent *entry;
+			size_t prefix_len = strlen(shell_snapshot_runtime_name);
+
+			while ((entry = readdir(dir)) != NULL)
+			{
+				if (!strncmp(entry->d_name, shell_snapshot_runtime_name, prefix_len))
+				{
+					snprintf(pattern, sizeof(pattern),
+					         "%s/%s", cmos_dir, entry->d_name);
+					if (remove(pattern) != 0)
+						rpclog("snapshot cleanup: failed to remove %s: %s\n",
+						       pattern, strerror(errno));
+				}
+			}
+			closedir(dir);
+		}
+	}
+
+	/* Remove the per-snapshot runtime directory contents. Best-effort. */
+	if (shell_snapshot_runtime_dir[0])
+	{
+		DIR *dir = opendir(shell_snapshot_runtime_dir);
+		if (dir)
+		{
+			struct dirent *entry;
+			char path[PATH_MAX];
+
+			while ((entry = readdir(dir)) != NULL)
+			{
+				if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+					continue;
+				snprintf(path, sizeof(path), "%s/%s",
+				         shell_snapshot_runtime_dir, entry->d_name);
+				if (remove(path) != 0)
+					rpclog("snapshot cleanup: failed to remove %s: %s\n",
+					       path, strerror(errno));
+			}
+			closedir(dir);
+			if (rmdir(shell_snapshot_runtime_dir) != 0)
+				rpclog("snapshot cleanup: failed to rmdir %s: %s\n",
+				       shell_snapshot_runtime_dir, strerror(errno));
+		}
+	}
+
+	shell_snapshot_runtime_dir[0] = 0;
+	shell_snapshot_runtime_name[0] = 0;
+	shell_snapshot_display_name[0] = 0;
+	shell_snapshot_session = 0;
+}
+
 static void arc_shell_shutdown(void)
 {
 	/*Tell the renderer to bail out of present/update immediately so
@@ -681,6 +822,8 @@ static void arc_shell_shutdown(void)
 	video_renderer_close();
 	shell_video_view = nil;
 	shell_session_active = 0;
+
+	shell_snapshot_session_cleanup();
 }
 
 static void shell_prompt_restart_or_quit(void)
@@ -771,6 +914,61 @@ static void shell_request_app_termination(void)
 
 		case MENU_FILE_RESET:
 		arc_do_reset();
+		break;
+
+		case MENU_FILE_SAVE_SNAPSHOT:
+		{
+			NSString *save_error = nil;
+			if (![EmulatorBridge canSaveSnapshotWithError:&save_error])
+			{
+				shell_show_alert(@"Cannot Save Snapshot",
+						 save_error ?: @"Snapshots require a paused floppy-only session.");
+				break;
+			}
+
+			NSSavePanel *panel = [NSSavePanel savePanel];
+			panel.nameFieldStringValue = @"snapshot.arcsnap";
+			shell_apply_snapshot_panel_defaults(panel);
+
+			if ([panel runModal] != NSModalResponseOK)
+				break;
+			NSString *path = panel.URL.path;
+			if (!path.length)
+				break;
+
+			NSString *queue_error = nil;
+			if (![EmulatorBridge saveSnapshotToPath:path error:&queue_error])
+			{
+				shell_show_alert(@"Cannot Save Snapshot",
+						 queue_error ?: @"Failed to queue snapshot save.");
+			}
+		}
+		break;
+
+		case MENU_FILE_LOAD_SNAPSHOT:
+		{
+			if (shell_session_active)
+				break;
+
+			NSOpenPanel *panel = [NSOpenPanel openPanel];
+			panel.canChooseDirectories = NO;
+			panel.canChooseFiles = YES;
+			panel.allowsMultipleSelection = NO;
+			shell_apply_snapshot_panel_defaults(panel);
+
+			if ([panel runModal] != NSModalResponseOK)
+				break;
+			NSString *path = panel.URL.path;
+			if (!path.length)
+				break;
+
+			NSString *start_error = nil;
+			if (![EmulatorBridge startSnapshotSessionFromPath:path error:&start_error])
+			{
+				shell_show_alert(@"Cannot Load Snapshot",
+						 start_error ?: @"Failed to start snapshot session.");
+			}
+		}
 		break;
 
 		case MENU_DISC_CHANGE_0:
@@ -1263,6 +1461,94 @@ int arc_is_session_active(void)
 int arc_is_paused(void)
 {
 	return pause_main_thread;
+}
+
+void arc_save_snapshot(const char *path)
+{
+	emulation_command_t command;
+
+	if (!path || !path[0])
+		return;
+
+	memset(&command, 0, sizeof(command));
+	command.type = EMU_COMMAND_SAVE_SNAPSHOT;
+	strncpy(command.path, path, sizeof(command.path) - 1);
+	emulation_queue_command(&command);
+}
+
+int arc_start_snapshot_session(const char *path, char *err_out, size_t n)
+{
+	snapshot_load_ctx_t *ctx;
+	char runtime_config[PATH_MAX];
+	const char *original_name;
+
+	if (err_out && n)
+		err_out[0] = 0;
+
+	if (shell_session_active)
+	{
+		if (err_out && n)
+			snprintf(err_out, n,
+			         "cannot load snapshot while an emulation session is active");
+		return 0;
+	}
+
+	/* Check up-front that a video view is (or can be made) available.
+	 * Doing this before snapshot_prepare_runtime() keeps the error
+	 * path simple — no filesystem state has been committed yet. */
+	if (![EmulatorBridge ensureVideoViewInstalled])
+	{
+		NSString *last = [EmulatorBridge lastStartError];
+		if (err_out && n)
+			snprintf(err_out, n, "%s",
+			         last ? [last UTF8String] : "emulator view not available");
+		return 0;
+	}
+
+	ctx = snapshot_open(path, err_out, n);
+	if (!ctx)
+		return 0;
+
+	if (!snapshot_prepare_runtime(ctx,
+	                              shell_snapshot_runtime_dir,
+	                              sizeof(shell_snapshot_runtime_dir),
+	                              runtime_config, sizeof(runtime_config),
+	                              shell_snapshot_runtime_name,
+	                              sizeof(shell_snapshot_runtime_name),
+	                              err_out, n))
+	{
+		snapshot_close(ctx);
+		shell_snapshot_runtime_dir[0] = 0;
+		shell_snapshot_runtime_name[0] = 0;
+		return 0;
+	}
+
+	original_name = snapshot_original_config_name(ctx);
+	snprintf(shell_snapshot_display_name,
+	         sizeof(shell_snapshot_display_name),
+	         "%s", original_name ? original_name : "");
+	shell_snapshot_session = 1;
+
+	strncpy(machine_config_file, runtime_config,
+	        sizeof(machine_config_file) - 1);
+	machine_config_file[sizeof(machine_config_file) - 1] = 0;
+	strncpy(machine_config_name, shell_snapshot_runtime_name,
+	        sizeof(machine_config_name) - 1);
+	machine_config_name[sizeof(machine_config_name) - 1] = 0;
+
+	pthread_mutex_lock(&shell_mutex);
+	shell_pending_snapshot_ctx = ctx;
+	pthread_mutex_unlock(&shell_mutex);
+
+	arc_start_main_thread(NULL, NULL);
+	return 1;
+}
+
+const char *arc_snapshot_session_display_name(void)
+{
+	if (!shell_snapshot_session || !shell_snapshot_display_name[0])
+		return NULL;
+	return shell_snapshot_display_name;
 }
 
 void arc_set_video_view(MTKView *view)

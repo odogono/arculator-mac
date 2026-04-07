@@ -7,7 +7,8 @@ typedef enum emulation_command_type_t
 	EMU_COMMAND_DISC_CHANGE,
 	EMU_COMMAND_DISC_EJECT,
 	EMU_COMMAND_SET_DISPLAY_MODE,
-	EMU_COMMAND_SET_DBLSCAN
+	EMU_COMMAND_SET_DBLSCAN,
+	EMU_COMMAND_SAVE_SNAPSHOT
 } emulation_command_type_t;
 
 typedef struct emulation_command_t

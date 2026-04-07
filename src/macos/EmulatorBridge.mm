@@ -13,6 +13,7 @@
 extern "C" {
 #include "config.h"
 #include "platform_shell.h"
+#include "snapshot.h"
 }
 
 #import <MetalKit/MetalKit.h>
@@ -142,6 +143,88 @@ static NSString *sLastStartError = nil;
 
 + (MTKView *)videoView {
     return arc_get_video_view();
+}
+
++ (BOOL)saveSnapshotToPath:(NSString *)path error:(NSString **)error
+{
+    if (error)
+        *error = nil;
+    if (path.length == 0)
+    {
+        if (error)
+            *error = @"No snapshot path";
+        return NO;
+    }
+    if (!arc_is_session_active())
+    {
+        if (error)
+            *error = @"No active emulation session";
+        return NO;
+    }
+    if (!arc_is_paused())
+    {
+        if (error)
+            *error = @"Pause emulation before saving a snapshot";
+        return NO;
+    }
+
+    char err_buf[256];
+    if (!snapshot_can_save(err_buf, sizeof(err_buf)))
+    {
+        if (error)
+            *error = [NSString stringWithUTF8String:err_buf];
+        return NO;
+    }
+
+    arc_save_snapshot([path fileSystemRepresentation]);
+    return YES;
+}
+
++ (BOOL)startSnapshotSessionFromPath:(NSString *)path error:(NSString **)error
+{
+    if (error)
+        *error = nil;
+    if (path.length == 0)
+    {
+        if (error)
+            *error = @"No snapshot path";
+        return NO;
+    }
+
+    char err_buf[512];
+    err_buf[0] = 0;
+    if (!arc_start_snapshot_session([path fileSystemRepresentation],
+                                    err_buf, sizeof(err_buf)))
+    {
+        if (error)
+        {
+            *error = err_buf[0]
+                ? [NSString stringWithUTF8String:err_buf]
+                : @"Failed to start snapshot session";
+        }
+        return NO;
+    }
+    return YES;
+}
+
++ (BOOL)canSaveSnapshotWithError:(NSString **)error
+{
+    if (error)
+        *error = nil;
+
+    char err_buf[256];
+    if (!snapshot_can_save(err_buf, sizeof(err_buf)))
+    {
+        if (error)
+            *error = [NSString stringWithUTF8String:err_buf];
+        return NO;
+    }
+    return YES;
+}
+
++ (BOOL)canSaveSnapshot
+{
+    return snapshot_can_save(NULL, 0) != 0;
 }
 
 + (NSString *)captureScreenshotToPath:(NSString *)path
