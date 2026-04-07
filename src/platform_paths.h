@@ -19,6 +19,8 @@ void platform_path_drives_dir(char *dest, size_t size);
 void platform_path_hostfs_dir(char *dest, size_t size);
 void platform_path_podules_user_dir(char *dest, size_t size);
 void platform_path_podules_bundle_dir(char *dest, size_t size);
+void platform_path_snapshots_dir(char *dest, size_t size);
+void platform_path_snapshot_runtime_dir(char *dest, size_t size, const char *id);
 
 int platform_path_find_rom_path(char *dest, const char *relative, size_t size);
 

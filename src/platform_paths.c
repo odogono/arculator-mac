@@ -275,6 +275,10 @@ void platform_paths_init(const char *argv0)
 	ensure_dir_recursive(path);
 	join_path(path, sizeof(path), support_root, "roms");
 	ensure_dir_recursive(path);
+	join_path(path, sizeof(path), support_root, "snapshots");
+	ensure_dir_recursive(path);
+	join_path(path, sizeof(path), support_root, "snapshots/runtime");
+	ensure_dir_recursive(path);
 #endif
 
 	paths_initialized = 1;
@@ -349,6 +353,27 @@ void platform_path_podules_user_dir(char *dest, size_t size)
 void platform_path_podules_bundle_dir(char *dest, size_t size)
 {
 	platform_path_join_resource(dest, "podules", size);
+}
+
+void platform_path_snapshots_dir(char *dest, size_t size)
+{
+	platform_path_join_support(dest, "snapshots", size);
+}
+
+void platform_path_snapshot_runtime_dir(char *dest, size_t size, const char *id)
+{
+	char relative[PATH_MAX];
+
+	if (!dest || !size)
+		return;
+
+	if (id && id[0])
+		snprintf(relative, sizeof(relative), "snapshots/runtime/%s", id);
+	else
+		snprintf(relative, sizeof(relative), "snapshots/runtime");
+
+	platform_path_join_support(dest, relative, size);
+	ensure_dir_recursive(dest);
 }
 
 int platform_path_find_rom_path(char *dest, const char *relative, size_t size)
