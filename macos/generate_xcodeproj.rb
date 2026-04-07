@@ -7,7 +7,7 @@ gem "xcodeproj", ">= 1.21.0"
 require "xcodeproj"
 
 PROJECT_NAME = "Arculator"
-PROJECT_PATH = "#{PROJECT_NAME}.xcodeproj"
+PROJECT_PATH = File.join("macos", "#{PROJECT_NAME}.xcodeproj")
 
 SOURCE_FILES = %w[
   src/82c711.c
@@ -182,16 +182,39 @@ FileUtils.rm_rf(PROJECT_PATH)
 project = Xcodeproj::Project.new(PROJECT_PATH)
 project.root_object.attributes["LastUpgradeCheck"] = "2600"
 project.root_object.attributes["BuildIndependentTargetsInParallel"] = "1"
-project.root_object.project_dir_path = ""
+project.root_object.project_dir_path = ".."
 
 target = project.new_target(:application, PROJECT_NAME, :osx, "13.0")
 target.product_reference.name = "#{PROJECT_NAME}.app"
 target.product_reference.path = "#{PROJECT_NAME}.app"
 
 project.build_configurations.each do |config|
-  config.build_settings["CLANG_ENABLE_MODULES"] = "NO"
-  config.build_settings["MACOSX_DEPLOYMENT_TARGET"] = "13.0"
-  config.build_settings["SDKROOT"] = "macosx"
+  settings = config.build_settings
+  settings["CLANG_ENABLE_MODULES"] = "NO"
+  settings["MACOSX_DEPLOYMENT_TARGET"] = "13.0"
+  settings["SDKROOT"] = "macosx"
+  settings["SWIFT_VERSION"] = "5.0"
+
+  if config.name == "Debug"
+    settings["DEBUG_INFORMATION_FORMAT"] = "dwarf"
+    settings["ENABLE_TESTABILITY"] = "YES"
+    settings["GCC_DYNAMIC_NO_PIC"] = "NO"
+    settings["GCC_OPTIMIZATION_LEVEL"] = "0"
+    settings["GCC_PREPROCESSOR_DEFINITIONS"] = [
+      "DEBUG=1",
+      "$(inherited)"
+    ]
+    settings["MTL_ENABLE_DEBUG_INFO"] = "INCLUDE_SOURCE"
+    settings["ONLY_ACTIVE_ARCH"] = "YES"
+    settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "DEBUG"
+    settings["SWIFT_OPTIMIZATION_LEVEL"] = "-Onone"
+  else
+    settings["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
+    settings["ENABLE_NS_ASSERTIONS"] = "NO"
+    settings["MTL_ENABLE_DEBUG_INFO"] = "NO"
+    settings["SWIFT_COMPILATION_MODE"] = "wholemodule"
+    settings["SWIFT_OPTIMIZATION_LEVEL"] = "-O"
+  end
 end
 
 main_group = project.main_group
@@ -410,3 +433,9 @@ if core_test_target
 end
 
 scheme.save_as(project.path, PROJECT_NAME, true)
+
+# Disambiguate the nested project from any stale root-level Arculator.xcodeproj.
+scheme_path = File.join(PROJECT_PATH, "xcshareddata", "xcschemes", "#{PROJECT_NAME}.xcscheme")
+scheme_xml = File.read(scheme_path)
+scheme_xml.gsub!("container:#{File.basename(PROJECT_PATH)}", "container:#{PROJECT_PATH}")
+File.write(scheme_path, scheme_xml)

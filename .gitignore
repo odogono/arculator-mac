@@ -67,15 +67,8 @@ podules/*/src/*.la
 podules/*/src/*.o
 
 # Xcode
-*.xcodeproj/project.xcworkspace/
-xcuserdata/
-*.xcuserstate
-DerivedData/
-build/
-*.pbxuser
-*.mode1v3
-*.mode2v3
-*.perspectivev3
+macos/Arculator.xcodeproj/
+
 
 # Mac build script (generated/customized locally)
 mac-install.sh
