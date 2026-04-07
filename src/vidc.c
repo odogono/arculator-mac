@@ -17,6 +17,9 @@
 #include "mem.h"
 #include "memc.h"
 #include "platform_shell.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "sound.h"
 #include "timer.h"
 #include "vidc.h"
@@ -1439,4 +1442,283 @@ void vidc_debug_print(char *s)
 		   stereo_images[stereoimages[2]], stereo_images[stereoimages[3]],
 		   stereo_images[stereoimages[4]], stereo_images[stereoimages[5]],
 		   stereo_images[stereoimages[6]], stereo_images[stereoimages[7]]);
+}
+
+/* ----- Snapshot save/load -------------------------------------------- *
+ *
+ * vidcr[64] is the on-the-wire register file. The pal[]/pal8[] and
+ * vidlookup[] arrays are derived state and get rebuilt by
+ * vidc_redopalette() / redolookup() during the load. The line callback
+ * timer is restored via timer_restore().
+ */
+
+#define VIDC_STATE_VERSION 1u
+
+int vidc_save_state(snapshot_writer_t *w)
+{
+	int i;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_VIDC, VIDC_STATE_VERSION))
+		return 0;
+
+	/* Register cache */
+	for (i = 0; i < 64; i++)
+		if (!snapshot_writer_append_u32(w, vidcr[i])) goto fail;
+
+	/* Top-level VIDC outputs that are reachable from outside the file */
+	if (!snapshot_writer_append_i32(w, vidc_dma_length))   goto fail;
+	if (!snapshot_writer_append_i32(w, vidc_framecount))   goto fail;
+	if (!snapshot_writer_append_i32(w, vidc_displayon))    goto fail;
+	if (!snapshot_writer_append_i32(w, soundhz))           goto fail;
+	if (!snapshot_writer_append_i32(w, soundper))          goto fail;
+	if (!snapshot_writer_append_i32(w, flyback))           goto fail;
+	if (!snapshot_writer_append_i32(w, videodma))          goto fail;
+	if (!snapshot_writer_append_i32(w, palchange))         goto fail;
+	if (!snapshot_writer_append_i32(w, redrawpalette))     goto fail;
+	if (!snapshot_writer_append_i32(w, oldflash))          goto fail;
+
+	/* The static vidc struct: timing/DMA/state-machine fields */
+	if (!snapshot_writer_append_u32(w, vidc.vtot))             goto fail;
+	if (!snapshot_writer_append_u32(w, vidc.htot))             goto fail;
+	if (!snapshot_writer_append_u32(w, vidc.vsync))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.line))             goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.displayon))        goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.borderon))         goto fail;
+	if (!snapshot_writer_append_u32(w, vidc.addr))             goto fail;
+	if (!snapshot_writer_append_u32(w, vidc.caddr))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.vbstart))          goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.vbend))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.vdstart))          goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.vdend))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.hbstart))          goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.hbend))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.hdstart))          goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.hdend))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.hdstart2))         goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.hdend2))           goto fail;
+	if (!snapshot_writer_append_u32(w, vidc.cr))               goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.sync))             goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.inter))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.horiz_length))     goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.hsync_length))     goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.front_porch_length)) goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.display_length))   goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.back_porch_length)) goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.state))            goto fail;
+	if (!snapshot_writer_append_u64(w, vidc.pixel_time))       goto fail;
+	if (!snapshot_writer_append_u64(w, vidc.fetch_time))       goto fail;
+	if (!snapshot_writer_append_u64(w, vidc.initial_fetch_time)) goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.cursor_lines))     goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.first_line))       goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.cx))               goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.cys))              goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.cye))              goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.cxh))              goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.scanrate))         goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.in_display))       goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.cyclesperline_display))  goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.cyclesperline_blanking)) goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.cycles_per_fetch)) goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.fetch_count))      goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.clear_pending))    goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.clock))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.disp_len))         goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.disp_rate))        goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.disp_count))       goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.disp_y_min))       goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.disp_y_max))       goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.y_min))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.y_max))            goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.border_was_disabled))  goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.display_was_disabled)) goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.output_enable))    goto fail;
+
+	/* Embedded line timer */
+	if (!snapshot_writer_append_u32(w, vidc.timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, vidc.timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, vidc.timer.enabled))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int vidc_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int i;
+	uint32_t loaded_vidcr[64];
+	int32_t  loaded_dma_length, loaded_framecount, loaded_displayon_top;
+	int32_t  loaded_soundhz, loaded_soundper, loaded_flyback, loaded_videodma;
+	int32_t  loaded_palchange, loaded_redrawpalette, loaded_oldflash;
+	uint32_t loaded_vtot, loaded_htot, loaded_vsync, loaded_addr, loaded_caddr, loaded_cr;
+	int32_t  loaded_line, loaded_displayon_inner, loaded_borderon;
+	int32_t  loaded_vbstart, loaded_vbend, loaded_vdstart, loaded_vdend;
+	int32_t  loaded_hbstart, loaded_hbend, loaded_hdstart, loaded_hdend;
+	int32_t  loaded_hdstart2, loaded_hdend2, loaded_sync, loaded_inter;
+	int32_t  loaded_horiz_length, loaded_hsync_length, loaded_front_porch_length;
+	int32_t  loaded_display_length, loaded_back_porch_length, loaded_state;
+	uint64_t loaded_pixel_time, loaded_fetch_time, loaded_initial_fetch_time;
+	int32_t  loaded_cursor_lines, loaded_first_line;
+	int32_t  loaded_cx, loaded_cys, loaded_cye, loaded_cxh, loaded_scanrate;
+	int32_t  loaded_in_display, loaded_cyclesperline_display, loaded_cyclesperline_blanking;
+	int32_t  loaded_cycles_per_fetch, loaded_fetch_count, loaded_clear_pending;
+	int32_t  loaded_clock, loaded_disp_len, loaded_disp_rate, loaded_disp_count;
+	int32_t  loaded_disp_y_min, loaded_disp_y_max, loaded_y_min, loaded_y_max;
+	int32_t  loaded_border_was_disabled, loaded_display_was_disabled, loaded_output_enable;
+	uint32_t loaded_timer_ts_int, loaded_timer_ts_frac;
+	int32_t  loaded_timer_enabled;
+
+	(void)version;
+
+	for (i = 0; i < 64; i++)
+		if (!snapshot_payload_reader_read_u32(r, &loaded_vidcr[i])) return 0;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_dma_length))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_framecount))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_displayon_top))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_soundhz))         return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_soundper))        return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_flyback))         return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_videodma))        return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_palchange))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_redrawpalette))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_oldflash))        return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &loaded_vtot))   return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_htot))   return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_vsync))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_line))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_displayon_inner)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_borderon)) return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_addr))   return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_caddr))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_vbstart)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_vbend))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_vdstart)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_vdend))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_hbstart)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_hbend))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_hdstart)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_hdend))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_hdstart2)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_hdend2))   return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_cr))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_sync))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_inter))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_horiz_length))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_hsync_length))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_front_porch_length)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_display_length))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_back_porch_length)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_state))   return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_pixel_time))         return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_fetch_time))         return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_initial_fetch_time)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cursor_lines)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_first_line))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cx))           return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cys))          return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cye))          return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cxh))          return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_scanrate))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_in_display))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cyclesperline_display))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cyclesperline_blanking)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cycles_per_fetch)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_fetch_count))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_clear_pending)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_clock))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_disp_len)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_disp_rate)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_disp_count)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_disp_y_min)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_disp_y_max)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_y_min))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_y_max))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_border_was_disabled)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_display_was_disabled)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_output_enable)) return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_ts_int))  return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_ts_frac)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_timer_enabled)) return 0;
+
+	for (i = 0; i < 64; i++)
+		vidcr[i] = loaded_vidcr[i];
+
+	vidc_dma_length = (int)loaded_dma_length;
+	vidc_framecount = (int)loaded_framecount;
+	vidc_displayon  = (int)loaded_displayon_top;
+	soundhz         = (int)loaded_soundhz;
+	soundper        = (int)loaded_soundper;
+	flyback         = (int)loaded_flyback;
+	videodma        = (int)loaded_videodma;
+	palchange       = (int)loaded_palchange;
+	redrawpalette   = (int)loaded_redrawpalette;
+	oldflash        = (int)loaded_oldflash;
+
+	vidc.vtot   = loaded_vtot;
+	vidc.htot   = loaded_htot;
+	vidc.vsync  = loaded_vsync;
+	vidc.line   = (int)loaded_line;
+	vidc.displayon = (int)loaded_displayon_inner;
+	vidc.borderon  = (int)loaded_borderon;
+	vidc.addr   = loaded_addr;
+	vidc.caddr  = loaded_caddr;
+	vidc.vbstart = (int)loaded_vbstart;
+	vidc.vbend   = (int)loaded_vbend;
+	vidc.vdstart = (int)loaded_vdstart;
+	vidc.vdend   = (int)loaded_vdend;
+	vidc.hbstart = (int)loaded_hbstart;
+	vidc.hbend   = (int)loaded_hbend;
+	vidc.hdstart = (int)loaded_hdstart;
+	vidc.hdend   = (int)loaded_hdend;
+	vidc.hdstart2 = (int)loaded_hdstart2;
+	vidc.hdend2   = (int)loaded_hdend2;
+	vidc.cr     = loaded_cr;
+	vidc.sync   = (int)loaded_sync;
+	vidc.inter  = (int)loaded_inter;
+	vidc.horiz_length       = (int)loaded_horiz_length;
+	vidc.hsync_length       = (int)loaded_hsync_length;
+	vidc.front_porch_length = (int)loaded_front_porch_length;
+	vidc.display_length     = (int)loaded_display_length;
+	vidc.back_porch_length  = (int)loaded_back_porch_length;
+	vidc.state              = (int)loaded_state;
+	vidc.pixel_time         = loaded_pixel_time;
+	vidc.fetch_time         = loaded_fetch_time;
+	vidc.initial_fetch_time = loaded_initial_fetch_time;
+	vidc.cursor_lines = (int)loaded_cursor_lines;
+	vidc.first_line   = (int)loaded_first_line;
+	vidc.cx  = (int)loaded_cx;
+	vidc.cys = (int)loaded_cys;
+	vidc.cye = (int)loaded_cye;
+	vidc.cxh = (int)loaded_cxh;
+	vidc.scanrate    = (int)loaded_scanrate;
+	vidc.in_display  = (int)loaded_in_display;
+	vidc.cyclesperline_display  = (int)loaded_cyclesperline_display;
+	vidc.cyclesperline_blanking = (int)loaded_cyclesperline_blanking;
+	vidc.cycles_per_fetch = (int)loaded_cycles_per_fetch;
+	vidc.fetch_count      = (int)loaded_fetch_count;
+	vidc.clear_pending    = (int)loaded_clear_pending;
+	vidc.clock     = (int)loaded_clock;
+	vidc.disp_len  = (int)loaded_disp_len;
+	vidc.disp_rate = (int)loaded_disp_rate;
+	vidc.disp_count = (int)loaded_disp_count;
+	vidc.disp_y_min = (int)loaded_disp_y_min;
+	vidc.disp_y_max = (int)loaded_disp_y_max;
+	vidc.y_min = (int)loaded_y_min;
+	vidc.y_max = (int)loaded_y_max;
+	vidc.border_was_disabled  = (int)loaded_border_was_disabled;
+	vidc.display_was_disabled = (int)loaded_display_was_disabled;
+	vidc.output_enable        = (int)loaded_output_enable;
+
+	timer_restore(&vidc.timer, loaded_timer_ts_int, loaded_timer_ts_frac, (int)loaded_timer_enabled);
+
+	/* Rebuild derived state from the freshly-restored vidcr[] */
+	vidc_redopalette();
+	redolookup();
+	setredrawall();
+
+	return 1;
 }

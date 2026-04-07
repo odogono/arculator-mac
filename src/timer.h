@@ -142,4 +142,29 @@ static inline void timer_set_p(emu_timer_t *timer, void *p)
 {
 	timer->p = p;
 }
+
+/*Restore a timer's enabled-ness and timestamp directly. Used by snapshot
+  load to overwrite an already-registered timer with previously-saved
+  state. The timer must already have been initialised with timer_add().
+  This routine cleanly removes it from the linked list (if currently
+  enabled), updates the timestamp fields, and re-inserts it (if the saved
+  state was enabled), so the linked list ordering remains correct.*/
+static inline void timer_restore(emu_timer_t *timer, uint32_t ts_int,
+                                 uint32_t ts_frac, int enabled)
+{
+	timer_disable(timer);
+	timer->ts_integer = ts_int;
+	timer->ts_frac = ts_frac;
+	if (enabled)
+		timer_enable(timer);
+}
+
+/*Snapshot helpers for the global timer state (tsc + timer_target).
+  These do not touch the per-timer linked list — that is reconstructed
+  via timer_restore() called by each subsystem's load function.*/
+struct snapshot_writer_t;
+struct snapshot_payload_reader_t;
+int  timer_save_global(struct snapshot_writer_t *w);
+int  timer_load_global(struct snapshot_payload_reader_t *r, uint32_t version);
+
 #endif /*_TIMER_H_*/

@@ -8,6 +8,9 @@
 #include "ioc.h"
 #include "memc.h"
 #include "plat_sound.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "sound.h"
 #include "timer.h"
 
@@ -283,4 +286,109 @@ void sound_init(void)
 	samp_rp = 0xff000000;
 	samp_wp = 0;
 	samp_fp = 0;
+}
+
+/* ----- Snapshot save/load -------------------------------------------- *
+ *
+ * Saves the live VIDC sound state machine and the upsampler buffer
+ * pointers. The IIR filter history lives in function-local statics
+ * inside iir_l() / iir_r() and is NOT serialised — it relaxes back
+ * within a few samples after load. Host audio buffers are never
+ * snapshotted; the next pollsound_100ms() naturally writes a fresh
+ * 50ms output buffer.
+ */
+
+#define SND_STATE_VERSION 1u
+
+int sound_save_state(snapshot_writer_t *w)
+{
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_SND, SND_STATE_VERSION))
+		return 0;
+
+	if (!snapshot_writer_append_i32(w, sample_period))    goto fail;
+	if (!snapshot_writer_append_u64(w, sample_16_time))   goto fail;
+	if (!snapshot_writer_append_u64(w, sound_timer_base_period)) goto fail;
+	if (!snapshot_writer_append_i32(w, SAMP_INC))         goto fail;
+	if (!snapshot_writer_append_u32(w, samp_rp))          goto fail;
+	if (!snapshot_writer_append_u32(w, samp_wp))          goto fail;
+	if (!snapshot_writer_append_u32(w, samp_fp))          goto fail;
+	if (!snapshot_writer_append_i32(w, sound_first_poll)) goto fail;
+	if (!snapshot_writer_append_i32(w, sound_write_ptr))  goto fail;
+	if (!snapshot_writer_append_i32(w, sound_clock_mhz))  goto fail;
+	if (!snapshot_writer_append_i32(w, sound_filter))     goto fail;
+	if (!snapshot_writer_append_i32(w, sound_gain))       goto fail;
+
+	if (!snapshot_writer_append_u32(w, sound_timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, sound_timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, sound_timer.enabled))    goto fail;
+	if (!snapshot_writer_append_u32(w, sound_timer_100ms.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, sound_timer_100ms.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, sound_timer_100ms.enabled))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int sound_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int32_t  loaded_sample_period, loaded_samp_inc, loaded_first_poll;
+	int32_t  loaded_write_ptr, loaded_clock_mhz, loaded_sound_filter, loaded_sound_gain;
+	uint64_t loaded_sample_16_time, loaded_base_period;
+	uint32_t loaded_samp_rp, loaded_samp_wp, loaded_samp_fp;
+	uint32_t loaded_t1_int, loaded_t1_frac, loaded_t2_int, loaded_t2_frac;
+	int32_t  loaded_t1_ena, loaded_t2_ena;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_sample_period))   return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_sample_16_time))  return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_base_period))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_samp_inc))        return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_samp_rp))         return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_samp_wp))         return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_samp_fp))         return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_first_poll))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_write_ptr))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_clock_mhz))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_sound_filter))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_sound_gain))      return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &loaded_t1_int))   return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_t1_frac))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_t1_ena))   return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_t2_int))   return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_t2_frac))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_t2_ena))   return 0;
+
+	sample_period           = (int)loaded_sample_period;
+	sample_16_time          = loaded_sample_16_time;
+	sound_timer_base_period = loaded_base_period;
+	SAMP_INC                = (int)loaded_samp_inc;
+	samp_rp                 = loaded_samp_rp;
+	samp_wp                 = loaded_samp_wp;
+	samp_fp                 = loaded_samp_fp;
+	sound_first_poll        = (int)loaded_first_poll;
+	sound_write_ptr         = (int)loaded_write_ptr;
+	sound_clock_mhz         = (int)loaded_clock_mhz;
+	sound_filter            = (int)loaded_sound_filter;
+	sound_gain              = (int)loaded_sound_gain;
+
+	/* Recompute filter coefficients for the restored clock+filter
+	 * (this is normally done by sound_set_clock()). */
+	if (sound_clock_mhz)
+		iir_gen_coefficients(sound_clock_mhz,
+		                     filter_freqs[sound_filter],
+		                     ACoef, BCoef);
+
+	/* In-flight upsampler buffers are intentionally not serialised; the
+	 * sample read pointer keeps walking the (zeroed) buffer until the
+	 * next pollsound() refills it from RAM. */
+	memset(sound_in_buffer,  0, sizeof(sound_in_buffer));
+	memset(sound_out_buffer, 0, sizeof(sound_out_buffer));
+
+	timer_restore(&sound_timer,       loaded_t1_int, loaded_t1_frac, (int)loaded_t1_ena);
+	timer_restore(&sound_timer_100ms, loaded_t2_int, loaded_t2_frac, (int)loaded_t2_ena);
+	return 1;
 }

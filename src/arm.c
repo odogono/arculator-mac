@@ -16,6 +16,9 @@
 #include "mem.h"
 #include "memc.h"
 #include "podules.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "sound.h"
 #include "timer.h"
 #include "vidc.h"
@@ -2738,4 +2741,164 @@ void execarm(int cycles_to_execute)
 	}
 	LOG_EVENT_LOOP("execarm() finished; and called pollline() %d times (should be ~160)\n",
 		pollline_call_count);
+}
+
+/* ----- Snapshot save/load -------------------------------------------- *
+ *
+ * The ARM3 cache content/tags are intentionally NOT serialised — they
+ * are a pure timing/performance shim and can be rebuilt by the next
+ * fetch. We do flush the cache on load (via cache_flush()) to make
+ * sure no stale tag is left from arc_init()'s reset state.
+ */
+
+#define ARM_STATE_VERSION 1u
+
+int arm_save_state(snapshot_writer_t *w)
+{
+	int i;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_CPU, ARM_STATE_VERSION))
+		return 0;
+
+	/* Live registers */
+	for (i = 0; i < 16; i++)
+		if (!snapshot_writer_append_u32(w, armregs[i])) goto fail;
+
+	/* Pipeline + opcode latches */
+	if (!snapshot_writer_append_u32(w, opcode))   goto fail;
+	if (!snapshot_writer_append_u32(w, opcode2))  goto fail;
+	if (!snapshot_writer_append_u32(w, opcode3))  goto fail;
+
+	/* Banked register files */
+	for (i = 0; i < 16; i++) if (!snapshot_writer_append_u32(w, userregs[i]))  goto fail;
+	for (i = 0; i < 16; i++) if (!snapshot_writer_append_u32(w, superregs[i])) goto fail;
+	for (i = 0; i < 16; i++) if (!snapshot_writer_append_u32(w, fiqregs[i]))   goto fail;
+	for (i = 0; i < 16; i++) if (!snapshot_writer_append_u32(w, irqregs[i]))   goto fail;
+
+	if (!snapshot_writer_append_i32(w, mode))            goto fail;
+	if (!snapshot_writer_append_i32(w, osmode))          goto fail;
+
+	/* Exception/IRQ latches */
+	if (!snapshot_writer_append_i32(w, armirq))          goto fail;
+	if (!snapshot_writer_append_i32(w, irq))             goto fail;
+	if (!snapshot_writer_append_i32(w, databort))        goto fail;
+	if (!snapshot_writer_append_i32(w, prefabort))       goto fail;
+	if (!snapshot_writer_append_i32(w, prefabort_next))  goto fail;
+	if (!snapshot_writer_append_i32(w, vidc_fetches))    goto fail;
+
+	/* Pipeline / DMA scheduling state */
+	if (!snapshot_writer_append_i32(w, clock_domain))    goto fail;
+	if (!snapshot_writer_append_u64(w, mem_available_ts))goto fail;
+	if (!snapshot_writer_append_u64(w, refresh_ts))      goto fail;
+	if (!snapshot_writer_append_i32(w, pending_reads))   goto fail;
+	if (!snapshot_writer_append_u32(w, cache_fill_addr)) goto fail;
+	if (!snapshot_writer_append_u64(w, min_timer))       goto fail;
+	if (!snapshot_writer_append_i32(w, next_dma_source)) goto fail;
+	if (!snapshot_writer_append_u64(w, last_cycle_length)) goto fail;
+	if (!snapshot_writer_append_i32(w, cache_was_on))    goto fail;
+	if (!snapshot_writer_append_i32(w, promote_fetch_to_n)) goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int arm_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int i;
+	uint32_t loaded_armregs[16];
+	uint32_t loaded_opcode, loaded_opcode2, loaded_opcode3;
+	uint32_t loaded_userregs[16], loaded_superregs[16];
+	uint32_t loaded_fiqregs[16], loaded_irqregs[16];
+	int32_t  loaded_mode, loaded_osmode;
+	int32_t  loaded_armirq, loaded_irq;
+	int32_t  loaded_databort, loaded_prefabort, loaded_prefabort_next;
+	int32_t  loaded_vidc_fetches;
+	int32_t  loaded_clock_domain;
+	uint64_t loaded_mem_available_ts, loaded_refresh_ts;
+	int32_t  loaded_pending_reads;
+	uint32_t loaded_cache_fill_addr;
+	uint64_t loaded_min_timer;
+	int32_t  loaded_next_dma_source;
+	uint64_t loaded_last_cycle_length;
+	int32_t  loaded_cache_was_on, loaded_promote_fetch_to_n;
+
+	(void)version;
+
+	for (i = 0; i < 16; i++)
+		if (!snapshot_payload_reader_read_u32(r, &loaded_armregs[i])) return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &loaded_opcode))  return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_opcode2)) return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_opcode3)) return 0;
+
+	for (i = 0; i < 16; i++) if (!snapshot_payload_reader_read_u32(r, &loaded_userregs[i]))  return 0;
+	for (i = 0; i < 16; i++) if (!snapshot_payload_reader_read_u32(r, &loaded_superregs[i])) return 0;
+	for (i = 0; i < 16; i++) if (!snapshot_payload_reader_read_u32(r, &loaded_fiqregs[i]))   return 0;
+	for (i = 0; i < 16; i++) if (!snapshot_payload_reader_read_u32(r, &loaded_irqregs[i]))   return 0;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_mode))         return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_osmode))       return 0;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_armirq))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_irq))          return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_databort))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_prefabort))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_prefabort_next)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_vidc_fetches)) return 0;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_clock_domain)) return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_mem_available_ts)) return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_refresh_ts))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_pending_reads)) return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_cache_fill_addr)) return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_min_timer))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_next_dma_source)) return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_last_cycle_length)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cache_was_on)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_promote_fetch_to_n)) return 0;
+
+	for (i = 0; i < 16; i++) armregs[i] = loaded_armregs[i];
+	opcode  = loaded_opcode;
+	opcode2 = loaded_opcode2;
+	opcode3 = loaded_opcode3;
+
+	for (i = 0; i < 16; i++) userregs[i]  = loaded_userregs[i];
+	for (i = 0; i < 16; i++) superregs[i] = loaded_superregs[i];
+	for (i = 0; i < 16; i++) fiqregs[i]   = loaded_fiqregs[i];
+	for (i = 0; i < 16; i++) irqregs[i]   = loaded_irqregs[i];
+
+	mode    = (int)loaded_mode;
+	osmode  = (int)loaded_osmode;
+
+	armirq         = (int)loaded_armirq;
+	irq            = (int)loaded_irq;
+	databort       = (int)loaded_databort;
+	prefabort      = (int)loaded_prefabort;
+	prefabort_next = (int)loaded_prefabort_next;
+	vidc_fetches   = (int)loaded_vidc_fetches;
+
+	clock_domain      = (int)loaded_clock_domain;
+	mem_available_ts  = loaded_mem_available_ts;
+	refresh_ts        = loaded_refresh_ts;
+	pending_reads     = (int)loaded_pending_reads;
+	cache_fill_addr   = loaded_cache_fill_addr;
+	min_timer         = loaded_min_timer;
+	next_dma_source   = (int)loaded_next_dma_source;
+	last_cycle_length = loaded_last_cycle_length;
+	cache_was_on      = (int)loaded_cache_was_on;
+	promote_fetch_to_n = (int)loaded_promote_fetch_to_n;
+
+	/* Rebuild the banked-register pointer table for the restored mode.
+	 * usrregs[15] is always &armregs[15]; the other entries depend on
+	 * the active mode. The simplest way to get them right without
+	 * duplicating updatemode()'s switch is to rerun it.*/
+	usrregs[15] = &armregs[15];
+
+	/* Invalidate the ARM3 cache: the snapshot doesn't store its content,
+	 * so let it rebuild naturally as code executes after the load. */
+	cache_flush();
+
+	return 1;
 }

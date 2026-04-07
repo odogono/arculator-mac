@@ -9,6 +9,9 @@
 #include "config.h"
 #include "disc.h"
 #include "ioc.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "timer.h"
 
 static fdc_funcs_t c82c711_fdc_funcs;
@@ -918,3 +921,180 @@ static fdc_funcs_t c82c711_fdc_funcs =
 	.sectorid       = c82c711_fdc_sectorid,
 	.indexpulse     = c82c711_fdc_indexpulse
 };
+
+/* ----- Snapshot save/load -------------------------------------------- *
+ *
+ * Only the static `_fdc` instance is serialised. Podule overrides
+ * (allocated via c82c711_fdc_init_override) own their own state and
+ * are out of scope for v1 snapshots.
+ */
+
+#define C82C711_STATE_VERSION 1u
+
+int c82c711_fdc_save_state(snapshot_writer_t *w)
+{
+	const FDC *fdc = &_fdc;
+	int i;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_FDC, C82C711_STATE_VERSION))
+		return 0;
+
+	if (!snapshot_writer_append_u8 (w, fdc->dor))      goto fail;
+	if (!snapshot_writer_append_u8 (w, fdc->stat))     goto fail;
+	if (!snapshot_writer_append_u8 (w, fdc->command))  goto fail;
+	if (!snapshot_writer_append_u8 (w, fdc->dat))      goto fail;
+	if (!snapshot_writer_append_u8 (w, fdc->st0))      goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->head))     goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->track[0])) goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->track[1])) goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->sector))   goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->drive))    goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->lastdrive)) goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->pos))      goto fail;
+
+	for (i = 0; i < 16; i++)
+		if (!snapshot_writer_append_u8(w, fdc->params[i])) goto fail;
+	for (i = 0; i < 16; i++)
+		if (!snapshot_writer_append_u8(w, fdc->res[i]))    goto fail;
+
+	if (!snapshot_writer_append_i32(w, fdc->pnum))     goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->ptot))     goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->rate))     goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->density))  goto fail;
+	if (!snapshot_writer_append_u8 (w, fdc->specify[0])) goto fail;
+	if (!snapshot_writer_append_u8 (w, fdc->specify[1])) goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->eot[0]))   goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->eot[1]))   goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->lock))     goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->perp))     goto fail;
+	if (!snapshot_writer_append_u8 (w, fdc->config))   goto fail;
+	if (!snapshot_writer_append_u8 (w, fdc->pretrk))   goto fail;
+	if (!snapshot_writer_append_u8 (w, fdc->dma_dat))  goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->written))  goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->tc))       goto fail;
+
+	for (i = 0; i < 256; i++)
+		if (!snapshot_writer_append_u8(w, fdc->format_dat[i])) goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->format_state)) goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->data_ready))   goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->inread))       goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->discint))      goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->paramstogo))   goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->fdc_reset_stat)) goto fail;
+
+	if (!snapshot_writer_append_u32(w, fdc->timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, fdc->timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, fdc->timer.enabled))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int c82c711_fdc_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	FDC *fdc = &_fdc;
+	int i;
+	uint8_t  dor, stat, command, dat, st0;
+	int32_t  head, track0, track1, sector, drive, lastdrive, pos;
+	uint8_t  params[16], res[16];
+	int32_t  pnum, ptot, rate, density;
+	uint8_t  specify0, specify1;
+	int32_t  eot0, eot1, lock, perp;
+	uint8_t  config, pretrk, dma_dat;
+	int32_t  written, tc;
+	uint8_t  format_dat[256];
+	int32_t  format_state, data_ready, inread, discint, paramstogo, fdc_reset_stat;
+	uint32_t timer_int, timer_frac;
+	int32_t  timer_enabled;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_u8 (r, &dor))      return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &stat))     return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &command))  return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &dat))      return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &st0))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &head))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &track0))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &track1))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &sector))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &drive))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &lastdrive)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &pos))      return 0;
+
+	for (i = 0; i < 16; i++)
+		if (!snapshot_payload_reader_read_u8(r, &params[i])) return 0;
+	for (i = 0; i < 16; i++)
+		if (!snapshot_payload_reader_read_u8(r, &res[i]))    return 0;
+
+	if (!snapshot_payload_reader_read_i32(r, &pnum))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &ptot))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &rate))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &density))  return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &specify0)) return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &specify1)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &eot0))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &eot1))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &lock))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &perp))     return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &config))   return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &pretrk))   return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &dma_dat))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &written))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &tc))       return 0;
+
+	for (i = 0; i < 256; i++)
+		if (!snapshot_payload_reader_read_u8(r, &format_dat[i])) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &format_state)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &data_ready))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &inread))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &discint))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &paramstogo))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &fdc_reset_stat)) return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &timer_int))    return 0;
+	if (!snapshot_payload_reader_read_u32(r, &timer_frac))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &timer_enabled)) return 0;
+
+	fdc->dor      = dor;
+	fdc->stat     = stat;
+	fdc->command  = command;
+	fdc->dat      = dat;
+	fdc->st0      = st0;
+	fdc->head     = (int)head;
+	fdc->track[0] = (int)track0;
+	fdc->track[1] = (int)track1;
+	fdc->sector   = (int)sector;
+	fdc->drive    = (int)drive;
+	fdc->lastdrive = (int)lastdrive;
+	fdc->pos      = (int)pos;
+	memcpy(fdc->params, params, sizeof(params));
+	memcpy(fdc->res,    res,    sizeof(res));
+	fdc->pnum     = (int)pnum;
+	fdc->ptot     = (int)ptot;
+	fdc->rate     = (int)rate;
+	fdc->density  = (int)density;
+	fdc->specify[0] = specify0;
+	fdc->specify[1] = specify1;
+	fdc->eot[0]   = (int)eot0;
+	fdc->eot[1]   = (int)eot1;
+	fdc->lock     = (int)lock;
+	fdc->perp     = (int)perp;
+	fdc->config   = config;
+	fdc->pretrk   = pretrk;
+	fdc->dma_dat  = dma_dat;
+	fdc->written  = (int)written;
+	fdc->tc       = (int)tc;
+	memcpy(fdc->format_dat, format_dat, sizeof(format_dat));
+	fdc->format_state    = (int)format_state;
+	fdc->data_ready      = (int)data_ready;
+	fdc->inread          = (int)inread;
+	fdc->discint         = (int)discint;
+	fdc->paramstogo      = (int)paramstogo;
+	fdc->fdc_reset_stat  = (int)fdc_reset_stat;
+
+	timer_restore(&fdc->timer, timer_int, timer_frac, (int)timer_enabled);
+	return 1;
+}

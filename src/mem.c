@@ -18,6 +18,9 @@
 #include "memc.h"
 #include "podules.h"
 #include "printer.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "st506.h"
 #include "vidc.h"
 #include "wd1770.h"
@@ -860,3 +863,125 @@ data_abort:
 /*        sprintf(err2,"Bad write long %06X %03X %04X %08X\n",a,a>>15,a&0x7FFF,v);*/
 }
 
+/* ----- Snapshot save/load -------------------------------------------- *
+ *
+ * The MEM chunk owns the RAM contents and the page-table state. RAM is
+ * stored as a single raw blob whose length matches realmemsize*1024.
+ *
+ * memstat[] is saved as-is. mempoint[] is saved as a 16k-entry table of
+ * int64 byte offsets relative to the live ram[] base, with a sentinel
+ * (INT64_MIN) marking entries that aren't RAM (NULL or ROM-pointing).
+ * On load we re-derive mempoint[] for RAM entries from the saved
+ * offsets, and leave the ROM area (0x3800..0x4000) alone — initmem()
+ * has already populated those before snapshot_apply_machine_state runs.
+ */
+
+#include <limits.h>
+
+#define MEM_STATE_VERSION 1u
+#define MEM_MEMPOINT_NULL_SENTINEL ((int64_t)INT64_MIN)
+
+int mem_save_state(snapshot_writer_t *w)
+{
+	int i;
+	int32_t saved_memsize;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_MEM, MEM_STATE_VERSION))
+		return 0;
+
+	saved_memsize = (int32_t)realmemsize;
+	if (!snapshot_writer_append_i32(w, saved_memsize))    goto fail;
+	if (!snapshot_writer_append_i32(w, memmode))          goto fail;
+	if (!snapshot_writer_append_i32(w, mem_dorefresh))    goto fail;
+	if (!snapshot_writer_append_u64(w, mem_spd_multi))    goto fail;
+	if (!snapshot_writer_append_i32(w, mem_romspeed_n))   goto fail;
+	if (!snapshot_writer_append_i32(w, mem_romspeed_s))   goto fail;
+
+	/* RAM contents */
+	if (!snapshot_writer_append(w, ram, (size_t)realmemsize * 1024)) goto fail;
+
+	/* Page tables */
+	if (!snapshot_writer_append(w, memstat, sizeof(memstat))) goto fail;
+	for (i = 0; i < 0x4000; i++)
+	{
+		int64_t offset;
+		uint8_t access = memstat[i];
+
+		if (access >= 1 && access <= 4 && mempoint[i] != NULL)
+			offset = (int64_t)((intptr_t)mempoint[i] - (intptr_t)ram);
+		else
+			offset = MEM_MEMPOINT_NULL_SENTINEL;
+
+		if (!snapshot_writer_append_u64(w, (uint64_t)offset)) goto fail;
+	}
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int mem_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int i;
+	int32_t  saved_memsize, saved_memmode, saved_dorefresh;
+	int32_t  saved_romspeed_n, saved_romspeed_s;
+	uint64_t saved_spd_multi;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_i32(r, &saved_memsize))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &saved_memmode))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &saved_dorefresh))  return 0;
+	if (!snapshot_payload_reader_read_u64(r, &saved_spd_multi))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &saved_romspeed_n)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &saved_romspeed_s)) return 0;
+
+	if (saved_memsize != realmemsize)
+		return 0;
+
+	/* RAM contents */
+	if (!snapshot_payload_reader_read(r, ram, (size_t)realmemsize * 1024))
+		return 0;
+
+	/* memstat[]: read into a temporary first so a short payload doesn't
+	 * leave us with half-applied state. */
+	{
+		uint8_t loaded_memstat[0x4000];
+		int64_t loaded_offsets[0x4000];
+
+		if (!snapshot_payload_reader_read(r, loaded_memstat, sizeof(loaded_memstat)))
+			return 0;
+		for (i = 0; i < 0x4000; i++)
+		{
+			uint64_t raw;
+			if (!snapshot_payload_reader_read_u64(r, &raw))
+				return 0;
+			loaded_offsets[i] = (int64_t)raw;
+		}
+
+		/* Apply: don't touch the static ROM area in memstat (initmem
+		 * has already set it up correctly), but do restore the rest.
+		 * Conservatively also avoid clobbering mempoint entries we
+		 * shouldn't be touching. */
+		for (i = 0; i < 0x3800; i++)
+			memstat[i] = loaded_memstat[i];
+		for (i = 0; i < 0x3800; i++)
+		{
+			if (loaded_offsets[i] != MEM_MEMPOINT_NULL_SENTINEL)
+				mempoint[i] = (uint8_t *)((intptr_t)ram + (intptr_t)loaded_offsets[i]);
+			else
+				mempoint[i] = NULL;
+		}
+	}
+
+	memmode       = (int)saved_memmode;
+	mem_dorefresh = (int)saved_dorefresh;
+	mem_spd_multi = saved_spd_multi;
+	mem_spd_multi_2  = 2  * mem_spd_multi;
+	mem_spd_multi_5  = 5  * mem_spd_multi;
+	mem_spd_multi_32 = 32 * mem_spd_multi;
+	mem_setromspeed((int)saved_romspeed_n, (int)saved_romspeed_s);
+
+	return 1;
+}

@@ -7,6 +7,9 @@
 #include "config.h"
 #include "disc.h"
 #include "ioc.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "timer.h"
 #include "wd1770.h"
 
@@ -404,3 +407,81 @@ static fdc_funcs_t wd1770_fdc_funcs =
 	.sectorid       = NULL,
 	.indexpulse     = wd1770_fdc_indexpulse
 };
+
+/* ----- Snapshot save/load -------------------------------------------- */
+
+#define WD1770_STATE_VERSION 1u
+
+int wd1770_save_state(snapshot_writer_t *w)
+{
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_FDC, WD1770_STATE_VERSION))
+		return 0;
+
+	if (!snapshot_writer_append_u8 (w, wd1770.command))       goto fail;
+	if (!snapshot_writer_append_u8 (w, wd1770.sector))        goto fail;
+	if (!snapshot_writer_append_u8 (w, wd1770.track))         goto fail;
+	if (!snapshot_writer_append_u8 (w, wd1770.status))        goto fail;
+	if (!snapshot_writer_append_u8 (w, wd1770.data))          goto fail;
+	if (!snapshot_writer_append_u8 (w, wd1770.ctrl))          goto fail;
+	if (!snapshot_writer_append_i32(w, wd1770.curside))       goto fail;
+	if (!snapshot_writer_append_i32(w, wd1770.curtrack))      goto fail;
+	if (!snapshot_writer_append_i32(w, wd1770.density))       goto fail;
+	if (!snapshot_writer_append_i32(w, wd1770.written))       goto fail;
+	if (!snapshot_writer_append_i32(w, wd1770.stepdir))       goto fail;
+	if (!snapshot_writer_append_i32(w, wd1770.index_count))   goto fail;
+	if (!snapshot_writer_append_i32(w, wd1770.rnf_detection)) goto fail;
+
+	if (!snapshot_writer_append_u32(w, wd1770.timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, wd1770.timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, wd1770.timer.enabled))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int wd1770_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	uint8_t  command, sector, track, status, data, ctrl;
+	int32_t  curside, curtrack, density, written, stepdir, index_count, rnf_detection;
+	uint32_t timer_int, timer_frac;
+	int32_t  timer_enabled;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_u8 (r, &command))       return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &sector))        return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &track))         return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &status))        return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &data))          return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &ctrl))          return 0;
+	if (!snapshot_payload_reader_read_i32(r, &curside))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &curtrack))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &density))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &written))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &stepdir))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &index_count))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &rnf_detection)) return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &timer_int))     return 0;
+	if (!snapshot_payload_reader_read_u32(r, &timer_frac))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &timer_enabled)) return 0;
+
+	wd1770.command       = command;
+	wd1770.sector        = sector;
+	wd1770.track         = track;
+	wd1770.status        = status;
+	wd1770.data          = data;
+	wd1770.ctrl          = ctrl;
+	wd1770.curside       = (int)curside;
+	wd1770.curtrack      = (int)curtrack;
+	wd1770.density       = (int)density;
+	wd1770.written       = (int)written;
+	wd1770.stepdir       = (int)stepdir;
+	wd1770.index_count   = (int)index_count;
+	wd1770.rnf_detection = (int)rnf_detection;
+
+	timer_restore(&wd1770.timer, timer_int, timer_frac, (int)timer_enabled);
+	return 1;
+}

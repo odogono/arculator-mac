@@ -9,6 +9,9 @@
 #include "ioc.h"
 #include "keyboard.h"
 #include "printer.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "timer.h"
 
 IOC_t ioc;
@@ -334,4 +337,114 @@ void ioc_debug_print(char *s)
 		   read_timer(0), read_timer(1), read_timer(2), read_timer(3),
 		   ioc.timerl[0], ioc.timerl[1], ioc.timerl[2], ioc.timerl[3],
 		   ioc.ctrl);
+}
+
+/* ----- Snapshot save/load -------------------------------------------- */
+
+#define IOC_STATE_VERSION 1u
+
+int ioc_save_state(snapshot_writer_t *w)
+{
+	int i;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_IOC, IOC_STATE_VERSION))
+		return 0;
+
+	if (!snapshot_writer_append_u8(w, ioc.irqa)) goto fail;
+	if (!snapshot_writer_append_u8(w, ioc.irqb)) goto fail;
+	if (!snapshot_writer_append_u8(w, ioc.fiq))  goto fail;
+	if (!snapshot_writer_append_u8(w, ioc.mska)) goto fail;
+	if (!snapshot_writer_append_u8(w, ioc.mskb)) goto fail;
+	if (!snapshot_writer_append_u8(w, ioc.mskf)) goto fail;
+	if (!snapshot_writer_append_u8(w, ioc.ctrl)) goto fail;
+
+	for (i = 0; i < 4; i++)
+	{
+		if (!snapshot_writer_append_i32(w, ioc.timerc[i])) goto fail;
+		if (!snapshot_writer_append_i32(w, ioc.timerl[i])) goto fail;
+		if (!snapshot_writer_append_i32(w, ioc.timerr[i])) goto fail;
+
+		/* Per-timer state: integer/frac timestamp + enabled flag */
+		if (!snapshot_writer_append_u32(w, ioc.timers[i].ts_integer)) goto fail;
+		if (!snapshot_writer_append_u32(w, ioc.timers[i].ts_frac))    goto fail;
+		if (!snapshot_writer_append_i32(w, ioc.timers[i].enabled))    goto fail;
+	}
+
+	if (!snapshot_writer_append_i32(w, ref8m_period)) goto fail;
+	if (!snapshot_writer_append_i32(w, keyway))       goto fail;
+	if (!snapshot_writer_append_u8 (w, tempkey))      goto fail;
+	if (!snapshot_writer_append_u8 (w, iockey))       goto fail;
+	if (!snapshot_writer_append_u8 (w, iockey2))      goto fail;
+	if (!snapshot_writer_append_i32(w, keydelay))     goto fail;
+	if (!snapshot_writer_append_i32(w, keydelay2))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int ioc_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int i;
+	uint8_t  irqa, irqb, fiq, mska, mskb, mskf, ctrl;
+	int32_t  timerc[4], timerl[4], timerr[4];
+	uint32_t timer_ts_int[4], timer_ts_frac[4];
+	int32_t  timer_enabled[4];
+	int32_t  loaded_ref8m_period, loaded_keyway, loaded_keydelay, loaded_keydelay2;
+	uint8_t  loaded_tempkey, loaded_iockey, loaded_iockey2;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_u8(r, &irqa)) return 0;
+	if (!snapshot_payload_reader_read_u8(r, &irqb)) return 0;
+	if (!snapshot_payload_reader_read_u8(r, &fiq))  return 0;
+	if (!snapshot_payload_reader_read_u8(r, &mska)) return 0;
+	if (!snapshot_payload_reader_read_u8(r, &mskb)) return 0;
+	if (!snapshot_payload_reader_read_u8(r, &mskf)) return 0;
+	if (!snapshot_payload_reader_read_u8(r, &ctrl)) return 0;
+
+	for (i = 0; i < 4; i++)
+	{
+		if (!snapshot_payload_reader_read_i32(r, &timerc[i])) return 0;
+		if (!snapshot_payload_reader_read_i32(r, &timerl[i])) return 0;
+		if (!snapshot_payload_reader_read_i32(r, &timerr[i])) return 0;
+		if (!snapshot_payload_reader_read_u32(r, &timer_ts_int[i])) return 0;
+		if (!snapshot_payload_reader_read_u32(r, &timer_ts_frac[i])) return 0;
+		if (!snapshot_payload_reader_read_i32(r, &timer_enabled[i])) return 0;
+	}
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_ref8m_period)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_keyway))       return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &loaded_tempkey))      return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &loaded_iockey))       return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &loaded_iockey2))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_keydelay))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_keydelay2))    return 0;
+
+	ioc.irqa = irqa;
+	ioc.irqb = irqb;
+	ioc.fiq  = fiq;
+	ioc.mska = mska;
+	ioc.mskb = mskb;
+	ioc.mskf = mskf;
+	ioc.ctrl = ctrl;
+
+	for (i = 0; i < 4; i++)
+	{
+		ioc.timerc[i] = (int)timerc[i];
+		ioc.timerl[i] = (int)timerl[i];
+		ioc.timerr[i] = (int)timerr[i];
+		timer_restore(&ioc.timers[i], timer_ts_int[i], timer_ts_frac[i], (int)timer_enabled[i]);
+	}
+
+	ref8m_period = (int)loaded_ref8m_period;
+	keyway       = (int)loaded_keyway;
+	tempkey      = loaded_tempkey;
+	iockey       = loaded_iockey;
+	iockey2      = loaded_iockey2;
+	keydelay     = (int)loaded_keydelay;
+	keydelay2    = (int)loaded_keydelay2;
+
+	return 1;
 }

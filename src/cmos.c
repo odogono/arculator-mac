@@ -12,6 +12,9 @@
 #include "cmos.h"
 #include "config.h"
 #include "platform_paths.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "st506.h"
 #include "timer.h"
 
@@ -559,4 +562,105 @@ void i2c_change(int new_clock, int new_data)
 		i2c_data = new_data;
 	i2c.last_data = new_data;
 	i2c_clock = new_clock;
+}
+
+/* ----- Snapshot save/load -------------------------------------------- *
+ *
+ * Saves the I2C state machine, the EEPROM/RAM contents and the A500
+ * RTC RAM bytes. Wall-clock time bytes (cmos.ram[1..6]) are *not*
+ * specially scrubbed — they will be naturally refreshed by the next
+ * cmos_tick() callback after the load.
+ */
+
+#define CMOS_STATE_VERSION 1u
+
+int cmos_save_state(snapshot_writer_t *w)
+{
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_CMOS, CMOS_STATE_VERSION))
+		return 0;
+
+	if (!snapshot_writer_append_i32(w, cmos_changed))      goto fail;
+	if (!snapshot_writer_append_i32(w, i2c_clock))         goto fail;
+	if (!snapshot_writer_append_i32(w, i2c_data))          goto fail;
+
+	/* I2C state machine */
+	if (!snapshot_writer_append_i32(w, i2c.state))         goto fail;
+	if (!snapshot_writer_append_i32(w, i2c.last_data))     goto fail;
+	if (!snapshot_writer_append_i32(w, i2c.pos))           goto fail;
+	if (!snapshot_writer_append_i32(w, i2c.transmit))      goto fail;
+	if (!snapshot_writer_append_u8 (w, i2c.byte))          goto fail;
+
+	/* CMOS state */
+	if (!snapshot_writer_append_u8 (w, cmos.device_addr))  goto fail;
+	if (!snapshot_writer_append_i32(w, cmos.state))        goto fail;
+	if (!snapshot_writer_append_i32(w, cmos.addr))         goto fail;
+	if (!snapshot_writer_append_i32(w, cmos.rw))           goto fail;
+	if (!snapshot_writer_append    (w, cmos.ram, sizeof(cmos.ram)))         goto fail;
+	if (!snapshot_writer_append    (w, cmos.rtc_ram, sizeof(cmos.rtc_ram))) goto fail;
+
+	/* Embedded 10ms tick timer */
+	if (!snapshot_writer_append_u32(w, cmos.timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, cmos.timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, cmos.timer.enabled))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int cmos_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int32_t  loaded_cmos_changed, loaded_i2c_clock, loaded_i2c_data;
+	int32_t  loaded_i2c_state, loaded_i2c_last_data, loaded_i2c_pos, loaded_i2c_transmit;
+	uint8_t  loaded_i2c_byte;
+	uint8_t  loaded_device_addr;
+	int32_t  loaded_cmos_state, loaded_cmos_addr, loaded_cmos_rw;
+	uint8_t  loaded_ram[256], loaded_rtc_ram[8];
+	uint32_t loaded_timer_int, loaded_timer_frac;
+	int32_t  loaded_timer_enabled;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cmos_changed))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_i2c_clock))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_i2c_data))       return 0;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_i2c_state))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_i2c_last_data))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_i2c_pos))        return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_i2c_transmit))   return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &loaded_i2c_byte))       return 0;
+
+	if (!snapshot_payload_reader_read_u8 (r, &loaded_device_addr))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cmos_state))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cmos_addr))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_cmos_rw))        return 0;
+	if (!snapshot_payload_reader_read    (r, loaded_ram,     sizeof(loaded_ram)))     return 0;
+	if (!snapshot_payload_reader_read    (r, loaded_rtc_ram, sizeof(loaded_rtc_ram))) return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_int))      return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_frac))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_timer_enabled))  return 0;
+
+	cmos_changed = (int)loaded_cmos_changed;
+	i2c_clock    = (int)loaded_i2c_clock;
+	i2c_data     = (int)loaded_i2c_data;
+
+	i2c.state     = (int)loaded_i2c_state;
+	i2c.last_data = (int)loaded_i2c_last_data;
+	i2c.pos       = (int)loaded_i2c_pos;
+	i2c.transmit  = (int)loaded_i2c_transmit;
+	i2c.byte      = loaded_i2c_byte;
+
+	cmos.device_addr = loaded_device_addr;
+	cmos.state       = (int)loaded_cmos_state;
+	cmos.addr        = (int)loaded_cmos_addr;
+	cmos.rw          = (int)loaded_cmos_rw;
+	memcpy(cmos.ram,     loaded_ram,     sizeof(cmos.ram));
+	memcpy(cmos.rtc_ram, loaded_rtc_ram, sizeof(cmos.rtc_ram));
+
+	timer_restore(&cmos.timer, loaded_timer_int, loaded_timer_frac, (int)loaded_timer_enabled);
+
+	return 1;
 }

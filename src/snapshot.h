@@ -131,6 +131,8 @@ int snapshot_writer_append_u16(snapshot_writer_t *w, uint16_t v);
 int snapshot_writer_append_u32(snapshot_writer_t *w, uint32_t v);
 int snapshot_writer_append_u64(snapshot_writer_t *w, uint64_t v);
 int snapshot_writer_append_i32(snapshot_writer_t *w, int32_t  v);
+/* Append a `double` (8 bytes, host bit pattern preserved as little-endian). */
+int snapshot_writer_append_f64(snapshot_writer_t *w, double v);
 /* Length-prefixed UTF-8 string (u32 length, then raw bytes, no NUL). */
 int snapshot_writer_append_string(snapshot_writer_t *w, const char *s);
 
@@ -181,6 +183,35 @@ int snapshot_decode_manifest(const uint8_t *payload, uint64_t size,
 
 /* CRC32 (IEEE 802.3, init 0xFFFFFFFF, final XOR 0xFFFFFFFF). */
 uint32_t snapshot_crc32(const void *data, size_t size);
+
+/* ----- Payload reader -------------------------------------------------- *
+ *
+ * Each subsystem's `*_load_state` function uses one of these to walk over
+ * the bytes of a single chunk's payload. Bounds-checking is centralised
+ * in the helpers; once an underflow is hit the reader latches into a
+ * not-ok state and every subsequent read becomes a no-op.
+ */
+
+typedef struct snapshot_payload_reader_t {
+	const uint8_t *data;
+	size_t         size;
+	size_t         cursor;
+	int            ok;
+} snapshot_payload_reader_t;
+
+void snapshot_payload_reader_init(snapshot_payload_reader_t *r,
+                                  const uint8_t *data, size_t size);
+int  snapshot_payload_reader_ok(const snapshot_payload_reader_t *r);
+int  snapshot_payload_reader_at_end(const snapshot_payload_reader_t *r);
+int  snapshot_payload_reader_read(snapshot_payload_reader_t *r,
+                                  void *dest, size_t size);
+int  snapshot_payload_reader_skip(snapshot_payload_reader_t *r, size_t size);
+int  snapshot_payload_reader_read_u8 (snapshot_payload_reader_t *r, uint8_t  *out);
+int  snapshot_payload_reader_read_u16(snapshot_payload_reader_t *r, uint16_t *out);
+int  snapshot_payload_reader_read_u32(snapshot_payload_reader_t *r, uint32_t *out);
+int  snapshot_payload_reader_read_u64(snapshot_payload_reader_t *r, uint64_t *out);
+int  snapshot_payload_reader_read_i32(snapshot_payload_reader_t *r, int32_t  *out);
+int  snapshot_payload_reader_read_f64(snapshot_payload_reader_t *r, double   *out);
 
 #ifdef __cplusplus
 }

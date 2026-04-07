@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include "arc.h"
 #include "arm.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 
 //#define UNDEFINED  11
 //#define undefined() exception(UNDEFINED,8,4)
@@ -992,4 +995,48 @@ int fpaopcode(uint32_t opcode)
 			return 1;
 	}
 	return 0;
+}
+
+/* ----- Snapshot save/load -------------------------------------------- */
+
+#define FPA_STATE_VERSION 1u
+
+int fpa_save_state(snapshot_writer_t *w)
+{
+	int i;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_FPA, FPA_STATE_VERSION))
+		return 0;
+	for (i = 0; i < 8; i++)
+		if (!snapshot_writer_append_f64(w, fparegs[i])) goto fail;
+	if (!snapshot_writer_append_u32(w, fpsr))      goto fail;
+	if (!snapshot_writer_append_u32(w, fpcr))      goto fail;
+	if (!snapshot_writer_append_i32(w, fpu_type))  goto fail;
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int fpa_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int i;
+	double   loaded_fparegs[8];
+	uint32_t loaded_fpsr, loaded_fpcr;
+	int32_t  loaded_fpu_type;
+
+	(void)version;
+
+	for (i = 0; i < 8; i++)
+		if (!snapshot_payload_reader_read_f64(r, &loaded_fparegs[i])) return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_fpsr))     return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_fpcr))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_fpu_type)) return 0;
+
+	for (i = 0; i < 8; i++)
+		fparegs[i] = loaded_fparegs[i];
+	fpsr     = loaded_fpsr;
+	fpcr     = loaded_fpcr;
+	fpu_type = (int)loaded_fpu_type;
+	return 1;
 }

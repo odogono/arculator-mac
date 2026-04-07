@@ -17,6 +17,9 @@
 #include "ddnoise.h"
 
 #include "ioc.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "timer.h"
 
 char discname[4][512];
@@ -320,4 +323,113 @@ void disc_set_motor(int enable)
 void disc_set_density(int density)
 {
 	disc_poll_time = (disc_poll_times[density] * TIMER_USEC);
+}
+
+/* ----- Snapshot save/load -------------------------------------------- *
+ *
+ * Saves the FDC <-> drive control globals (motor, drive select, write
+ * protect, etc.), the per-drive head position, and the disc poll
+ * timer. The actual loaded image is referenced by disc_load() during
+ * arc_init() — its in-memory track buffers are NOT serialised here;
+ * they are repopulated by replaying disc_seek() to disc_current_track[]
+ * after the load.
+ */
+
+#define DISC_STATE_VERSION 1u
+
+int disc_save_state(snapshot_writer_t *w)
+{
+	int i;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_DISC, DISC_STATE_VERSION))
+		return 0;
+
+	if (!snapshot_writer_append_i32(w, motoron))        goto fail;
+	if (!snapshot_writer_append_i32(w, curdrive))       goto fail;
+	if (!snapshot_writer_append_i32(w, disc_drivesel))  goto fail;
+	if (!snapshot_writer_append_i32(w, fdc_ready))      goto fail;
+	if (!snapshot_writer_append_i32(w, fdc_overridden)) goto fail;
+	for (i = 0; i < 4; i++)
+		if (!snapshot_writer_append_i32(w, disc_current_track[i])) goto fail;
+	for (i = 0; i < 4; i++)
+		if (!snapshot_writer_append_i32(w, discchange[i])) goto fail;
+	for (i = 0; i < 4; i++)
+		if (!snapshot_writer_append_i32(w, writeprot[i])) goto fail;
+	for (i = 0; i < 4; i++)
+		if (!snapshot_writer_append_i32(w, readflash[i])) goto fail;
+
+	if (!snapshot_writer_append_i32(w, disc_notfound)) goto fail;
+	if (!snapshot_writer_append_u64(w, disc_poll_time)) goto fail;
+
+	if (!snapshot_writer_append_u32(w, disc_timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, disc_timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, disc_timer.enabled))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int disc_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int i;
+	int32_t  loaded_motoron, loaded_curdrive, loaded_drivesel;
+	int32_t  loaded_fdc_ready, loaded_fdc_overridden;
+	int32_t  loaded_current_track[4], loaded_discchange[4];
+	int32_t  loaded_writeprot[4], loaded_readflash[4];
+	int32_t  loaded_disc_notfound;
+	uint64_t loaded_disc_poll_time;
+	uint32_t loaded_timer_int, loaded_timer_frac;
+	int32_t  loaded_timer_enabled;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_motoron))        return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_curdrive))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_drivesel))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_fdc_ready))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_fdc_overridden)) return 0;
+	for (i = 0; i < 4; i++)
+		if (!snapshot_payload_reader_read_i32(r, &loaded_current_track[i])) return 0;
+	for (i = 0; i < 4; i++)
+		if (!snapshot_payload_reader_read_i32(r, &loaded_discchange[i])) return 0;
+	for (i = 0; i < 4; i++)
+		if (!snapshot_payload_reader_read_i32(r, &loaded_writeprot[i])) return 0;
+	for (i = 0; i < 4; i++)
+		if (!snapshot_payload_reader_read_i32(r, &loaded_readflash[i])) return 0;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_disc_notfound))   return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_disc_poll_time))  return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_int))       return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_frac))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_timer_enabled))   return 0;
+
+	motoron        = (int)loaded_motoron;
+	curdrive       = (int)loaded_curdrive;
+	disc_drivesel  = (int)loaded_drivesel;
+	fdc_ready      = (int)loaded_fdc_ready;
+	fdc_overridden = (int)loaded_fdc_overridden;
+	for (i = 0; i < 4; i++) disc_current_track[i] = (int)loaded_current_track[i];
+	for (i = 0; i < 4; i++) discchange[i]         = (int)loaded_discchange[i];
+	for (i = 0; i < 4; i++) writeprot[i]          = (int)loaded_writeprot[i];
+	for (i = 0; i < 4; i++) readflash[i]          = (int)loaded_readflash[i];
+
+	disc_notfound  = (int)loaded_disc_notfound;
+	disc_poll_time = loaded_disc_poll_time;
+
+	timer_restore(&disc_timer, loaded_timer_int, loaded_timer_frac, (int)loaded_timer_enabled);
+
+	/* Replay seeks so the underlying disc image's track buffers are
+	 * repositioned to the restored head position. The disc backends
+	 * (ADF/HFE/etc.) keep an in-memory cached track that we don't
+	 * snapshot, so this is the cheapest way to make sure the next
+	 * read/write hits the right data. */
+	for (i = 0; i < 4; i++)
+	{
+		if (drive_funcs[i] && drive_funcs[i]->seek)
+			drive_funcs[i]->seek(i, disc_current_track[i]);
+	}
+
+	return 1;
 }

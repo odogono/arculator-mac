@@ -221,6 +221,13 @@ int snapshot_writer_append_i32(snapshot_writer_t *w, int32_t v)
 	return snapshot_writer_append_u32(w, (uint32_t)v);
 }
 
+int snapshot_writer_append_f64(snapshot_writer_t *w, double v)
+{
+	uint64_t bits;
+	memcpy(&bits, &v, sizeof(bits));
+	return snapshot_writer_append_u64(w, bits);
+}
+
 int snapshot_writer_append_string(snapshot_writer_t *w, const char *s)
 {
 	size_t len = s ? strlen(s) : 0;
@@ -594,6 +601,110 @@ int snapshot_reader_next_chunk(snapshot_reader_t *r,
 	if (version_out) *version_out = version;
 	if (payload_out) *payload_out = r->current_payload;
 	if (size_out)    *size_out = payload_size;
+	return 1;
+}
+
+/* ----- payload reader (per-chunk decoder used by *_load_state) -------- */
+
+void snapshot_payload_reader_init(snapshot_payload_reader_t *r,
+                                  const uint8_t *data, size_t size)
+{
+	if (!r)
+		return;
+	r->data = data;
+	r->size = size;
+	r->cursor = 0;
+	r->ok = (data || !size) ? 1 : 0;
+}
+
+int snapshot_payload_reader_ok(const snapshot_payload_reader_t *r)
+{
+	return r ? r->ok : 0;
+}
+
+int snapshot_payload_reader_at_end(const snapshot_payload_reader_t *r)
+{
+	return r ? (r->ok && r->cursor == r->size) : 0;
+}
+
+int snapshot_payload_reader_read(snapshot_payload_reader_t *r,
+                                 void *dest, size_t size)
+{
+	if (!r || !r->ok)
+		return 0;
+	if (size > r->size - r->cursor)
+	{
+		r->ok = 0;
+		return 0;
+	}
+	if (size && dest)
+		memcpy(dest, r->data + r->cursor, size);
+	r->cursor += size;
+	return 1;
+}
+
+int snapshot_payload_reader_skip(snapshot_payload_reader_t *r, size_t size)
+{
+	return snapshot_payload_reader_read(r, NULL, size);
+}
+
+int snapshot_payload_reader_read_u8(snapshot_payload_reader_t *r, uint8_t *out)
+{
+	uint8_t tmp;
+	if (!snapshot_payload_reader_read(r, &tmp, 1))
+		return 0;
+	if (out)
+		*out = tmp;
+	return 1;
+}
+
+int snapshot_payload_reader_read_u16(snapshot_payload_reader_t *r, uint16_t *out)
+{
+	uint8_t tmp[2];
+	if (!snapshot_payload_reader_read(r, tmp, sizeof(tmp)))
+		return 0;
+	if (out)
+		*out = (uint16_t)tmp[0] | ((uint16_t)tmp[1] << 8);
+	return 1;
+}
+
+int snapshot_payload_reader_read_u32(snapshot_payload_reader_t *r, uint32_t *out)
+{
+	uint8_t tmp[4];
+	if (!snapshot_payload_reader_read(r, tmp, sizeof(tmp)))
+		return 0;
+	if (out)
+		*out = get_u32_le(tmp);
+	return 1;
+}
+
+int snapshot_payload_reader_read_u64(snapshot_payload_reader_t *r, uint64_t *out)
+{
+	uint8_t tmp[8];
+	if (!snapshot_payload_reader_read(r, tmp, sizeof(tmp)))
+		return 0;
+	if (out)
+		*out = get_u64_le(tmp);
+	return 1;
+}
+
+int snapshot_payload_reader_read_i32(snapshot_payload_reader_t *r, int32_t *out)
+{
+	uint32_t v;
+	if (!snapshot_payload_reader_read_u32(r, &v))
+		return 0;
+	if (out)
+		*out = (int32_t)v;
+	return 1;
+}
+
+int snapshot_payload_reader_read_f64(snapshot_payload_reader_t *r, double *out)
+{
+	uint64_t bits;
+	if (!snapshot_payload_reader_read_u64(r, &bits))
+		return 0;
+	if (out)
+		memcpy(out, &bits, sizeof(*out));
 	return 1;
 }
 

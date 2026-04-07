@@ -1,11 +1,15 @@
 /*Much of this is guesswork. Acorn didn't publically document the LC ASIC in any
   real detail, so this is based on what information is present in the A4 TERM and
   RO 3.71 source*/
+#include <string.h>
 #include "arc.h"
 #include "config.h"
 #include "ioeb.h"
 #include "lc.h"
 #include "platform_shell.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "timer.h"
 #include "vidc.h"
 #include "plat_video.h"
@@ -332,4 +336,95 @@ void lc_write(uint32_t addr, uint8_t val)
 	if (addr & 0x40)
 		lc.pal[(addr >> 2) & 0xf] = lc_palette[val & 0xf];
 	//rpclog("lc_write: addr=%07x val=%02x PC=%07x\n", addr, val, PC);
+}
+
+/* ----- Snapshot save/load -------------------------------------------- *
+ *
+ * Only emitted on MACHINE_TYPE_A4. lc.lc_buffer is a graphics-memory
+ * BITMAP* and is not serialised; lc_init() reallocates it on the load
+ * side. lc.pal[] is recomputed on the next register write — for now we
+ * preserve it directly so on-screen colours match before the next palette
+ * write occurs.
+ */
+
+#define LC_STATE_VERSION 1u
+
+int lc_save_state(snapshot_writer_t *w)
+{
+	int i;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_LC, LC_STATE_VERSION))
+		return 0;
+
+	if (!snapshot_writer_append(w, lc.ram, sizeof(lc.ram))) goto fail;
+	if (!snapshot_writer_append_u32(w, lc.wp))   goto fail;
+	if (!snapshot_writer_append_u32(w, lc.vdsr)) goto fail;
+	if (!snapshot_writer_append_u32(w, lc.vdlr)) goto fail;
+	if (!snapshot_writer_append_u32(w, lc.hdsr)) goto fail;
+	if (!snapshot_writer_append_u32(w, lc.hdlr)) goto fail;
+	if (!snapshot_writer_append_u32(w, lc.licr)) goto fail;
+	if (!snapshot_writer_append_i32(w, lc.v_delay))   goto fail;
+	if (!snapshot_writer_append_i32(w, lc.v_display)) goto fail;
+	if (!snapshot_writer_append_i32(w, lc.vc))        goto fail;
+	for (i = 0; i < 16; i++)
+		if (!snapshot_writer_append_u32(w, lc.pal[i])) goto fail;
+	if (!snapshot_writer_append_i32(w, lc.has_updated)) goto fail;
+
+	if (!snapshot_writer_append_u32(w, lc.blank_timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, lc.blank_timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, lc.blank_timer.enabled))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int lc_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int i;
+	uint8_t  loaded_ram[sizeof(lc.ram)];
+	uint32_t loaded_wp, loaded_vdsr, loaded_vdlr, loaded_hdsr, loaded_hdlr, loaded_licr;
+	int32_t  loaded_v_delay, loaded_v_display, loaded_vc;
+	uint32_t loaded_pal[16];
+	int32_t  loaded_has_updated;
+	uint32_t loaded_timer_int, loaded_timer_frac;
+	int32_t  loaded_timer_enabled;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read(r, loaded_ram, sizeof(loaded_ram))) return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_wp))   return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_vdsr)) return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_vdlr)) return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_hdsr)) return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_hdlr)) return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_licr)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_v_delay))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_v_display)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_vc))        return 0;
+	for (i = 0; i < 16; i++)
+		if (!snapshot_payload_reader_read_u32(r, &loaded_pal[i])) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_has_updated)) return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_int))     return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_frac))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_timer_enabled)) return 0;
+
+	memcpy(lc.ram, loaded_ram, sizeof(lc.ram));
+	lc.wp   = loaded_wp;
+	lc.vdsr = loaded_vdsr;
+	lc.vdlr = loaded_vdlr;
+	lc.hdsr = loaded_hdsr;
+	lc.hdlr = loaded_hdlr;
+	lc.licr = loaded_licr;
+	lc.v_delay   = (int)loaded_v_delay;
+	lc.v_display = (int)loaded_v_display;
+	lc.vc        = (int)loaded_vc;
+	for (i = 0; i < 16; i++)
+		lc.pal[i] = loaded_pal[i];
+	lc.has_updated = (int)loaded_has_updated;
+
+	timer_restore(&lc.blank_timer, loaded_timer_int, loaded_timer_frac, (int)loaded_timer_enabled);
+	return 1;
 }

@@ -4,6 +4,9 @@
 #include "arc.h"
 #include "config.h"
 #include "ds2401.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "timer.h"
 
 #define RESET_PULSE_LENGTH 480 /*Reset pulse line low for >= 480 us = reset*/
@@ -179,4 +182,65 @@ static void ds2401_callback(void *p)
 			ds2401.state = STATE_IDLE;
 		break;
 	}
+}
+
+/* ----- Snapshot save/load -------------------------------------------- */
+
+#define DS24_STATE_VERSION 1u
+
+int ds2401_save_state(snapshot_writer_t *w)
+{
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_DS24, DS24_STATE_VERSION))
+		return 0;
+
+	if (!snapshot_writer_append_i32(w, ds2401.old_val))   goto fail;
+	if (!snapshot_writer_append_u64(w, ds2401.old_tsc))   goto fail;
+	if (!snapshot_writer_append_i32(w, ds2401.rx_val))    goto fail;
+	if (!snapshot_writer_append_i32(w, ds2401.state))     goto fail;
+	if (!snapshot_writer_append_i32(w, ds2401.state_pos)) goto fail;
+	if (!snapshot_writer_append_u8 (w, ds2401.command))   goto fail;
+	if (!snapshot_writer_append_u64(w, ds2401.id))        goto fail;
+
+	if (!snapshot_writer_append_u32(w, ds2401.timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, ds2401.timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, ds2401.timer.enabled))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int ds2401_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int32_t  loaded_old_val, loaded_rx_val, loaded_state, loaded_state_pos;
+	uint64_t loaded_old_tsc, loaded_id;
+	uint8_t  loaded_command;
+	uint32_t loaded_timer_int, loaded_timer_frac;
+	int32_t  loaded_timer_enabled;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_old_val))   return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_old_tsc))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_rx_val))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_state))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_state_pos)) return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &loaded_command))   return 0;
+	if (!snapshot_payload_reader_read_u64(r, &loaded_id))        return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_int))  return 0;
+	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_frac)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_timer_enabled)) return 0;
+
+	ds2401.old_val   = (int)loaded_old_val;
+	ds2401.old_tsc   = loaded_old_tsc;
+	ds2401.rx_val    = (int)loaded_rx_val;
+	ds2401.state     = (int)loaded_state;
+	ds2401.state_pos = (int)loaded_state_pos;
+	ds2401.command   = loaded_command;
+	ds2401.id        = loaded_id;
+
+	timer_restore(&ds2401.timer, loaded_timer_int, loaded_timer_frac, (int)loaded_timer_enabled);
+	return 1;
 }

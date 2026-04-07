@@ -7,6 +7,9 @@
 #include "keyboard.h"
 #include "plat_input.h"
 #include "keytable.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "timer.h"
 
 static emu_timer_t keyboard_timer;
@@ -603,4 +606,117 @@ void resetmouse()
 	ml=mt=0;
 	mr=0x4FF;
 	mb=0x3FF;
+}
+
+/* ----- Snapshot save/load -------------------------------------------- *
+ *
+ * Saves the I2C state machine and the keyboard chip's view of the host
+ * input — but does not snapshot live host-side input. The host's input
+ * driver (input_macos / input_sdl2) maintains its own state and will
+ * continue feeding the keyboard naturally after the load.
+ */
+
+#define KBD_STATE_VERSION 1u
+
+int keyboard_save_state(snapshot_writer_t *w)
+{
+	int i;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_KBD, KBD_STATE_VERSION))
+		return 0;
+
+	if (!snapshot_writer_append_i32(w, keystat))    goto fail;
+	if (!snapshot_writer_append_i32(w, mouseena))   goto fail;
+	if (!snapshot_writer_append_i32(w, keyena))     goto fail;
+	if (!snapshot_writer_append_i32(w, ledcaps))    goto fail;
+	if (!snapshot_writer_append_i32(w, lednum))     goto fail;
+	if (!snapshot_writer_append_i32(w, ledscr))     goto fail;
+	if (!snapshot_writer_append_i32(w, mousedown[0])) goto fail;
+	if (!snapshot_writer_append_i32(w, mousedown[1])) goto fail;
+	if (!snapshot_writer_append_i32(w, mousedown[2])) goto fail;
+	if (!snapshot_writer_append_u8 (w, key_data[0])) goto fail;
+	if (!snapshot_writer_append_u8 (w, key_data[1])) goto fail;
+	if (!snapshot_writer_append_i32(w, keyboard_type)) goto fail;
+
+	for (i = 0; i < 512; i++)
+		if (!snapshot_writer_append_i32(w, keydat[i])) goto fail;
+
+	/* Three timers: poll, rx, tx */
+	if (!snapshot_writer_append_u32(w, keyboard_timer.ts_integer))    goto fail;
+	if (!snapshot_writer_append_u32(w, keyboard_timer.ts_frac))       goto fail;
+	if (!snapshot_writer_append_i32(w, keyboard_timer.enabled))       goto fail;
+	if (!snapshot_writer_append_u32(w, keyboard_rx_timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, keyboard_rx_timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, keyboard_rx_timer.enabled))    goto fail;
+	if (!snapshot_writer_append_u32(w, keyboard_tx_timer.ts_integer)) goto fail;
+	if (!snapshot_writer_append_u32(w, keyboard_tx_timer.ts_frac))    goto fail;
+	if (!snapshot_writer_append_i32(w, keyboard_tx_timer.enabled))    goto fail;
+
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int keyboard_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	int i;
+	int32_t  loaded_keystat, loaded_mouseena, loaded_keyena;
+	int32_t  loaded_ledcaps, loaded_lednum, loaded_ledscr;
+	int32_t  loaded_mousedown[3];
+	uint8_t  loaded_key_data[2];
+	int32_t  loaded_keyboard_type;
+	int32_t  loaded_keydat[512];
+	uint32_t poll_int, poll_frac, rx_int, rx_frac, tx_int, tx_frac;
+	int32_t  poll_ena, rx_ena, tx_ena;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_i32(r, &loaded_keystat))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_mouseena))  return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_keyena))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_ledcaps))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_lednum))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_ledscr))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_mousedown[0])) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_mousedown[1])) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_mousedown[2])) return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &loaded_key_data[0])) return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &loaded_key_data[1])) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &loaded_keyboard_type)) return 0;
+
+	for (i = 0; i < 512; i++)
+		if (!snapshot_payload_reader_read_i32(r, &loaded_keydat[i])) return 0;
+
+	if (!snapshot_payload_reader_read_u32(r, &poll_int))  return 0;
+	if (!snapshot_payload_reader_read_u32(r, &poll_frac)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &poll_ena))  return 0;
+	if (!snapshot_payload_reader_read_u32(r, &rx_int))    return 0;
+	if (!snapshot_payload_reader_read_u32(r, &rx_frac))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &rx_ena))    return 0;
+	if (!snapshot_payload_reader_read_u32(r, &tx_int))    return 0;
+	if (!snapshot_payload_reader_read_u32(r, &tx_frac))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &tx_ena))    return 0;
+
+	keystat   = (int)loaded_keystat;
+	mouseena  = (int)loaded_mouseena;
+	keyena    = (int)loaded_keyena;
+	ledcaps   = (int)loaded_ledcaps;
+	lednum    = (int)loaded_lednum;
+	ledscr    = (int)loaded_ledscr;
+	mousedown[0] = (int)loaded_mousedown[0];
+	mousedown[1] = (int)loaded_mousedown[1];
+	mousedown[2] = (int)loaded_mousedown[2];
+	key_data[0] = loaded_key_data[0];
+	key_data[1] = loaded_key_data[1];
+	keyboard_type = (int)loaded_keyboard_type;
+
+	for (i = 0; i < 512; i++)
+		keydat[i] = (int)loaded_keydat[i];
+
+	timer_restore(&keyboard_timer,    poll_int, poll_frac, (int)poll_ena);
+	timer_restore(&keyboard_rx_timer, rx_int,   rx_frac,   (int)rx_ena);
+	timer_restore(&keyboard_tx_timer, tx_int,   tx_frac,   (int)tx_ena);
+
+	return 1;
 }

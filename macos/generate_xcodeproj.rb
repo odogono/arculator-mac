@@ -233,6 +233,7 @@ src_macos_group.new_file("src/macos/ScriptingCommandSupport.h")
 src_macos_group.new_file("src/macos/InputInjectionBridge.h")
 src_group.new_file("src/snapshot.h")
 src_group.new_file("src/snapshot_chunks.h")
+src_group.new_file("src/snapshot_subsystems.h")
 
 SOURCE_FILES.each do |path|
   group = path.start_with?("src/macos/") ? src_macos_group : (path.start_with?("src/") ? src_group : macos_group)

@@ -4,6 +4,9 @@
 #include "arm.h"
 #include "cp15.h"
 #include "mem.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 #include "vidc.h"
 
 arm3cp_t arm3cp;
@@ -59,5 +62,45 @@ void writecp15(int reg, uint32_t val)
 		arm3cp.disrupt=val;
 		return;
 	}
+}
+
+/* ----- Snapshot save/load -------------------------------------------- */
+
+#define CP15_STATE_VERSION 1u
+
+int cp15_save_state(snapshot_writer_t *w)
+{
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_CP15, CP15_STATE_VERSION))
+		return 0;
+	if (!snapshot_writer_append_u32(w, arm3cp.ctrl))    goto fail;
+	if (!snapshot_writer_append_u32(w, arm3cp.cache))   goto fail;
+	if (!snapshot_writer_append_u32(w, arm3cp.update))  goto fail;
+	if (!snapshot_writer_append_u32(w, arm3cp.disrupt)) goto fail;
+	if (!snapshot_writer_append_i32(w, cp15_cacheon))   goto fail;
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	return 0;
+}
+
+int cp15_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	uint32_t ctrl, cache, update, disrupt;
+	int32_t  cacheon;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_u32(r, &ctrl))    return 0;
+	if (!snapshot_payload_reader_read_u32(r, &cache))   return 0;
+	if (!snapshot_payload_reader_read_u32(r, &update))  return 0;
+	if (!snapshot_payload_reader_read_u32(r, &disrupt)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &cacheon)) return 0;
+
+	arm3cp.ctrl    = ctrl;
+	arm3cp.cache   = cache;
+	arm3cp.update  = update;
+	arm3cp.disrupt = disrupt;
+	cp15_cacheon   = (int)cacheon;
+	return 1;
 }
 
