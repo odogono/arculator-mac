@@ -2,6 +2,13 @@
 
 ## v2.3-mac (unreleased)
 
+- core: Add snapshot save/load system with per-subsystem serialization
+- core: Add arc_init_from_snapshot() API for loading saved machine state
+- core: Add platform shell utilities for snapshot operations
+- core: Add floppy disc quiescence detection for consistent snapshot state
+- macOS: Add shell integration for snapshot menu items
+- testing: Add snapshot format tests and UI tests for snapshot functionality
+
 - AppleScript: Return user record descriptors from `internal drive info` and `create hard disc image` commands for better AppleScript compatibility
 - AppleScript: Surface start errors from `start` and `start config` commands via `lastStartError`
 - core: Add null check for `rlog` in `fatal()` and `error()` to prevent crashes when logging is unavailable

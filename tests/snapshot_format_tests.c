@@ -562,6 +562,168 @@ static void test_file_save_round_trip(void)
 	remove(path);
 }
 
+/* ----- end-to-end multi-chunk save/load roundtrip --------------------- *
+ *
+ * Simulates a realistic .arcsnap file: manifest + several state-like
+ * chunks written in the Phase 2 order, persisted to disk, then reopened
+ * and walked. Asserts every chunk comes back byte-for-byte identical,
+ * that scope flags survive the round-trip, and that the cursor save /
+ * restore API can rewind through the state chunks.
+ *
+ * This test operates purely on the file-format primitives (no
+ * per-subsystem serializers are called), which keeps the test binary
+ * standalone while still exercising the full MNFT + N-chunk shape that
+ * the loader will see in production.
+ */
+
+/* One chunk per major subsystem in the Phase 2 order — not exhaustive,
+ * but enough to verify the loader can walk a multi-chunk file. Each
+ * payload is seeded with a distinct pattern so corrupted contents or
+ * mis-ordered reads fail the byte-for-byte comparison below. */
+typedef struct e2e_state_chunk_t {
+	uint32_t id;
+	uint32_t version;
+	uint8_t  seed;
+	size_t   payload_size;
+	uint8_t  payload[64];
+} e2e_state_chunk_t;
+
+static e2e_state_chunk_t e2e_chunks[] = {
+	{ ARCSNAP_CHUNK_CPU,  1, 0x10, 40, {0} },
+	{ ARCSNAP_CHUNK_MEM,  1, 0x20, 64, {0} },
+	{ ARCSNAP_CHUNK_MEMC, 1, 0x30, 48, {0} },
+	{ ARCSNAP_CHUNK_IOC,  1, 0x40, 32, {0} },
+	{ ARCSNAP_CHUNK_VIDC, 1, 0x50, 56, {0} },
+	{ ARCSNAP_CHUNK_CMOS, 1, 0x60, 24, {0} },
+	{ ARCSNAP_CHUNK_DISC, 1, 0x70, 16, {0} },
+	{ ARCSNAP_CHUNK_END,  1, 0x80,  4, {0} },
+};
+#define E2E_CHUNK_COUNT (sizeof(e2e_chunks) / sizeof(e2e_chunks[0]))
+
+static void e2e_fill_payloads(void)
+{
+	size_t i, j;
+	for (i = 0; i < E2E_CHUNK_COUNT; i++)
+		for (j = 0; j < e2e_chunks[i].payload_size; j++)
+			e2e_chunks[i].payload[j] = (uint8_t)(e2e_chunks[i].seed + j * 7);
+}
+
+static void test_end_to_end_roundtrip(void)
+{
+	const char *path = "snapshot_format_tests_e2e.arcsnap";
+	snapshot_writer_t *w;
+	snapshot_reader_t *r;
+	arcsnap_manifest_t in_manifest, out_manifest;
+	size_t i;
+	uint32_t id, version;
+	const uint8_t *payload;
+	uint64_t payload_size;
+	int rc;
+	char err[256] = {0};
+	size_t after_manifest_cursor;
+
+	g_current_test = "end_to_end_roundtrip";
+	remove(path);
+	e2e_fill_payloads();
+
+	/* Build a manifest with all optional scope flags set so we can
+	 * verify they survive save/load unchanged. */
+	fill_test_manifest(&in_manifest);
+	in_manifest.scope_flags = ARCSNAP_SCOPE_HAS_CP15 |
+	                          ARCSNAP_SCOPE_HAS_FPA  |
+	                          ARCSNAP_SCOPE_HAS_IOEB |
+	                          ARCSNAP_SCOPE_HAS_PREV;
+
+	/* ----- Write ------------------------------------------------------ */
+	w = make_writer_with_header();
+	EXPECT_TRUE(w != NULL, "writer + header");
+	EXPECT_TRUE(snapshot_writer_write_manifest(w, &in_manifest), "write manifest");
+
+	for (i = 0; i < E2E_CHUNK_COUNT; i++)
+	{
+		EXPECT_TRUE(snapshot_writer_begin_chunk(w, e2e_chunks[i].id, e2e_chunks[i].version),
+		            "begin state chunk");
+		EXPECT_TRUE(snapshot_writer_append(w, e2e_chunks[i].payload, e2e_chunks[i].payload_size),
+		            "append state chunk payload");
+		EXPECT_TRUE(snapshot_writer_end_chunk(w), "end state chunk");
+	}
+
+	EXPECT_TRUE(snapshot_writer_save_to_file(w, path), "save to file");
+	snapshot_writer_destroy(w);
+
+	/* ----- Read ------------------------------------------------------- */
+	r = snapshot_reader_open(path, err, sizeof(err));
+	EXPECT_TRUE(r != NULL, err);
+	if (!r)
+	{
+		remove(path);
+		return;
+	}
+
+	/* Manifest chunk first. */
+	rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+	                                err, sizeof(err));
+	EXPECT_EQ_INT(rc, 1, "manifest chunk read after file open");
+	EXPECT_EQ_INT(id, ARCSNAP_CHUNK_MNFT, "first chunk is MNFT");
+	EXPECT_TRUE(snapshot_decode_manifest(payload, payload_size, &out_manifest,
+	                                     err, sizeof(err)),
+	            "decode manifest after file round-trip");
+	EXPECT_EQ_STR(out_manifest.original_config_name, in_manifest.original_config_name,
+	              "config name survives file round-trip");
+	EXPECT_EQ_INT(out_manifest.scope_flags, in_manifest.scope_flags,
+	              "scope flags survive file round-trip");
+	EXPECT_EQ_INT(out_manifest.floppy_count, in_manifest.floppy_count,
+	              "floppy_count survives file round-trip");
+
+	after_manifest_cursor = snapshot_reader_cursor(r);
+
+	/* State chunks in order. */
+	for (i = 0; i < E2E_CHUNK_COUNT; i++)
+	{
+		char where[64];
+		snprintf(where, sizeof(where), "state chunk[%zu] next_chunk", i);
+		rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+		                                err, sizeof(err));
+		EXPECT_EQ_INT(rc, 1, where);
+
+		snprintf(where, sizeof(where), "state chunk[%zu] id", i);
+		EXPECT_EQ_INT(id, e2e_chunks[i].id, where);
+
+		snprintf(where, sizeof(where), "state chunk[%zu] version", i);
+		EXPECT_EQ_INT(version, e2e_chunks[i].version, where);
+
+		snprintf(where, sizeof(where), "state chunk[%zu] payload size", i);
+		EXPECT_EQ_INT(payload_size, e2e_chunks[i].payload_size, where);
+
+		snprintf(where, sizeof(where), "state chunk[%zu] payload contents", i);
+		EXPECT_EQ_INT(memcmp(payload, e2e_chunks[i].payload, e2e_chunks[i].payload_size),
+		              0, where);
+	}
+
+	/* EOF after the final state chunk. */
+	rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+	                                err, sizeof(err));
+	EXPECT_EQ_INT(rc, 0, "EOF after walking every state chunk");
+
+	/* Cursor save / restore: rewind to just after the manifest and
+	 * re-walk. Matches how snapshot_apply_machine_state seeks back to
+	 * the first state chunk after parsing the manifest up-front. */
+	snapshot_reader_set_cursor(r, after_manifest_cursor);
+	for (i = 0; i < E2E_CHUNK_COUNT; i++)
+	{
+		char where[64];
+		rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+		                                err, sizeof(err));
+		snprintf(where, sizeof(where), "rewind state chunk[%zu] next_chunk", i);
+		EXPECT_EQ_INT(rc, 1, where);
+		snprintf(where, sizeof(where), "rewind state chunk[%zu] id", i);
+		EXPECT_EQ_INT(id, e2e_chunks[i].id, where);
+	}
+
+	snapshot_reader_close(r);
+	remove(path);
+}
+
 /* ----- Phase 3: snapshot_can_save scope guards ------------------------ */
 
 static void test_can_save_clean_floppy_only(void)
@@ -762,6 +924,7 @@ int main(void)
 	test_truncated_chunk_payload();
 	test_manifest_round_trip();
 	test_file_save_round_trip();
+	test_end_to_end_roundtrip();
 
 	test_can_save_clean_floppy_only();
 	test_can_save_allows_arculator_rom();
