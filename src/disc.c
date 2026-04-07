@@ -264,6 +264,18 @@ int disc_get_current_track(int drive)
 	return disc_current_track[drive];
 }
 
+int floppy_is_idle(void)
+{
+	/* Belt-and-braces: snapshot_can_save() rejects podules
+	 * earlier, but refuse if the FDC has been overridden so a
+	 * save can't proceed against an unknown FDC instance. */
+	if (fdc_overridden)
+		return 0;
+	if (!fdc_funcs || !fdc_funcs->is_idle)
+		return 0;
+	return fdc_funcs->is_idle(fdc_p);
+}
+
 void disc_seek(int drive, int new_track)
 {
 	if (drive_funcs[drive] && drive_funcs[drive]->seek)

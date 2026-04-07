@@ -49,6 +49,41 @@ static const char *g_current_test = "(none)";
 		}                                                                    \
 	} while (0)
 
+/* ----- Phase 3 scope-guard test fixtures ------------------------------ *
+ *
+ * snapshot_can_save() inspects a handful of emulator-wide globals plus
+ * the helpers arc_is_paused() and floppy_is_idle(). The format-test
+ * binary stands alone (it only links src/snapshot.c), so we provide
+ * test-controlled definitions here. Each test resets the fixture to
+ * a known-good state before flipping a single field.
+ */
+
+int  st506_present       = 0;
+char hd_fn[2][512]       = {{0}, {0}};
+char podule_names[4][16] = {{0}, {0}, {0}, {0}};
+char joystick_if[16]     = {0};
+char _5th_column_fn[512] = {0};
+
+static int g_test_paused      = 1;
+static int g_test_floppy_idle = 1;
+
+int arc_is_paused(void) { return g_test_paused; }
+int floppy_is_idle(void) { return g_test_floppy_idle; }
+
+static void scope_reset_fixture(void)
+{
+	int i;
+	g_test_paused      = 1;
+	g_test_floppy_idle = 1;
+	st506_present      = 0;
+	hd_fn[0][0]        = 0;
+	hd_fn[1][0]        = 0;
+	for (i = 0; i < 4; i++)
+		podule_names[i][0] = 0;
+	joystick_if[0]     = 0;
+	_5th_column_fn[0]  = 0;
+}
+
 /* ----- helpers -------------------------------------------------------- */
 
 static snapshot_writer_t *make_writer_with_header(void)
@@ -527,6 +562,191 @@ static void test_file_save_round_trip(void)
 	remove(path);
 }
 
+/* ----- Phase 3: snapshot_can_save scope guards ------------------------ */
+
+static void test_can_save_clean_floppy_only(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_clean_floppy_only";
+	scope_reset_fixture();
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 1, "clean floppy-only config should be allowed");
+	EXPECT_EQ_INT(err[0], 0, "no error message on success");
+}
+
+static void test_can_save_allows_arculator_rom(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_allows_arculator_rom";
+	scope_reset_fixture();
+	snprintf(podule_names[2], sizeof(podule_names[2]), "arculator_rom");
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 1, "arculator_rom podule should be allowed");
+	EXPECT_EQ_INT(err[0], 0, "no error message on success");
+}
+
+static void test_can_save_rejects_unpaused(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_rejects_unpaused";
+	scope_reset_fixture();
+	g_test_paused = 0;
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "running session should be rejected");
+	EXPECT_TRUE(strstr(err, "paused") != NULL, "error should mention paused");
+}
+
+static void test_can_save_rejects_st506(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_rejects_st506";
+	scope_reset_fixture();
+	st506_present = 1;
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "st506 should be rejected");
+	EXPECT_TRUE(strstr(err, "hard disc") != NULL, "error should mention hard disc");
+}
+
+static void test_can_save_rejects_hd_fn(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_rejects_hd_fn";
+	scope_reset_fixture();
+	snprintf(hd_fn[0], sizeof(hd_fn[0]), "/tmp/foo.hdf");
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "hd_fn[0] set should be rejected");
+	EXPECT_TRUE(strstr(err, "hard disc") != NULL, "error should mention hard disc");
+}
+
+static void test_can_save_rejects_unknown_podule(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_rejects_unknown_podule";
+	scope_reset_fixture();
+	snprintf(podule_names[1], sizeof(podule_names[1]), "ether3");
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "unknown podule should be rejected");
+	EXPECT_TRUE(strstr(err, "ether3") != NULL, "error should mention podule name");
+	EXPECT_TRUE(strstr(err, "slot 1") != NULL, "error should mention slot index");
+}
+
+static void test_can_save_rejects_5th_column(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_rejects_5th_column";
+	scope_reset_fixture();
+	snprintf(_5th_column_fn, sizeof(_5th_column_fn), "/tmp/support.rom");
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "5th-column ROM should be rejected");
+	EXPECT_TRUE(strstr(err, "5th-column") != NULL, "error should mention 5th-column");
+}
+
+static void test_can_save_rejects_joystick(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_rejects_joystick";
+	scope_reset_fixture();
+	snprintf(joystick_if, sizeof(joystick_if), "fcc");
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "joystick interface should be rejected");
+	EXPECT_TRUE(strstr(err, "joystick") != NULL, "error should mention joystick");
+}
+
+static void test_can_save_rejects_busy_floppy(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_rejects_busy_floppy";
+	scope_reset_fixture();
+	g_test_floppy_idle = 0;
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "busy floppy should be rejected");
+	EXPECT_TRUE(strstr(err, "floppy") != NULL && strstr(err, "busy") != NULL,
+	            "error should mention floppy busy");
+}
+
+/* ----- Phase 3: snapshot_open scope check ----------------------------- */
+
+static int write_manifest_snapshot(const char *path, uint32_t scope_flags)
+{
+	snapshot_writer_t *w;
+	arcsnap_manifest_t m;
+	int ok;
+
+	fill_test_manifest(&m);
+	m.scope_flags = scope_flags;
+
+	w = make_writer_with_header();
+	if (!w)
+		return 0;
+	if (!snapshot_writer_write_manifest(w, &m))
+	{
+		snapshot_writer_destroy(w);
+		return 0;
+	}
+	ok = snapshot_writer_save_to_file(w, path);
+	snapshot_writer_destroy(w);
+	return ok;
+}
+
+static void run_open_scope_case(const char *name, const char *path,
+                                 uint32_t scope_flags, int expect_ok,
+                                 const char *expect_err_substr)
+{
+	snapshot_load_ctx_t *ctx;
+	char err[256] = {0};
+
+	g_current_test = name;
+
+	EXPECT_TRUE(write_manifest_snapshot(path, scope_flags), "build manifest");
+
+	ctx = snapshot_open(path, err, sizeof(err));
+	if (expect_ok)
+	{
+		EXPECT_TRUE(ctx != NULL, err);
+		EXPECT_EQ_STR(snapshot_original_config_name(ctx), "Test Machine",
+		              "manifest config name visible after open");
+		snapshot_close(ctx);
+	}
+	else
+	{
+		EXPECT_TRUE(ctx == NULL, "snapshot_open should reject scope");
+		EXPECT_TRUE(strstr(err, expect_err_substr) != NULL,
+		            "error should mention rejected subsystem");
+	}
+
+	remove(path);
+}
+
+static void test_open_accepts_clean_manifest(void)
+{
+	run_open_scope_case("open_accepts_clean_manifest",
+	                    "snapshot_format_tests_open_clean.arcsnap",
+	                    ARCSNAP_SCOPE_HAS_PREV, 1, NULL);
+}
+
+static void test_open_rejects_hd_scope(void)
+{
+	run_open_scope_case("open_rejects_hd_scope",
+	                    "snapshot_format_tests_open_hd.arcsnap",
+	                    ARCSNAP_SCOPE_HAS_HD, 0, "hard disc");
+}
+
+static void test_open_rejects_podule_scope(void)
+{
+	run_open_scope_case("open_rejects_podule_scope",
+	                    "snapshot_format_tests_open_podule.arcsnap",
+	                    ARCSNAP_SCOPE_HAS_PODULE, 0, "podule");
+}
+
 /* ----- main ----------------------------------------------------------- */
 
 int main(void)
@@ -542,6 +762,20 @@ int main(void)
 	test_truncated_chunk_payload();
 	test_manifest_round_trip();
 	test_file_save_round_trip();
+
+	test_can_save_clean_floppy_only();
+	test_can_save_allows_arculator_rom();
+	test_can_save_rejects_unpaused();
+	test_can_save_rejects_st506();
+	test_can_save_rejects_hd_fn();
+	test_can_save_rejects_unknown_podule();
+	test_can_save_rejects_5th_column();
+	test_can_save_rejects_joystick();
+	test_can_save_rejects_busy_floppy();
+
+	test_open_accepts_clean_manifest();
+	test_open_rejects_hd_scope();
+	test_open_rejects_podule_scope();
 
 	if (g_failures)
 	{

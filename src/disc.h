@@ -27,6 +27,7 @@ typedef struct fdc_funcs_t
 	int  (*getdata)(int last, void *p);
 	void (*sectorid)(uint8_t track, uint8_t side, uint8_t sector, uint8_t size, uint8_t crc1, uint8_t crc2, void *p);
 	void (*indexpulse)(void *p);
+	int  (*is_idle)(void *p);
 } fdc_funcs_t;
 
 extern fdc_funcs_t *fdc_funcs;
@@ -64,3 +65,6 @@ extern int writeprot[4];
 
 extern int disc_noise_gain;
 #define DISC_NOISE_DISABLED 9999
+
+/* Returns 1 if no floppy command is in flight on the active FDC. */
+int floppy_is_idle(void);

@@ -908,6 +908,23 @@ void c82c711_fdc_dmawrite(uint8_t val, int tc, void *p)
 	fdc->written = 1;
 }
 
+static int c82c711_fdc_is_idle(void *p)
+{
+	FDC *fdc = (FDC *)p;
+
+	/* stat bit 4 = BUSY; pnum != ptot means mid command/result
+	 * phase; inread means we're consuming a sector buffer. */
+	if (fdc->stat & 0x10)
+		return 0;
+	if (fdc->pnum != fdc->ptot)
+		return 0;
+	if (fdc->inread)
+		return 0;
+	if (timer_is_enabled(&fdc->timer))
+		return 0;
+	return 1;
+}
+
 static fdc_funcs_t c82c711_fdc_funcs =
 {
 	.data           = c82c711_fdc_data,
@@ -919,7 +936,8 @@ static fdc_funcs_t c82c711_fdc_funcs =
 	.writeprotect   = c82c711_fdc_writeprotect,
 	.getdata        = c82c711_fdc_getdata,
 	.sectorid       = c82c711_fdc_sectorid,
-	.indexpulse     = c82c711_fdc_indexpulse
+	.indexpulse     = c82c711_fdc_indexpulse,
+	.is_idle        = c82c711_fdc_is_idle
 };
 
 /* ----- Snapshot save/load -------------------------------------------- *

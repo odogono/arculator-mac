@@ -54,11 +54,26 @@ extern "C" {
 #define ARCSNAP_MNFT_MAX_FLOPPIES 4
 
 /* Scope flag bitmap (declares which optional subsystems are present). */
-#define ARCSNAP_SCOPE_HAS_CP15  (1u << 0)
-#define ARCSNAP_SCOPE_HAS_FPA   (1u << 1)
-#define ARCSNAP_SCOPE_HAS_IOEB  (1u << 2)
-#define ARCSNAP_SCOPE_HAS_LC    (1u << 3)
-#define ARCSNAP_SCOPE_HAS_PREV  (1u << 4)
+#define ARCSNAP_SCOPE_HAS_CP15        (1u << 0)
+#define ARCSNAP_SCOPE_HAS_FPA         (1u << 1)
+#define ARCSNAP_SCOPE_HAS_IOEB        (1u << 2)
+#define ARCSNAP_SCOPE_HAS_LC          (1u << 3)
+#define ARCSNAP_SCOPE_HAS_PREV        (1u << 4)
+
+/* Out-of-scope flags. v1 never sets these on save (snapshot_can_save
+ * rejects the configurations that would produce them), but the loader
+ * still defends against them so a snapshot built by a future or
+ * hand-crafted writer can't smuggle unsupported state past the
+ * scope check. */
+#define ARCSNAP_SCOPE_HAS_HD          (1u << 5)
+#define ARCSNAP_SCOPE_HAS_PODULE      (1u << 6)
+#define ARCSNAP_SCOPE_HAS_5TH_COLUMN  (1u << 7)
+#define ARCSNAP_SCOPE_HAS_JOYSTICK    (1u << 8)
+
+#define ARCSNAP_SCOPE_UNSUPPORTED_MASK (ARCSNAP_SCOPE_HAS_HD         | \
+                                        ARCSNAP_SCOPE_HAS_PODULE     | \
+                                        ARCSNAP_SCOPE_HAS_5TH_COLUMN | \
+                                        ARCSNAP_SCOPE_HAS_JOYSTICK)
 
 /* On-disk header. Layout matches the format documented in
  * docs/SNAPSHOT_IMPLEMENTATION_PLAN.md. */

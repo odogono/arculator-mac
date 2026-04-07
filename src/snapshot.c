@@ -882,11 +882,67 @@ struct snapshot_load_ctx_t {
 	int                manifest_loaded;
 };
 
+/* Externs from across the emulator that the scope guard inspects.
+ *
+ * These are deliberately declared inline rather than #include'd from
+ * config.h / disc.h / podules.h / st506.h, so the standalone format
+ * tests can compile snapshot.c against simple stub definitions
+ * without dragging in the full machine-config / hardware headers. */
+extern int  st506_present;
+extern char hd_fn[2][512];
+extern char podule_names[4][16];
+extern char joystick_if[16];
+extern char _5th_column_fn[512];
+extern int  arc_is_paused(void);
+extern int  floppy_is_idle(void);
+
 int snapshot_can_save(char *err, size_t err_size)
 {
-	(void)err;
-	(void)err_size;
-	/* Phase 1 stub: real scope guards arrive in Phase 3. */
+	int i;
+
+	if (err && err_size)
+		err[0] = 0;
+
+	if (!arc_is_paused())
+	{
+		set_errorf(err, err_size, "save snapshot only while paused");
+		return 0;
+	}
+	if (st506_present || hd_fn[0][0] || hd_fn[1][0])
+	{
+		set_errorf(err, err_size,
+		           "internal hard disc configured (snapshots are floppy-only in v1)");
+		return 0;
+	}
+	for (i = 0; i < 4; i++)
+	{
+		/* The "arculator_rom" support podule is treated as
+		 * static / stateless and is allowed by the v1 guard. */
+		if (podule_names[i][0] &&
+		    strcmp(podule_names[i], "arculator_rom") != 0)
+		{
+			set_errorf(err, err_size,
+			           "podule '%s' in slot %d not supported in v1",
+			           podule_names[i], i);
+			return 0;
+		}
+	}
+	if (_5th_column_fn[0])
+	{
+		set_errorf(err, err_size, "5th-column ROM not supported in v1");
+		return 0;
+	}
+	if (joystick_if[0])
+	{
+		set_errorf(err, err_size, "joystick interface not supported in v1");
+		return 0;
+	}
+	if (!floppy_is_idle())
+	{
+		set_errorf(err, err_size,
+		           "floppy controller is busy; wait and try again");
+		return 0;
+	}
 	return 1;
 }
 
@@ -952,6 +1008,25 @@ snapshot_load_ctx_t *snapshot_open(const char *path, char *err, size_t err_size)
 		snapshot_close(ctx);
 		return NULL;
 	}
+
+	/* Symmetrical scope check: even though the v1 save side
+	 * refuses to emit these, defend the load path against a
+	 * snapshot built by a future writer or by hand. */
+	if (ctx->manifest.scope_flags & ARCSNAP_SCOPE_UNSUPPORTED_MASK)
+	{
+		uint32_t bad = ctx->manifest.scope_flags & ARCSNAP_SCOPE_UNSUPPORTED_MASK;
+		const char *what = "unsupported subsystem";
+		if      (bad & ARCSNAP_SCOPE_HAS_HD)         what = "hard disc";
+		else if (bad & ARCSNAP_SCOPE_HAS_PODULE)     what = "podule";
+		else if (bad & ARCSNAP_SCOPE_HAS_5TH_COLUMN) what = "5th-column ROM";
+		else if (bad & ARCSNAP_SCOPE_HAS_JOYSTICK)   what = "joystick interface";
+		set_errorf(err, err_size,
+		           "snapshot declares %s state, which is not supported in v1",
+		           what);
+		snapshot_close(ctx);
+		return NULL;
+	}
+
 	ctx->manifest_loaded = 1;
 	return ctx;
 }

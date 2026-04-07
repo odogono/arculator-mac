@@ -394,6 +394,16 @@ static void wd1770_fdc_indexpulse(void *p)
 		wd1770_notfound(NULL);
 }
 
+static int wd1770_is_idle(void *p)
+{
+	/* status bit 0 = BUSY (set for every command type). */
+	if (wd1770.status & 0x01)
+		return 0;
+	if (timer_is_enabled(&wd1770.timer))
+		return 0;
+	return 1;
+}
+
 static fdc_funcs_t wd1770_fdc_funcs =
 {
 	.data           = wd1770_data,
@@ -405,7 +415,8 @@ static fdc_funcs_t wd1770_fdc_funcs =
 	.writeprotect   = wd1770_writeprotect,
 	.getdata        = wd1770_getdata,
 	.sectorid       = NULL,
-	.indexpulse     = wd1770_fdc_indexpulse
+	.indexpulse     = wd1770_fdc_indexpulse,
+	.is_idle        = wd1770_is_idle
 };
 
 /* ----- Snapshot save/load -------------------------------------------- */
