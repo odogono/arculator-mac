@@ -23,6 +23,8 @@ extern "C" {
 
 #include "MachinePresetData.h"
 
+static NSMutableSet<NSString *> *gShownBlankDiskWarnings;
+
 #pragma mark - Setting key constants
 
 NSString *const ARCSettingDisc            = @"disc";
@@ -296,6 +298,98 @@ NSString *const ARCSetting5thColumnROM    = @"5th_column_rom";
 	return YES;
 }
 
++ (ARCInternalDiskImageState)stateForInternalDiskImageAtPath:(NSString *)path
+						  cylinders:(int)cylinders
+						       heads:(int)heads
+						     sectors:(int)sectors
+						     isST506:(BOOL)isST506
+{
+	switch (config_internal_disk_image_state(path.fileSystemRepresentation,
+						 cylinders,
+						 heads,
+						 sectors,
+						 isST506 ? 1 : 0))
+	{
+		case INTERNAL_DISK_IMAGE_BLANK_RAW:
+			return ARCInternalDiskImageStateBlankRaw;
+		case INTERNAL_DISK_IMAGE_INITIALIZED:
+			return ARCInternalDiskImageStateInitialized;
+		default:
+			return ARCInternalDiskImageStateUnknown;
+	}
+}
+
++ (void)showStartupWarningsForLoadedConfigIfNeeded
+{
+	if (!gShownBlankDiskWarnings)
+		gShownBlankDiskWarnings = [[NSMutableSet alloc] init];
+
+	struct drive_info_t
+	{
+		const char *path;
+		int cylinders;
+		int heads;
+		int sectors;
+		const char *label;
+	} drives[] = {
+		{ hd_fn[0], hd_cyl[0], hd_hpc[0], hd_spt[0], "Hard Drive 4" },
+		{ hd_fn[1], hd_cyl[1], hd_hpc[1], hd_spt[1], "Hard Drive 5" },
+	};
+
+	BOOL isST506 = (fdctype != FDC_82C711) && st506_present;
+
+	for (int i = 0; i < 2; i++)
+	{
+		NSString *path = arc_nsstring(drives[i].path);
+		if (path.length == 0 || [gShownBlankDiskWarnings containsObject:path])
+			continue;
+
+		ARCInternalDiskImageState state = [self stateForInternalDiskImageAtPath:path
+									 cylinders:drives[i].cylinders
+									      heads:drives[i].heads
+									    sectors:drives[i].sectors
+									    isST506:isST506];
+		if (state != ARCInternalDiskImageStateBlankRaw)
+			continue;
+
+		[gShownBlankDiskWarnings addObject:path];
+
+		BOOL hasTemplate = [self hasTemplateForCylinders:drives[i].cylinders
+							  heads:drives[i].heads
+							sectors:drives[i].sectors
+							isST506:isST506];
+
+		if (hasTemplate)
+		{
+			NSString *message = [NSString stringWithFormat:
+				@"%s is blank. Would you like to initialize it with a ready-to-use formatted image?\n\n"
+				@"This will replace the blank image with a pre-formatted template so the drive is immediately usable in RISC OS.",
+				drives[i].label];
+
+			if (arc_confirm(@"Initialize Hard Drive?", message))
+			{
+				NSString *error = [self createReadyHDFAtPath:path
+								  cylinders:drives[i].cylinders
+								      heads:drives[i].heads
+								    sectors:drives[i].sectors
+								    isST506:isST506];
+				if (error)
+					arc_show_message(@"Arculator", [NSString stringWithFormat:
+						@"Could not initialize %s: %@", drives[i].label, error]);
+			}
+		}
+		else
+		{
+			NSString *message = [NSString stringWithFormat:
+				@"%s is attached to this config, but the image is still blank.\n\n"
+				@"Arculator will expose the internal drive at startup, so it should appear in RISC OS, "
+				@"but the image still needs to be partitioned/formatted inside the guest before it can be used.",
+				drives[i].label];
+			arc_show_message(@"Arculator", message);
+		}
+	}
+}
+
 + (BOOL)renameConfig:(NSString *)oldName to:(NSString *)newName
 {
 	if ([self configExists:newName])
@@ -332,6 +426,170 @@ NSString *const ARCSetting5thColumnROM    = @"5th_column_rom";
 	ARCMachineConfig *cfg = [ARCMachineConfig configFromPresetIndex:presetIndex];
 	[cfg applyToGlobals];
 	return YES;
+}
+
++ (NSDictionary *)internalDriveInfoForIndex:(int)index
+{
+	if (index < 0 || index > 1)
+		return @{};
+
+	NSString *path = arc_nsstring(hd_fn[index]);
+	int cylinders = hd_cyl[index];
+	int heads = hd_hpc[index];
+	int sectors = hd_spt[index];
+
+	BOOL isST506 = (fdctype != FDC_82C711) && st506_present;
+	NSString *controllerKind = isST506 ? @"st506" : @"ide";
+
+	NSString *imageState = @"unknown";
+	if (path.length > 0)
+	{
+		ARCInternalDiskImageState state = [self stateForInternalDiskImageAtPath:path
+									 cylinders:cylinders
+									      heads:heads
+									    sectors:sectors
+									    isST506:isST506];
+		switch (state)
+		{
+			case ARCInternalDiskImageStateBlankRaw:
+				imageState = @"blank raw";
+				break;
+			case ARCInternalDiskImageStateInitialized:
+				imageState = @"initialized";
+				break;
+			default:
+				imageState = @"unknown";
+				break;
+		}
+	}
+
+	return @{
+		@"path": path ?: @"",
+		@"cylinders": @(cylinders),
+		@"heads": @(heads),
+		@"sectors": @(sectors),
+		@"controllerKind": controllerKind,
+		@"imageState": imageState
+	};
+}
+
++ (NSString *)setInternalDriveIndex:(int)index
+                               path:(NSString *)path
+                          cylinders:(int)cylinders
+                              heads:(int)heads
+                            sectors:(int)sectors
+{
+	if (index < 0 || index > 1)
+		return @"Invalid drive index (must be 0 or 1, for drives 4 and 5)";
+
+	if (!path.length)
+		return @"Path cannot be empty";
+
+	if (cylinders <= 0 || heads <= 0 || sectors <= 0)
+		return @"Geometry values must be positive";
+
+	arc_copy_string(hd_fn[index], sizeof(hd_fn[index]), path);
+	hd_cyl[index] = cylinders;
+	hd_hpc[index] = heads;
+	hd_spt[index] = sectors;
+	saveconfig();
+	return nil;
+}
+
++ (NSString *)ejectInternalDriveIndex:(int)index
+{
+	if (index < 0 || index > 1)
+		return @"Invalid drive index (must be 0 or 1, for drives 4 and 5)";
+
+	hd_fn[index][0] = '\0';
+	hd_cyl[index] = 0;
+	hd_hpc[index] = 0;
+	hd_spt[index] = 0;
+	saveconfig();
+	return nil;
+}
+
++ (NSString *)createBlankHDFAtPath:(NSString *)path
+                         cylinders:(int)cylinders
+                             heads:(int)heads
+                           sectors:(int)sectors
+                           isST506:(BOOL)isST506
+{
+	if (!path.length)
+		return @"Path cannot be empty";
+
+	if (cylinders <= 0 || heads <= 0 || sectors <= 0)
+		return @"Geometry values must be positive";
+
+	int sectorSize = isST506 ? 256 : 512;
+	long long totalBytes = (long long)cylinders * heads * sectors * sectorSize;
+
+	FILE *file = fopen(path.fileSystemRepresentation, "wb");
+	if (!file)
+		return [NSString stringWithFormat:@"Could not create file at '%@'", path];
+
+	uint8_t zeroBuf[4096];
+	memset(zeroBuf, 0, sizeof(zeroBuf));
+
+	long long remaining = totalBytes;
+	while (remaining > 0)
+	{
+		size_t chunk = (remaining < (long long)sizeof(zeroBuf)) ? (size_t)remaining : sizeof(zeroBuf);
+		size_t written = fwrite(zeroBuf, 1, chunk, file);
+		if (written != chunk)
+		{
+			fclose(file);
+			return @"Write error while creating image file";
+		}
+		remaining -= (long long)written;
+	}
+
+	fclose(file);
+	return nil;
+}
+
++ (NSString *)templatePathForCylinders:(int)cylinders
+                                 heads:(int)heads
+                               sectors:(int)sectors
+                               isST506:(BOOL)isST506
+{
+	NSString *kind = isST506 ? @"st506" : @"ide";
+	NSString *name = [NSString stringWithFormat:@"%@_%dx%dx%d", kind, cylinders, heads, sectors];
+	return [[NSBundle mainBundle] pathForResource:name ofType:@"hdf" inDirectory:@"templates"];
+}
+
++ (BOOL)hasTemplateForCylinders:(int)cylinders
+                          heads:(int)heads
+                        sectors:(int)sectors
+                        isST506:(BOOL)isST506
+{
+	return [self templatePathForCylinders:cylinders heads:heads sectors:sectors isST506:isST506] != nil;
+}
+
++ (NSString *)createReadyHDFAtPath:(NSString *)path
+                         cylinders:(int)cylinders
+                             heads:(int)heads
+                           sectors:(int)sectors
+                           isST506:(BOOL)isST506
+{
+	if (!path.length)
+		return @"Path cannot be empty";
+
+	NSString *templatePath = [self templatePathForCylinders:cylinders
+							 heads:heads
+						       sectors:sectors
+						       isST506:isST506];
+	if (!templatePath)
+		return [NSString stringWithFormat:
+			@"No bundled template for %s geometry %dx%dx%d",
+			isST506 ? "ST-506" : "IDE", cylinders, heads, sectors];
+
+	NSError *copyError = nil;
+	if (![[NSFileManager defaultManager] copyItemAtPath:templatePath toPath:path error:&copyError])
+		return [NSString stringWithFormat:@"Failed to clone template: %@",
+			copyError.localizedDescription ?: @"unknown error"];
+
+	return nil;
 }
 
 + (ARCSettingMutability)mutabilityForSetting:(NSString *)settingKey

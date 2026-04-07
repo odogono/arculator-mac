@@ -22,6 +22,7 @@ extern MTKView *arc_get_video_view(void);
 @implementation EmulatorBridge
 
 + (void)startEmulation {
+    [ConfigBridge showStartupWarningsForLoadedConfigIfNeeded];
     arc_start_main_thread(NULL, NULL);
 }
 
@@ -44,6 +45,7 @@ extern MTKView *arc_get_video_view(void);
 + (BOOL)startEmulationForConfig:(NSString *)configName {
     if (![ConfigBridge loadConfigNamed:configName])
         return NO;
+    [ConfigBridge showStartupWarningsForLoadedConfigIfNeeded];
     arc_start_main_thread(NULL, NULL);
     return YES;
 }
@@ -84,6 +86,61 @@ extern MTKView *arc_get_video_view(void);
 
 + (MTKView *)videoView {
     return arc_get_video_view();
+}
+
++ (NSString *)captureScreenshotToPath:(NSString *)path
+{
+    __block NSString *error = nil;
+
+    void (^captureBlock)(void) = ^{
+        MTKView *view = arc_get_video_view();
+        if (!view)
+        {
+            error = @"No emulation view available";
+            return;
+        }
+
+        NSWindow *window = view.window;
+        if (!window)
+        {
+            error = @"Emulation view has no window";
+            return;
+        }
+
+        NSRect rectInWindow = [view convertRect:view.bounds toView:nil];
+        NSRect rectInScreen = [window convertRectToScreen:rectInWindow];
+        CGImageRef imageRef = CGWindowListCreateImage(
+            rectInScreen,
+            kCGWindowListOptionIncludingWindow,
+            (CGWindowID)window.windowNumber,
+            kCGWindowImageBoundsIgnoreFraming | kCGWindowImageNominalResolution);
+
+        if (!imageRef)
+        {
+            error = @"Failed to capture window image";
+            return;
+        }
+
+        NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithCGImage:imageRef];
+        CGImageRelease(imageRef);
+
+        NSData *pngData = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
+        if (!pngData)
+        {
+            error = @"Failed to encode PNG";
+            return;
+        }
+
+        if (![pngData writeToFile:path atomically:YES])
+            error = [NSString stringWithFormat:@"Failed to write file: %@", path];
+    };
+
+    if ([NSThread isMainThread])
+        captureBlock();
+    else
+        dispatch_sync(dispatch_get_main_queue(), captureBlock);
+
+    return error;
 }
 
 @end

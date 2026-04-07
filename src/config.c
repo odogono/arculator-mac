@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "arc.h"
 #include "arm.h"
 #include "config.h"
@@ -32,6 +33,70 @@ char joystick_if[16];
 
 char _5th_column_fn[512];
 int support_rom_enabled;
+
+static long long config_expected_disk_size_bytes(int cylinders, int heads, int sectors, int is_st506)
+{
+	int sector_size = is_st506 ? 256 : 512;
+
+	if (cylinders <= 0 || heads <= 0 || sectors <= 0)
+		return -1;
+
+	return (long long)cylinders * (long long)heads * (long long)sectors * (long long)sector_size;
+}
+
+static int config_file_is_all_zeroes(const char *path)
+{
+	FILE *f = fopen(path, "rb");
+	uint8_t buffer[65536];
+
+	if (!f)
+		return 0;
+
+	while (!feof(f))
+	{
+		size_t bytes_read = fread(buffer, 1, sizeof(buffer), f);
+		size_t c;
+
+		if (!bytes_read)
+			break;
+
+		for (c = 0; c < bytes_read; c++)
+		{
+			if (buffer[c] != 0)
+			{
+				fclose(f);
+				return 0;
+			}
+		}
+	}
+
+	fclose(f);
+	return 1;
+}
+
+int config_internal_disk_image_state(const char *path, int cylinders, int heads, int sectors, int is_st506)
+{
+	struct stat st;
+	long long expected_size;
+
+	if (!path || !path[0])
+		return INTERNAL_DISK_IMAGE_UNKNOWN;
+
+	if (stat(path, &st) != 0 || st.st_size <= 0)
+		return INTERNAL_DISK_IMAGE_UNKNOWN;
+
+	expected_size = config_expected_disk_size_bytes(cylinders, heads, sectors, is_st506);
+	if (expected_size <= 0)
+		return INTERNAL_DISK_IMAGE_UNKNOWN;
+
+	if (st.st_size != expected_size && st.st_size != (expected_size + 512))
+		return INTERNAL_DISK_IMAGE_UNKNOWN;
+
+	if (config_file_is_all_zeroes(path))
+		return INTERNAL_DISK_IMAGE_BLANK_RAW;
+
+	return INTERNAL_DISK_IMAGE_INITIALIZED;
+}
 
 char *get_filename(char *s)
 {

@@ -27,6 +27,13 @@ enum
 
 extern int romset_available_mask;
 
+enum
+{
+	INTERNAL_DISK_IMAGE_UNKNOWN = 0,
+	INTERNAL_DISK_IMAGE_BLANK_RAW,
+	INTERNAL_DISK_IMAGE_INITIALIZED
+};
+
 char *config_get_romset_name(int romset);
 char *config_get_cmos_name(int romset, int fdctype);
 
@@ -72,6 +79,7 @@ extern void config_dump(int is_global);
 
 extern void loadconfig();
 extern void saveconfig();
+extern int config_internal_disk_image_state(const char *path, int cylinders, int heads, int sectors, int is_st506);
 
 #define CFG_MACHINE 0
 #define CFG_GLOBAL  1

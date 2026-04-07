@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "CE114A30260BC5AFC0D7DDBF"
+               BlueprintIdentifier = "3899262DF938273C8173088C"
                BuildableName = "Arculator.app"
                BlueprintName = "Arculator"
                ReferencedContainer = "container:Arculator.xcodeproj">
@@ -28,7 +28,7 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "4731B71627E7D3C33B1A2F2D"
+               BlueprintIdentifier = "26B6F7B13E85D2F198206897"
                BuildableName = "ArculatorUITests.xctest"
                BlueprintName = "ArculatorUITests"
                ReferencedContainer = "container:Arculator.xcodeproj">
@@ -42,7 +42,7 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "AF41B5FB3C521FBD685E7817"
+               BlueprintIdentifier = "CD7B4A2F27860F4DD3A913B5"
                BuildableName = "ArculatorCoreTests.xctest"
                BlueprintName = "ArculatorCoreTests"
                ReferencedContainer = "container:Arculator.xcodeproj">
@@ -58,7 +58,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "CE114A30260BC5AFC0D7DDBF"
+            BlueprintIdentifier = "3899262DF938273C8173088C"
             BuildableName = "Arculator.app"
             BlueprintName = "Arculator"
             ReferencedContainer = "container:Arculator.xcodeproj">
@@ -69,7 +69,7 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "4731B71627E7D3C33B1A2F2D"
+               BlueprintIdentifier = "26B6F7B13E85D2F198206897"
                BuildableName = "ArculatorUITests.xctest"
                BlueprintName = "ArculatorUITests"
                ReferencedContainer = "container:Arculator.xcodeproj">
@@ -79,7 +79,7 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "AF41B5FB3C521FBD685E7817"
+               BlueprintIdentifier = "CD7B4A2F27860F4DD3A913B5"
                BuildableName = "ArculatorCoreTests.xctest"
                BlueprintName = "ArculatorCoreTests"
                ReferencedContainer = "container:Arculator.xcodeproj">
@@ -101,7 +101,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "CE114A30260BC5AFC0D7DDBF"
+            BlueprintIdentifier = "3899262DF938273C8173088C"
             BuildableName = "Arculator.app"
             BlueprintName = "Arculator"
             ReferencedContainer = "container:Arculator.xcodeproj">
@@ -118,7 +118,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "CE114A30260BC5AFC0D7DDBF"
+            BlueprintIdentifier = "3899262DF938273C8173088C"
             BuildableName = "Arculator.app"
             BlueprintName = "Arculator"
             ReferencedContainer = "container:Arculator.xcodeproj">

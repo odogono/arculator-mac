@@ -12,6 +12,7 @@
 #include "cmos.h"
 #include "config.h"
 #include "platform_paths.h"
+#include "st506.h"
 #include "timer.h"
 
 int cmos_changed = 0;
@@ -100,6 +101,49 @@ static int cmos_ram_has_persistent_state(void)
 	return 0;
 }
 
+static int cmos_internal_drive_count(void)
+{
+	int count = 0;
+
+	if (hd_fn[0][0])
+		count++;
+	if (hd_fn[1][0])
+		count++;
+
+	return count;
+}
+
+static void cmos_apply_internal_drive_defaults(void)
+{
+	int drive_count = cmos_internal_drive_count();
+	uint8_t adfs_drives = cmos.ram[135];
+	uint8_t selected_drive = cmos.ram[11] & 7;
+	uint8_t new_adfs_drives = adfs_drives;
+
+	if (fdctype == FDC_82C711)
+	{
+		new_adfs_drives &= ~0xC0;
+		new_adfs_drives |= (drive_count & 0x03) << 6;
+	}
+	else if (st506_present)
+	{
+		new_adfs_drives &= ~0x38;
+		new_adfs_drives |= (drive_count & 0x07) << 3;
+	}
+
+	if (new_adfs_drives != adfs_drives)
+	{
+		cmos.ram[135] = new_adfs_drives;
+		cmos_changed = CMOS_CHANGE_DELAY;
+	}
+
+	if (drive_count > 0 && (selected_drive < 4 || selected_drive >= (4 + drive_count)))
+	{
+		cmos.ram[11] = (cmos.ram[11] & ~7) | 4;
+		cmos_changed = CMOS_CHANGE_DELAY;
+	}
+}
+
 void cmos_load()
 {
 	char fn[512];
@@ -137,6 +181,8 @@ void cmos_load()
 			memset(cmos.ram, 0, 256);
 		}
 	}
+
+	cmos_apply_internal_drive_defaults();
 	cmos_get_time();
 }
 

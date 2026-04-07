@@ -30,5 +30,9 @@
 	<string>Arculator contributors</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSAppleScriptEnabled</key>
+	<true/>
+	<key>OSAScriptingDefinition</key>
+	<string>Arculator.sdef</string>
 </dict>
 </plist>

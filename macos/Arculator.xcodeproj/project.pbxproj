@@ -118,6 +118,13 @@
 		F630BF11315ECE1CACFC1BC9 /* disc_jfd.c in Sources */ = {isa = PBXBuildFile; fileRef = D231F850C1991766C5089858 /* disc_jfd.c */; };
 		F64F80C0F7CD1F98BBC50015 /* HardwareEnumeration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D276574BE3859761E37AE6 /* HardwareEnumeration.swift */; };
 		FFA4A79DC2068BB0278F7317 /* hostfs.c in Sources */ = {isa = PBXBuildFile; fileRef = BCE0C3F10ADA6B493D0EA600 /* hostfs.c */; };
+		05F9B6B116B657F5337E47FE /* Arculator.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 5F20DD3A20DFA0B104558389 /* Arculator.sdef */; };
+		C556612B7CCC818A1F82FA45 /* InputInjectionBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = C4461F93CC0538C1C5809DD2 /* InputInjectionBridge.mm */; };
+		8CEFF0AA4955D963FCA9BE3C /* NSApplication+Scripting.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1642C45CB6C37DCEC7B8CEE5 /* NSApplication+Scripting.mm */; };
+		C7F2FF87A536696F0AA0DF81 /* ScriptingCommandSupport.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0F9AD86FD1F11C0B28A16016 /* ScriptingCommandSupport.mm */; };
+		092902A0D00E729567AA942E /* LifecycleScriptingCommands.mm in Sources */ = {isa = PBXBuildFile; fileRef = 910A5FE4D977E0F0600481A6 /* LifecycleScriptingCommands.mm */; };
+		7E2BB37DAB17FA34A4FBF620 /* ConfigScriptingCommands.mm in Sources */ = {isa = PBXBuildFile; fileRef = C0668E1DFE757EED3E6E71D5 /* ConfigScriptingCommands.mm */; };
+		B9AEF780D2079FEAC3411EAF /* InputScriptingCommands.mm in Sources */ = {isa = PBXBuildFile; fileRef = E13CF2ECD8F77BE03A135F44 /* InputScriptingCommands.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -248,6 +255,15 @@
 		F9D5A0855F7BD2CC22E7A997 /* colourcard.c */ = {isa = PBXFileReference; includeInIndex = 1; name = colourcard.c; path = src/colourcard.c; sourceTree = "<group>"; };
 		FA73A345B6FA154D53F89527 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		FC363ABF919698893C235484 /* NewWindowBridge.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = NewWindowBridge.mm; path = src/macos/NewWindowBridge.mm; sourceTree = "<group>"; };
+		5F20DD3A20DFA0B104558389 /* Arculator.sdef */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.sdef; name = Arculator.sdef; path = macos/Arculator.sdef; sourceTree = "<group>"; };
+		EBD8CE6C17FAC3420D2F3BF9 /* InputInjectionBridge.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = InputInjectionBridge.h; path = src/macos/InputInjectionBridge.h; sourceTree = "<group>"; };
+		C4461F93CC0538C1C5809DD2 /* InputInjectionBridge.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = InputInjectionBridge.mm; path = src/macos/InputInjectionBridge.mm; sourceTree = "<group>"; };
+		1642C45CB6C37DCEC7B8CEE5 /* NSApplication+Scripting.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = "NSApplication+Scripting.mm"; path = "src/macos/NSApplication+Scripting.mm"; sourceTree = "<group>"; };
+		61440B81ECE3DEAABDC87603 /* ScriptingCommandSupport.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ScriptingCommandSupport.h; path = src/macos/ScriptingCommandSupport.h; sourceTree = "<group>"; };
+		0F9AD86FD1F11C0B28A16016 /* ScriptingCommandSupport.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = ScriptingCommandSupport.mm; path = src/macos/ScriptingCommandSupport.mm; sourceTree = "<group>"; };
+		910A5FE4D977E0F0600481A6 /* LifecycleScriptingCommands.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = LifecycleScriptingCommands.mm; path = src/macos/LifecycleScriptingCommands.mm; sourceTree = "<group>"; };
+		C0668E1DFE757EED3E6E71D5 /* ConfigScriptingCommands.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = ConfigScriptingCommands.mm; path = src/macos/ConfigScriptingCommands.mm; sourceTree = "<group>"; };
+		E13CF2ECD8F77BE03A135F44 /* InputScriptingCommands.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = InputScriptingCommands.mm; path = src/macos/InputScriptingCommands.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -397,6 +413,7 @@
 			children = (
 				B8D4084A8DA60DBFD192DFB7 /* Info.plist */,
 				F54E79655D95AC6A5D2F8853 /* Assets.xcassets */,
+				5F20DD3A20DFA0B104558389 /* Arculator.sdef */,
 			);
 			name = macos;
 			sourceTree = "<group>";
@@ -464,6 +481,14 @@
 				A63E3AF6FCD0E61E7FBE58A3 /* ConfigListView.swift */,
 				C1D05D8511502C42BAA0B08B /* RunningControlsView.swift */,
 				5F0FA173CE1FB71AB60EEF4A /* DiscSlotView.swift */,
+				EBD8CE6C17FAC3420D2F3BF9 /* InputInjectionBridge.h */,
+				C4461F93CC0538C1C5809DD2 /* InputInjectionBridge.mm */,
+				1642C45CB6C37DCEC7B8CEE5 /* NSApplication+Scripting.mm */,
+				61440B81ECE3DEAABDC87603 /* ScriptingCommandSupport.h */,
+				0F9AD86FD1F11C0B28A16016 /* ScriptingCommandSupport.mm */,
+				910A5FE4D977E0F0600481A6 /* LifecycleScriptingCommands.mm */,
+				C0668E1DFE757EED3E6E71D5 /* ConfigScriptingCommands.mm */,
+				E13CF2ECD8F77BE03A135F44 /* InputScriptingCommands.mm */,
 			);
 			name = macos;
 			sourceTree = "<group>";
@@ -550,6 +575,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D62A2691DB69B8DF9944E7BD /* Assets.xcassets in Resources */,
+				05F9B6B116B657F5337E47FE /* Arculator.sdef in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -705,6 +731,12 @@
 				6BE9C7A9FF09C0A64DA5FDED /* ConfigListView.swift in Sources */,
 				209DFB69539675968DDB6EE8 /* RunningControlsView.swift in Sources */,
 				802C93FAF3CEF62B119D24A6 /* DiscSlotView.swift in Sources */,
+				C556612B7CCC818A1F82FA45 /* InputInjectionBridge.mm in Sources */,
+				8CEFF0AA4955D963FCA9BE3C /* NSApplication+Scripting.mm in Sources */,
+				C7F2FF87A536696F0AA0DF81 /* ScriptingCommandSupport.mm in Sources */,
+				092902A0D00E729567AA942E /* LifecycleScriptingCommands.mm in Sources */,
+				7E2BB37DAB17FA34A4FBF620 /* ConfigScriptingCommands.mm in Sources */,
+				B9AEF780D2079FEAC3411EAF /* InputScriptingCommands.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

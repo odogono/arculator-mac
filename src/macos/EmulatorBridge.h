@@ -44,6 +44,10 @@ typedef NS_ENUM(NSInteger, ARCSessionState) {
 + (void)setVideoView:(MTKView *)view;
 + (nullable MTKView *)videoView;
 
+// Capture a screenshot of the emulation view to a PNG file.
+// Returns nil on success, or an error string on failure.
++ (nullable NSString *)captureScreenshotToPath:(NSString *)path;
+
 @end
 
 NS_ASSUME_NONNULL_END

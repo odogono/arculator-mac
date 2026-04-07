@@ -15,6 +15,15 @@ int mouse_get_buttons();
 void mouse_capture_enable();
 void mouse_capture_disable();
 
+/* Input injection (called from ObjC bridge, thread-safe via input_mutex) */
+void input_inject_key(int code, int down);
+void input_inject_clear_key(int code);
+void input_inject_clear_all_keys(void);
+void input_inject_mouse_button(int button_mask, int down);
+void input_inject_mouse_move(int dx, int dy);
+void input_inject_mouse_abs(int x, int y);
+void input_inject_clear_mouse(void);
+
 extern int key[INPUT_MAX_KEYCODES];
 
 #ifdef __APPLE__

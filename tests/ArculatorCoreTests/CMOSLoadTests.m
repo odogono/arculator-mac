@@ -7,6 +7,8 @@
 
 extern int romset;
 extern int fdctype;
+extern int st506_present;
+extern char hd_fn[2][512];
 
 @interface CMOSLoadTests : XCTestCase
 {
@@ -39,6 +41,9 @@ extern int fdctype;
 	/* Default state: riscos311, FDC_82C711, "Test Machine" */
 	romset = 6;  /* ROM_RISCOS_311 */
 	fdctype = 1; /* FDC_82C711 */
+	st506_present = 0;
+	hd_fn[0][0] = 0;
+	hd_fn[1][0] = 0;
 	strncpy(machine_config_name, "Test Machine", sizeof(machine_config_name) - 1);
 }
 
@@ -114,6 +119,34 @@ extern int fdctype;
 
 	/* This must not crash — previously it dereferenced a NULL FILE*. */
 	cmos_save();
+}
+
+- (void)testCMOSSetsIDEInternalDriveCountFromAttachedDiscs
+{
+	strncpy(hd_fn[0], "/tmp/drive4.hdf", sizeof(hd_fn[0]) - 1);
+	hd_fn[0][sizeof(hd_fn[0]) - 1] = 0;
+
+	cmos_load();
+
+	const uint8_t *ram = cmos_get_ram_ptr();
+	XCTAssertEqual((ram[135] >> 6) & 0x03, 1, @"Expected one internal IDE drive");
+	XCTAssertEqual(ram[11] & 0x07, 4, @"Expected configured ADFS drive 4");
+}
+
+- (void)testCMOSSetsST506InternalDriveCountFromAttachedDiscs
+{
+	fdctype = 0;
+	st506_present = 1;
+	strncpy(hd_fn[0], "/tmp/drive4.hdf", sizeof(hd_fn[0]) - 1);
+	hd_fn[0][sizeof(hd_fn[0]) - 1] = 0;
+	strncpy(hd_fn[1], "/tmp/drive5.hdf", sizeof(hd_fn[1]) - 1);
+	hd_fn[1][sizeof(hd_fn[1]) - 1] = 0;
+
+	cmos_load();
+
+	const uint8_t *ram = cmos_get_ram_ptr();
+	XCTAssertEqual((ram[135] >> 3) & 0x07, 2, @"Expected two internal ST-506 drives");
+	XCTAssertEqual(ram[11] & 0x07, 4, @"Expected configured ADFS drive 4");
 }
 
 @end

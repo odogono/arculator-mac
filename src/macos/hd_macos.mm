@@ -8,6 +8,7 @@
 #include "platform_paths.h"
 #include "wx-hd_conf.h"
 #include "wx-hd_new.h"
+#import "ConfigBridge.h"
 
 @interface ARCHardDiskDialog : NSObject <NSWindowDelegate, NSTextFieldDelegate>
 {
@@ -20,6 +21,7 @@
 @property (nonatomic, strong) NSTextField *cylindersField;
 @property (nonatomic, strong) NSTextField *headsField;
 @property (nonatomic, strong) NSTextField *sectorsField;
+@property (nonatomic, strong) NSButton *readyCheckbox;
 @property (nonatomic, assign) BOOL creatingFile;
 @property (nonatomic, assign) BOOL confirmed;
 @property (nonatomic, assign) BOOL syncing;
@@ -28,6 +30,7 @@
 @property (nonatomic, assign) int minSectors;
 @property (nonatomic, assign) int maxSectors;
 @property (nonatomic, assign) int sectorSize;
+@property (nonatomic, assign) BOOL isST506;
 @end
 
 @implementation ARCHardDiskDialog
@@ -121,6 +124,14 @@
 	[grid addRowWithViews:@[ [self makeLabel:@"Cylinders:"], self.cylindersField ]];
 	[grid addRowWithViews:@[ [self makeLabel:@"Heads:"], self.headsField ]];
 	[grid addRowWithViews:@[ [self makeLabel:@"Sectors:"], self.sectorsField ]];
+
+	if (creatingFile)
+	{
+		self.readyCheckbox = [NSButton checkboxWithTitle:@"Pre-formatted (ready to use)"
+							 target:nil action:nil];
+		self.readyCheckbox.state = NSControlStateValueOff;
+		[grid addRowWithViews:@[ [[NSView alloc] init], self.readyCheckbox ]];
+	}
 
 	grid.translatesAutoresizingMaskIntoConstraints = NO;
 	grid.rowSpacing = 10.0;
@@ -273,19 +284,35 @@
 			return;
 		}
 
-		FILE *file = fopen(path.fileSystemRepresentation, "wb");
-		if (!file)
+		int cyl = [self readInt:self.cylindersField];
+		int hpc = [self readInt:self.headsField];
+		int spt = [self readInt:self.sectorsField];
+
+		BOOL useReady = self.readyCheckbox && (self.readyCheckbox.state == NSControlStateValueOn);
+		NSString *createError = nil;
+
+		if (useReady)
 		{
-			arc_show_message(@"Arculator", @"Could not create file");
-			return;
+			createError = [ConfigBridge createReadyHDFAtPath:path
+							  cylinders:cyl
+							      heads:hpc
+							    sectors:spt
+							    isST506:self.isST506];
+		}
+		else
+		{
+			createError = [ConfigBridge createBlankHDFAtPath:path
+							  cylinders:cyl
+							      heads:hpc
+							    sectors:spt
+							    isST506:self.isST506];
 		}
 
-		int totalSectors = [self readInt:self.cylindersField] * [self readInt:self.headsField] * [self readInt:self.sectorsField];
-		uint8_t sectorBuf[512];
-		memset(sectorBuf, 0, sizeof(sectorBuf));
-		for (int i = 0; i < totalSectors; i++)
-			fwrite(sectorBuf, self.sectorSize, 1, file);
-		fclose(file);
+		if (createError)
+		{
+			arc_show_message(@"Arculator", createError);
+			return;
+		}
 	}
 
 	self.confirmed = YES;
@@ -345,6 +372,7 @@ int ShowNewHD(wxWindow *parent, int *new_sectors, int *new_heads, int *new_cylin
 							  minSectors:min_sectors
 							  maxSectors:max_sectors
 							   sectorSize:sector_size];
+	dialog.isST506 = is_st506;
 	[dialog.window center];
 	NSInteger result = arc_run_dialog_window(dialog.window, &dialog->modalResult);
 	if (result != NSModalResponseOK)

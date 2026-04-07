@@ -18,6 +18,12 @@ typedef NS_ENUM(NSInteger, ARCSettingMutability) {
 	ARCSettingMutabilityStop        // Only editable when fully stopped
 };
 
+typedef NS_ENUM(NSInteger, ARCInternalDiskImageState) {
+	ARCInternalDiskImageStateUnknown = 0,
+	ARCInternalDiskImageStateBlankRaw,
+	ARCInternalDiskImageStateInitialized
+};
+
 // Intermediate config state (mirrors the dialog's configXxx variables).
 // Used to read/write config state without coupling to a UI dialog.
 @interface ARCMachineConfig : NSObject
@@ -72,6 +78,17 @@ typedef NS_ENUM(NSInteger, ARCSettingMutability) {
 // Load a named config: sets machine_config_file/name globals and calls loadconfig()
 + (BOOL)loadConfigNamed:(NSString *)name;
 
+// Inspect an attached internal disc image to determine whether it looks blank
+// or already initialized for guest use.
++ (ARCInternalDiskImageState)stateForInternalDiskImageAtPath:(NSString *)path
+						  cylinders:(int)cylinders
+						       heads:(int)heads
+						     sectors:(int)sectors
+						     isST506:(BOOL)isST506;
+
+// Show one-shot startup guidance for attached blank internal disc images.
++ (void)showStartupWarningsForLoadedConfigIfNeeded;
+
 // File operations (return YES on success)
 + (BOOL)renameConfig:(NSString *)oldName to:(NSString *)newName;
 + (BOOL)copyConfig:(NSString *)sourceName to:(NSString *)destName;
@@ -82,6 +99,46 @@ typedef NS_ENUM(NSInteger, ARCSettingMutability) {
 
 // Mutability matrix lookup
 + (ARCSettingMutability)mutabilityForSetting:(NSString *)settingKey;
+
+// Internal hard-drive info record (drive index 0 = hd4, 1 = hd5)
++ (NSDictionary *)internalDriveInfoForIndex:(int)index;
+
+// Set internal drive path and geometry (while idle). Returns nil on success, error string on failure.
++ (NSString *_Nullable)setInternalDriveIndex:(int)index
+                                        path:(NSString *)path
+                                   cylinders:(int)cylinders
+                                       heads:(int)heads
+                                     sectors:(int)sectors;
+
+// Eject internal drive (while idle). Returns nil on success, error string on failure.
++ (NSString *_Nullable)ejectInternalDriveIndex:(int)index;
+
+// Create a blank HDF image file. Returns nil on success, error string on failure.
++ (NSString *_Nullable)createBlankHDFAtPath:(NSString *)path
+                                  cylinders:(int)cylinders
+                                      heads:(int)heads
+                                    sectors:(int)sectors
+                                    isST506:(BOOL)isST506;
+
+// Create a ready (pre-formatted) HDF by cloning a bundled template.
+// Returns nil on success, error string on failure.
++ (NSString *_Nullable)createReadyHDFAtPath:(NSString *)path
+                                  cylinders:(int)cylinders
+                                      heads:(int)heads
+                                    sectors:(int)sectors
+                                    isST506:(BOOL)isST506;
+
+// Returns YES if a bundled template exists for the given default geometry.
++ (BOOL)hasTemplateForCylinders:(int)cylinders
+                          heads:(int)heads
+                        sectors:(int)sectors
+                        isST506:(BOOL)isST506;
+
+// Returns the bundle path for a template matching the given geometry, or nil.
++ (NSString *_Nullable)templatePathForCylinders:(int)cylinders
+                                          heads:(int)heads
+                                        sectors:(int)sectors
+                                        isST506:(BOOL)isST506;
 
 @end
 

@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+
+<dictionary title="Arculator Terminology">
+
+    <suite name="Standard Suite" code="????" description="Common classes and commands for all applications.">
+        <command name="quit" code="aevtquit" description="Quit the application.">
+            <cocoa class="NSQuitCommand"/>
+        </command>
+
+        <class name="application" code="capp" description="The application's top-level scripting object.">
+            <cocoa class="NSApplication"/>
+
+            <property name="name" code="pnam" type="text" access="r" description="The name of the application.">
+                <cocoa key="name"/>
+            </property>
+
+            <!-- Emulator properties -->
+            <property name="emulation state" code="ARst" type="text" access="r"
+                      description="Current emulation state: idle, running, or paused.">
+                <cocoa key="scriptingEmulationState"/>
+            </property>
+
+            <property name="active config" code="ARcf" type="text" access="r"
+                      description="Name of the currently loaded configuration.">
+                <cocoa key="scriptingActiveConfig"/>
+            </property>
+
+            <property name="speed" code="ARsp" type="integer" access="r"
+                      description="Emulation speed as a percentage (100 = realtime).">
+                <cocoa key="scriptingSpeed"/>
+            </property>
+
+            <property name="disc names" code="ARdn" access="r"
+                      description="List of disc filenames for the four floppy drives.">
+                <type type="text" list="yes"/>
+                <cocoa key="scriptingDiscNames"/>
+            </property>
+
+            <property name="config names" code="ARcn" access="r"
+                      description="Sorted list of available configuration names.">
+                <type type="text" list="yes"/>
+                <cocoa key="scriptingConfigNames"/>
+            </property>
+        </class>
+    </suite>
+
+    <suite name="Arculator Suite" code="ARCu" description="Commands for controlling the Arculator emulator.">
+
+        <!-- Lifecycle commands -->
+        <command name="start emulation" code="ARCuSTRT" description="Start emulation with the currently loaded configuration.">
+            <cocoa class="StartEmulationCommand"/>
+        </command>
+
+        <command name="stop emulation" code="ARCuSTOP" description="Stop the running emulation session.">
+            <cocoa class="StopEmulationCommand"/>
+        </command>
+
+        <command name="pause emulation" code="ARCuPAUS" description="Pause a running emulation session.">
+            <cocoa class="PauseEmulationCommand"/>
+        </command>
+
+        <command name="resume emulation" code="ARCuRSME" description="Resume a paused emulation session.">
+            <cocoa class="ResumeEmulationCommand"/>
+        </command>
+
+        <command name="reset emulation" code="ARCuRSET" description="Reset the emulated machine.">
+            <cocoa class="ResetEmulationCommand"/>
+        </command>
+
+        <command name="start config" code="ARCuSCFG" description="Load a named configuration and start emulation.">
+            <cocoa class="StartConfigCommand"/>
+            <direct-parameter type="text" description="The configuration name to start."/>
+        </command>
+
+        <!-- Config commands -->
+        <command name="load config" code="ARCuLCFG" description="Load a named configuration without starting emulation.">
+            <cocoa class="LoadConfigCommand"/>
+            <direct-parameter type="text" description="The configuration name to load."/>
+        </command>
+
+        <command name="create config" code="ARCuCCFG" description="Create a new configuration file.">
+            <cocoa class="CreateConfigCommand"/>
+            <direct-parameter type="text" description="The name for the new configuration."/>
+            <parameter name="with preset" code="ARpr" type="integer" optional="yes"
+                       description="Preset index to use (default 0).">
+                <cocoa key="withPreset"/>
+            </parameter>
+        </command>
+
+        <command name="copy config" code="ARCuCPCF" description="Copy an existing configuration to a new name.">
+            <cocoa class="CopyConfigCommand"/>
+            <direct-parameter type="text" description="The source configuration name."/>
+            <parameter name="to" code="ARto" type="text"
+                       description="The destination configuration name.">
+                <cocoa key="to"/>
+            </parameter>
+        </command>
+
+        <command name="delete config" code="ARCuDCFG" description="Delete a configuration file.">
+            <cocoa class="DeleteConfigCommand"/>
+            <direct-parameter type="text" description="The configuration name to delete."/>
+        </command>
+
+        <!-- Disc commands -->
+        <command name="change disc" code="ARCuCHDC" description="Insert a disc image into a floppy drive.">
+            <cocoa class="ChangeDiscCommand"/>
+            <direct-parameter type="text" description="Path to the disc image file."/>
+            <parameter name="drive" code="ARdr" type="integer" optional="yes"
+                       description="Drive number 0-3 (default 0).">
+                <cocoa key="drive"/>
+            </parameter>
+        </command>
+
+        <command name="eject disc" code="ARCuEJDC" description="Eject the disc from a floppy drive.">
+            <cocoa class="EjectDiscCommand"/>
+            <parameter name="drive" code="ARdr" type="integer" optional="yes"
+                       description="Drive number 0-3 (default 0).">
+                <cocoa key="drive"/>
+            </parameter>
+        </command>
+
+        <!-- Input injection commands -->
+        <command name="inject key down" code="ARCuIKDN" description="Press a key down in the emulated machine.">
+            <cocoa class="InjectKeyDownCommand"/>
+            <direct-parameter type="text" description="Key name (e.g. 'a', 'shift', 'f12')."/>
+        </command>
+
+        <command name="inject key up" code="ARCuIKUP" description="Release a key in the emulated machine.">
+            <cocoa class="InjectKeyUpCommand"/>
+            <direct-parameter type="text" description="Key name (e.g. 'a', 'shift', 'f12')."/>
+        </command>
+
+        <command name="type text" code="ARCuTYPE" description="Type a string character by character into the emulated machine.">
+            <cocoa class="TypeTextCommand"/>
+            <direct-parameter type="text" description="The text to type (ASCII only)."/>
+        </command>
+
+        <command name="inject mouse move" code="ARCuIMMV" description="Inject relative mouse movement.">
+            <cocoa class="InjectMouseMoveCommand"/>
+            <parameter name="dx" code="ARdx" type="integer" description="Horizontal delta.">
+                <cocoa key="dx"/>
+            </parameter>
+            <parameter name="dy" code="ARdy" type="integer" description="Vertical delta.">
+                <cocoa key="dy"/>
+            </parameter>
+        </command>
+
+        <command name="inject mouse down" code="ARCuIMDN" description="Press a mouse button in the emulated machine.">
+            <cocoa class="InjectMouseDownCommand"/>
+            <parameter name="button" code="ARbt" type="integer" optional="yes"
+                       description="Button bitmask (default 1 = left).">
+                <cocoa key="button"/>
+            </parameter>
+        </command>
+
+        <command name="inject mouse up" code="ARCuIMUP" description="Release a mouse button in the emulated machine.">
+            <cocoa class="InjectMouseUpCommand"/>
+            <parameter name="button" code="ARbt" type="integer" optional="yes"
+                       description="Button bitmask (default 1 = left).">
+                <cocoa key="button"/>
+            </parameter>
+        </command>
+
+        <!-- Guest automation primitives -->
+        <command name="move guest mouse to" code="ARCuMGMT" description="Move the guest mouse to an absolute position.">
+            <cocoa class="MoveGuestMouseToCommand"/>
+            <parameter name="x" code="ARmx" type="integer"
+                       description="Horizontal position in guest pixels.">
+                <cocoa key="x"/>
+            </parameter>
+            <parameter name="y" code="ARmy" type="integer"
+                       description="Vertical position in guest pixels.">
+                <cocoa key="y"/>
+            </parameter>
+        </command>
+
+        <command name="clear injected input" code="ARCuCLIN" description="Release all injected keys and mouse state.">
+            <cocoa class="ClearInjectedInputCommand"/>
+        </command>
+
+        <command name="capture emulation screenshot" code="ARCuSSHT" description="Save a screenshot of the emulation view to a file.">
+            <cocoa class="CaptureEmulationScreenshotCommand"/>
+            <direct-parameter type="text" description="Destination file path (PNG)."/>
+        </command>
+
+        <!-- Internal hard-drive commands -->
+        <command name="internal drive info" code="ARCuHDIF" description="Get info for an internal hard drive slot.">
+            <cocoa class="InternalDriveInfoCommand"/>
+            <direct-parameter type="integer" description="Drive number: 4 or 5."/>
+            <result type="record" description="Record with keys: path, cylinders, heads, sectors, controllerKind, imageState."/>
+        </command>
+
+        <command name="set internal drive" code="ARCuHDST" description="Attach an HDF image to an internal hard drive slot (idle only).">
+            <cocoa class="SetInternalDriveCommand"/>
+            <direct-parameter type="integer" description="Drive number: 4 or 5."/>
+            <parameter name="path" code="ARhp" type="text"
+                       description="Path to the HDF image file.">
+                <cocoa key="path"/>
+            </parameter>
+            <parameter name="cylinders" code="ARcy" type="integer"
+                       description="Number of cylinders.">
+                <cocoa key="cylinders"/>
+            </parameter>
+            <parameter name="heads" code="ARhd" type="integer"
+                       description="Number of heads.">
+                <cocoa key="heads"/>
+            </parameter>
+            <parameter name="sectors" code="ARse" type="integer"
+                       description="Sectors per track.">
+                <cocoa key="sectors"/>
+            </parameter>
+        </command>
+
+        <command name="eject internal drive" code="ARCuHDEJ" description="Remove the image from an internal hard drive slot (idle only).">
+            <cocoa class="EjectInternalDriveCommand"/>
+            <direct-parameter type="integer" description="Drive number: 4 or 5."/>
+        </command>
+
+        <command name="create hard disc image" code="ARCuHDCR" description="Create a new HDF image file.">
+            <cocoa class="CreateHardDiscImageCommand"/>
+            <direct-parameter type="text" description="Destination file path."/>
+            <parameter name="cylinders" code="ARcy" type="integer"
+                       description="Number of cylinders.">
+                <cocoa key="cylinders"/>
+            </parameter>
+            <parameter name="heads" code="ARhd" type="integer"
+                       description="Number of heads.">
+                <cocoa key="heads"/>
+            </parameter>
+            <parameter name="sectors" code="ARse" type="integer"
+                       description="Sectors per track.">
+                <cocoa key="sectors"/>
+            </parameter>
+            <parameter name="controller" code="ARck" type="text" optional="yes"
+                       description="Controller kind: 'ide' (default) or 'st506'.">
+                <cocoa key="controller"/>
+            </parameter>
+            <parameter name="initialization" code="ARim" type="text" optional="yes"
+                       description="Initialization mode: 'blank' (default) or 'ready'.">
+                <cocoa key="initialization"/>
+            </parameter>
+        </command>
+
+    </suite>
+
+</dictionary>

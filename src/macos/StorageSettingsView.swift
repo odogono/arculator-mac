@@ -62,6 +62,10 @@ struct StorageSettingsView: View {
                 }
                 .controlSize(.small)
 
+                Text("New... creates a blank image. Internal drives are exposed at boot, but blank images still need formatting in RISC OS.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 if !path.isEmpty {
                     geometryFields(drive: drive)
                 }

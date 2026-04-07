@@ -101,10 +101,19 @@ SOURCE_FILES = %w[
   src/macos/ConfigListView.swift
   src/macos/RunningControlsView.swift
   src/macos/DiscSlotView.swift
+  src/macos/ScriptingCommandSupport.mm
+  src/macos/LifecycleScriptingCommands.mm
+  src/macos/ConfigScriptingCommands.mm
+  src/macos/InputScriptingCommands.mm
+  src/macos/NSApplication+Scripting.mm
+  src/macos/InputInjectionBridge.mm
+  src/macos/InternalDriveScriptingCommands.mm
+  src/macos/AutomationScriptingCommands.mm
 ].freeze
 
 RESOURCE_FILES = %w[
   macos/Assets.xcassets
+  macos/Arculator.sdef
 ].freeze
 
 SYSTEM_FRAMEWORKS = %w[
@@ -195,6 +204,8 @@ src_macos_group.new_file("src/macos/Shaders.metal")
 src_macos_group.new_file("src/macos/ArcMetalView.h")
 src_macos_group.new_file("src/macos/NewWindowBridge.h")
 src_macos_group.new_file("src/macos/ConfigEditorBridge.h")
+src_macos_group.new_file("src/macos/ScriptingCommandSupport.h")
+src_macos_group.new_file("src/macos/InputInjectionBridge.h")
 
 SOURCE_FILES.each do |path|
   group = path.start_with?("src/macos/") ? src_macos_group : (path.start_with?("src/") ? src_group : macos_group)
@@ -314,7 +325,7 @@ CORE_TEST_C_SOURCES = %w[
 ].freeze
 
 # ObjC XCTest files
-CORE_TEST_OBJ_FILES = Dir.glob("tests/ArculatorCoreTests/*.m").sort.freeze
+CORE_TEST_OBJ_FILES = Dir.glob("tests/ArculatorCoreTests/*.{m,mm}").sort.freeze
 
 CORE_TEST_ALL_SOURCES = (CORE_TEST_C_SOURCES + CORE_TEST_OBJ_FILES).freeze
 

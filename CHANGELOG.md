@@ -2,6 +2,18 @@
 
 ## v2.6 (unreleased)
 
+- AppleScript: Add full AppleScript support with .sdef dictionary definition
+- AppleScript: Add lifecycle commands (start/stop/pause/resume/reset/start config)
+- AppleScript: Add config management commands (load/create/copy/delete config, change/eject disc)
+- AppleScript: Add input injection commands (inject key down/up, type text, inject mouse move/down/up)
+- core: Add input injection overlay system in input_snapshot for script-driven key/mouse injection
+- core: Add input injection platform abstraction (plat_input.h wrappers)
+- macOS: Add InputInjectionBridge for key name resolution and type text implementation
+- macOS: Add ScriptingCommandSupport for shared argument and state validation
+- macOS: Add NSApplication+Scripting.mm for AppleScript property accessors
+- testing: Add AppleScript command tests for lifecycle, config, and input injection
+- testing: Add CMOS and config load tests
+
 - core: Add `platform_path_drives_dir()` for drives storage location
 - macOS: Refactor hard disk dialog to use modern AppKit Auto Layout (NSGridView, NSStackView)
 - macOS: Add default drive path suggestion in new hard disk dialog

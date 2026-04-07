@@ -309,9 +309,85 @@ void input_close(void)
 	if (!input_mutex_ready)
 		return;
 
+	/* Clear all injected state to prevent stuck keys across session restarts */
+	pthread_mutex_lock(&input_mutex);
+	input_snapshot_clear_all_injected_keys(&input_snapshot);
+	input_snapshot_clear_injected_mouse(&input_snapshot);
+	pthread_mutex_unlock(&input_mutex);
+
 	if (mouse_capture)
 		mouse_capture_disable();
 
 	pthread_mutex_destroy(&input_mutex);
 	input_mutex_ready = 0;
+}
+
+void input_inject_key(int code, int down)
+{
+	if (!input_mutex_ready)
+		return;
+
+	pthread_mutex_lock(&input_mutex);
+	input_snapshot_inject_key(&input_snapshot, code, down);
+	pthread_mutex_unlock(&input_mutex);
+}
+
+void input_inject_clear_key(int code)
+{
+	if (!input_mutex_ready)
+		return;
+
+	pthread_mutex_lock(&input_mutex);
+	input_snapshot_clear_injected_key(&input_snapshot, code);
+	pthread_mutex_unlock(&input_mutex);
+}
+
+void input_inject_clear_all_keys(void)
+{
+	if (!input_mutex_ready)
+		return;
+
+	pthread_mutex_lock(&input_mutex);
+	input_snapshot_clear_all_injected_keys(&input_snapshot);
+	pthread_mutex_unlock(&input_mutex);
+}
+
+void input_inject_mouse_button(int button_mask, int down)
+{
+	if (!input_mutex_ready)
+		return;
+
+	pthread_mutex_lock(&input_mutex);
+	input_snapshot_inject_mouse_button(&input_snapshot, button_mask, down);
+	pthread_mutex_unlock(&input_mutex);
+}
+
+void input_inject_mouse_move(int dx, int dy)
+{
+	if (!input_mutex_ready)
+		return;
+
+	pthread_mutex_lock(&input_mutex);
+	input_snapshot_inject_mouse_move(&input_snapshot, dx, dy);
+	pthread_mutex_unlock(&input_mutex);
+}
+
+void input_inject_mouse_abs(int x, int y)
+{
+	if (!input_mutex_ready)
+		return;
+
+	pthread_mutex_lock(&input_mutex);
+	input_snapshot_inject_mouse_abs(&input_snapshot, x, y);
+	pthread_mutex_unlock(&input_mutex);
+}
+
+void input_inject_clear_mouse(void)
+{
+	if (!input_mutex_ready)
+		return;
+
+	pthread_mutex_lock(&input_mutex);
+	input_snapshot_clear_injected_mouse(&input_snapshot);
+	pthread_mutex_unlock(&input_mutex);
 }

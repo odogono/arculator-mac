@@ -3,6 +3,8 @@
 #include "platform_paths.h"
 #include <string.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 /* Globals set by loadconfig() — defined in stubs or config.c */
 extern int romset;
@@ -22,6 +24,27 @@ extern int soundena;
 @end
 
 @implementation ConfigLoadTests
+
+- (NSString *)writeTempDiskImageNamed:(NSString *)name size:(off_t)size fillByte:(uint8_t)fillByte
+{
+	char path[512];
+	snprintf(path, sizeof(path), "%s/%s", _tmpDir, name.fileSystemRepresentation);
+
+	int fd = open(path, O_CREAT | O_TRUNC | O_RDWR, 0666);
+	XCTAssertTrue(fd >= 0, @"open() failed for %s", path);
+	if (fd < 0)
+		return @"";
+
+	XCTAssertEqual(ftruncate(fd, size), 0, @"ftruncate() failed for %s", path);
+	if (fillByte != 0)
+	{
+		uint8_t byte = fillByte;
+		XCTAssertEqual(write(fd, &byte, 1), 1, @"write() failed for %s", path);
+	}
+
+	close(fd);
+	return @(path);
+}
 
 - (void)setUp
 {
@@ -108,6 +131,27 @@ extern int soundena;
 {
 	loadconfig();
 	XCTAssertEqual(dblscan, 1, @"Expected double_scan 1, got %d", dblscan);
+}
+
+- (void)testInternalDiskImageStateDetectsBlankRawImage
+{
+	NSString *path = [self writeTempDiskImageNamed:@"blank.hdf" size:512 fillByte:0];
+	int state = config_internal_disk_image_state(path.fileSystemRepresentation, 1, 1, 1, 0);
+	XCTAssertEqual(state, INTERNAL_DISK_IMAGE_BLANK_RAW);
+}
+
+- (void)testInternalDiskImageStateDetectsInitializedImage
+{
+	NSString *path = [self writeTempDiskImageNamed:@"initialized.hdf" size:512 fillByte:0x5A];
+	int state = config_internal_disk_image_state(path.fileSystemRepresentation, 1, 1, 1, 0);
+	XCTAssertEqual(state, INTERNAL_DISK_IMAGE_INITIALIZED);
+}
+
+- (void)testInternalDiskImageStateDetectsUnknownImage
+{
+	NSString *path = [self writeTempDiskImageNamed:@"unknown.hdf" size:777 fillByte:0x5A];
+	int state = config_internal_disk_image_state(path.fileSystemRepresentation, 1, 1, 1, 0);
+	XCTAssertEqual(state, INTERNAL_DISK_IMAGE_UNKNOWN);
 }
 
 @end
