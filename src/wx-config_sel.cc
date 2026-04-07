@@ -22,6 +22,8 @@ class ConfigSelDialog: public wxDialog
 public:
 	ConfigSelDialog(wxWindow* parent);
 private:
+	bool EnsureSelection();
+	bool LoadSelectedConfig();
 	void OnOK(wxCommandEvent &event);
 	void OnCancel(wxCommandEvent &event);
 	void OnNew(wxCommandEvent &event);
@@ -52,6 +54,7 @@ ConfigSelDialog::ConfigSelDialog(wxWindow* parent)
 void ConfigSelDialog::BuildConfigList()
 {
 	wxListBox* list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
+	wxString current_selection = list->GetStringSelection();
 	list->Clear();
 	wxArrayString items;
 	wxString path(exname);
@@ -65,31 +68,77 @@ void ConfigSelDialog::BuildConfigList()
 	}
 	items.Sort();
 	list->Set(items);
+
+	if (!current_selection.IsEmpty())
+	{
+		int index = list->FindString(current_selection);
+		if (index != wxNOT_FOUND)
+		{
+			list->SetSelection(index);
+			return;
+		}
+	}
+
+	if (list->GetCount() > 0)
+		list->SetSelection(0);
+}
+
+bool ConfigSelDialog::EnsureSelection()
+{
+	wxListBox *list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
+
+	if (list->GetCount() == 0)
+		return false;
+
+	if (list->GetSelection() == wxNOT_FOUND)
+		list->SetSelection(0);
+
+	return list->GetSelection() != wxNOT_FOUND;
+}
+
+bool ConfigSelDialog::LoadSelectedConfig()
+{
+	wxListBox *list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
+
+	if (!EnsureSelection())
+		return false;
+
+	wxString selection = list->GetStringSelection();
+	if (selection.IsEmpty())
+		return false;
+
+	wxString config_path = GetConfigPath(selection);
+	strcpy(machine_config_file, config_path.mb_str());
+	strcpy(machine_config_name, selection.mb_str());
+	return true;
 }
 
 void ConfigSelDialog::OnOK(wxCommandEvent &event)
 {
-	wxListBox *list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
-	wxString selection = list->GetStringSelection();
-	if (!selection.IsEmpty())
+	if (!EnsureSelection())
 	{
-		wxString config_path = GetConfigPath(list->GetStringSelection());
-		strcpy(machine_config_file, config_path.mb_str());
-		strcpy(machine_config_name, list->GetStringSelection().mb_str());
+		if (wxMessageBox("No machine configurations exist yet. Create one now?",
+				 "Arculator", wxYES_NO | wxCENTRE | wxSTAY_ON_TOP, this) == wxYES)
+		{
+			wxCommandEvent dummy;
+			OnNew(dummy);
+		}
+	}
+
+	if (LoadSelectedConfig())
+	{
 		EndModal(0);
+	}
+	else
+	{
+		wxMessageBox("Select a configuration first.", "Arculator",
+			     wxOK | wxCENTRE | wxSTAY_ON_TOP, this);
 	}
 }
 void ConfigSelDialog::OnDClickConfig(wxCommandEvent &event)
 {
-	wxListBox *list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
-	wxString selection = list->GetStringSelection();
-	if (!selection.IsEmpty())
-	{
-		wxString config_path = GetConfigPath(list->GetStringSelection());
-		strcpy(machine_config_file, config_path.mb_str());
-		strcpy(machine_config_name, list->GetStringSelection().mb_str());
+	if (LoadSelectedConfig())
 		EndModal(0);
-	}
 }
 void ConfigSelDialog::OnCancel(wxCommandEvent &event)
 {
@@ -101,7 +150,15 @@ void ConfigSelDialog::OnNew(wxCommandEvent &event)
 	dlg.SetMaxLength(64);
 	if (dlg.ShowModal() == wxID_OK)
 	{
-		wxString config_path = GetConfigPath(dlg.GetValue());
+		wxString config_name = dlg.GetValue();
+		config_name.Trim(true).Trim(false);
+		if (config_name.IsEmpty())
+		{
+			wxMessageBox("Configuration name cannot be empty", "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP, this);
+			return;
+		}
+
+		wxString config_path = GetConfigPath(config_name);
 
 		if (wxFileName(config_path).Exists())
 		{
@@ -113,21 +170,41 @@ void ConfigSelDialog::OnNew(wxCommandEvent &event)
 			if (preset != -1)
 			{
 				strcpy(machine_config_file, config_path.mb_str());
+				strcpy(machine_config_name, config_name.mb_str());
 
 				loadconfig();
 				ShowConfigWithPreset(preset);
 				BuildConfigList();
+
+				wxListBox *list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
+				int index = list->FindString(config_name);
+				if (index != wxNOT_FOUND)
+					list->SetSelection(index);
 			}
 		}
 	}
 }
 void ConfigSelDialog::OnRename(wxCommandEvent &event)
 {
+	if (!EnsureSelection())
+	{
+		wxMessageBox("Select a configuration first.", "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP, this);
+		return;
+	}
+
 	wxTextEntryDialog dlg(this, "Enter name:", "Rename config");
 	dlg.SetMaxLength(64);
 	if (dlg.ShowModal() == wxID_OK)
 	{
-		wxString new_config_path = GetConfigPath(dlg.GetValue());
+		wxString config_name = dlg.GetValue();
+		config_name.Trim(true).Trim(false);
+		if (config_name.IsEmpty())
+		{
+			wxMessageBox("Configuration name cannot be empty", "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP, this);
+			return;
+		}
+
+		wxString new_config_path = GetConfigPath(config_name);
 
 		wxListBox *list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
 		wxString old_config_path = GetConfigPath(list->GetStringSelection());
@@ -140,17 +217,34 @@ void ConfigSelDialog::OnRename(wxCommandEvent &event)
 		{
 			wxRenameFile(old_config_path, new_config_path, false);
 			BuildConfigList();
+			int index = list->FindString(config_name);
+			if (index != wxNOT_FOUND)
+				list->SetSelection(index);
 		}
 	}
 }
 
 void ConfigSelDialog::OnCopy(wxCommandEvent &event)
 {
+	if (!EnsureSelection())
+	{
+		wxMessageBox("Select a configuration first.", "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP, this);
+		return;
+	}
+
 	wxTextEntryDialog dlg(this, "Enter name:", "Copy config");
 	dlg.SetMaxLength(64);
 	if (dlg.ShowModal() == wxID_OK)
 	{
-		wxString new_config_path = GetConfigPath(dlg.GetValue());
+		wxString config_name = dlg.GetValue();
+		config_name.Trim(true).Trim(false);
+		if (config_name.IsEmpty())
+		{
+			wxMessageBox("Configuration name cannot be empty", "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP, this);
+			return;
+		}
+
+		wxString new_config_path = GetConfigPath(config_name);
 
 		wxListBox *list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
 		wxString old_config_path = GetConfigPath(list->GetStringSelection());
@@ -163,11 +257,20 @@ void ConfigSelDialog::OnCopy(wxCommandEvent &event)
 		{
 			wxCopyFile(old_config_path, new_config_path, false);
 			BuildConfigList();
+			int index = list->FindString(config_name);
+			if (index != wxNOT_FOUND)
+				list->SetSelection(index);
 		}
 	}
 }
 void ConfigSelDialog::OnDelete(wxCommandEvent &event)
 {
+	if (!EnsureSelection())
+	{
+		wxMessageBox("Select a configuration first.", "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP, this);
+		return;
+	}
+
 	wxListBox *list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
 	wxString config_name = list->GetStringSelection();
 
@@ -181,9 +284,11 @@ void ConfigSelDialog::OnDelete(wxCommandEvent &event)
 }
 void ConfigSelDialog::OnConfig(wxCommandEvent &event)
 {
-	wxListBox *list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
-	wxString config_path = GetConfigPath(list->GetStringSelection());
-	strcpy(machine_config_file, config_path.mb_str());
+	if (!LoadSelectedConfig())
+	{
+		wxMessageBox("Select a configuration first.", "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP, this);
+		return;
+	}
 
 	loadconfig();
 	ShowConfig(false);

@@ -17,18 +17,35 @@ src/wx-resources.cc
 
 # Autotools generated
 autom4te.cache
+configure
+aclocal.m4
+config.guess
+config.sub
+compile
+depcomp
+install-sh
+missing
+INSTALL
 config.log
 config.status
-configure~
 libtool
 modules.dmp
+configure~
+
+# Backup/temp files
+*.sub~
+*.guess~
+*.ac~
+
+# Build artifacts
+.chglog/
 
 # wxWidgets source
 wxWidgets-*/
 wxWidgets*.tar*
 
 # Config & runtime files
-arc.cfg
+/arc.cfg
 arclog.txt
 aka31_log.txt
 oak_scsi_log.txt
@@ -36,8 +53,8 @@ cmos/*.bin
 configs/*.cfg
 hostfs
 ROM
-roms/*/*.rom
 roms/**/*.rom
+roms/*/*
 wx
 
 # Makefiles (autotools-generated)
@@ -48,3 +65,19 @@ wx
 podules/*/src/*.lo
 podules/*/src/*.la
 podules/*/src/*.o
+
+# Xcode
+*.xcodeproj/project.xcworkspace/
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Mac build script (generated/customized locally)
+mac-install.sh
+
+tmp/
