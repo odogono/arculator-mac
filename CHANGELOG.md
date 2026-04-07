@@ -2,6 +2,9 @@
 
 ## v2.6 (unreleased)
 
+- core: Add `platform_path_drives_dir()` for drives storage location
+- macOS: Refactor hard disk dialog to use modern AppKit Auto Layout (NSGridView, NSStackView)
+- macOS: Add default drive path suggestion in new hard disk dialog
 - macOS: Pass configModel to sidebar for drive count awareness
 - macOS: Show correct number of disc slots in running controls based on machine IO type
 

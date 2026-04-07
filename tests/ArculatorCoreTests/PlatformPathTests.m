@@ -74,4 +74,14 @@
 		@"Expected /tmp/support/configs, got %s", buf);
 }
 
+- (void)testDrivesDirPath
+{
+	platform_paths_init_test("/tmp/support", "/tmp/resources");
+
+	char buf[512];
+	platform_path_drives_dir(buf, sizeof(buf));
+	XCTAssertTrue(strcmp(buf, "/tmp/support/drives") == 0,
+		@"Expected /tmp/support/drives, got %s", buf);
+}
+
 @end

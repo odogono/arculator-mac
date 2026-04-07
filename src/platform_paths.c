@@ -265,6 +265,8 @@ void platform_paths_init(const char *argv0)
 	ensure_dir_recursive(support_root);
 	join_path(path, sizeof(path), support_root, "configs");
 	ensure_dir_recursive(path);
+	join_path(path, sizeof(path), support_root, "drives");
+	ensure_dir_recursive(path);
 	join_path(path, sizeof(path), support_root, "cmos");
 	ensure_dir_recursive(path);
 	join_path(path, sizeof(path), support_root, "hostfs");
@@ -327,6 +329,11 @@ void platform_path_machine_config(char *dest, size_t size, const char *config_na
 void platform_path_configs_dir(char *dest, size_t size)
 {
 	platform_path_join_support(dest, "configs", size);
+}
+
+void platform_path_drives_dir(char *dest, size_t size)
+{
+	platform_path_join_support(dest, "drives", size);
 }
 
 void platform_path_hostfs_dir(char *dest, size_t size)

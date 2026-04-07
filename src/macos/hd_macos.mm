@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "dialog_util.h"
+#include "platform_paths.h"
 #include "wx-hd_conf.h"
 #include "wx-hd_new.h"
 
@@ -31,6 +32,26 @@
 
 @implementation ARCHardDiskDialog
 
+- (NSTextField *)makeLabel:(NSString *)text
+{
+	NSTextField *label = [NSTextField labelWithString:text];
+	label.alignment = NSTextAlignmentRight;
+	label.font = [NSFont systemFontOfSize:13.0];
+	[label setContentHuggingPriority:NSLayoutPriorityDefaultHigh forOrientation:NSLayoutConstraintOrientationHorizontal];
+	return label;
+}
+
+- (NSTextField *)makeField
+{
+	NSTextField *field = [[NSTextField alloc] init];
+	field.translatesAutoresizingMaskIntoConstraints = NO;
+	field.delegate = self;
+	field.font = [NSFont monospacedDigitSystemFontOfSize:13.0 weight:NSFontWeightRegular];
+	[field setUsesSingleLineMode:YES];
+	[field setContentHuggingPriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
+	return field;
+}
+
 - (instancetype)initWithTitle:(NSString *)title
 		 creatingFile:(BOOL)creatingFile
 		    sectors:(int)sectors
@@ -55,7 +76,7 @@
 	self.maxSectors = maxSectors;
 	self.sectorSize = sectorSize;
 
-	self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0.0, 0.0, 460.0, creatingFile ? 240.0 : 200.0)
+	self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0.0, 0.0, 100.0, 100.0)
 					      styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable)
 						backing:NSBackingStoreBuffered
 						  defer:NO];
@@ -64,65 +85,90 @@
 	self.window.delegate = self;
 
 	NSView *content = self.window.contentView;
-	CGFloat y = creatingFile ? 194.0 : 154.0;
 
-	auto addLabel = ^(NSString *labelText, CGFloat rowY) {
-		NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(20.0, rowY, 120.0, 22.0)];
-		label.bezeled = NO;
-		label.drawsBackground = NO;
-		label.editable = NO;
-		label.selectable = NO;
-		label.stringValue = labelText;
-		[content addSubview:label];
-	};
-	auto addField = ^NSTextField *(CGFloat rowY, CGFloat width) {
-		NSTextField *field = [[NSTextField alloc] initWithFrame:NSMakeRect(150.0, rowY - 2.0, width, 24.0)];
-		field.delegate = self;
-		[content addSubview:field];
-		return field;
-	};
+	NSGridView *grid = [NSGridView gridViewWithNumberOfColumns:2 rows:0];
 
 	if (creatingFile)
 	{
-		addLabel(@"Disc image", y);
-		self.pathField = addField(y, 210.0);
+		self.pathField = [self makeField];
+		self.pathField.font = [NSFont systemFontOfSize:13.0];
+		if ([self.pathField.cell isKindOfClass:[NSTextFieldCell class]])
+		{
+			NSTextFieldCell *cell = (NSTextFieldCell *)self.pathField.cell;
+			cell.wraps = NO;
+			cell.scrollable = YES;
+			cell.usesSingleLineMode = YES;
+			cell.lineBreakMode = NSLineBreakByTruncatingMiddle;
+		}
 		self.pathField.stringValue = path ?: @"";
-		NSButton *browse = [[NSButton alloc] initWithFrame:NSMakeRect(370.0, y - 2.0, 70.0, 24.0)];
-		browse.title = @"Browse";
+
+		NSButton *browse = [NSButton buttonWithTitle:@"Browse\u2026" target:self action:@selector(choosePath:)];
 		browse.bezelStyle = NSBezelStyleRounded;
-		browse.target = self;
-		browse.action = @selector(choosePath:);
-		[content addSubview:browse];
-		y -= 42.0;
+		[browse setContentHuggingPriority:NSLayoutPriorityDefaultHigh forOrientation:NSLayoutConstraintOrientationHorizontal];
+
+		NSStackView *pathRow = [NSStackView stackViewWithViews:@[ self.pathField, browse ]];
+		pathRow.spacing = 8.0;
+
+		[grid addRowWithViews:@[ [self makeLabel:@"Disc image:"], pathRow ]];
 	}
 
-	addLabel(@"Size (MB)", y);
-	self.sizeField = addField(y, 80.0);
-	y -= 34.0;
-	addLabel(@"Cylinders", y);
-	self.cylindersField = addField(y, 80.0);
-	y -= 34.0;
-	addLabel(@"Heads", y);
-	self.headsField = addField(y, 80.0);
-	y -= 34.0;
-	addLabel(@"Sectors", y);
-	self.sectorsField = addField(y, 80.0);
+	self.sizeField = [self makeField];
+	self.cylindersField = [self makeField];
+	self.headsField = [self makeField];
+	self.sectorsField = [self makeField];
 
-	NSButton *ok = [[NSButton alloc] initWithFrame:NSMakeRect(280.0, 14.0, 80.0, 30.0)];
-	ok.title = @"OK";
-	ok.bezelStyle = NSBezelStyleRounded;
-	ok.keyEquivalent = @"\r";
-	ok.target = self;
-	ok.action = @selector(confirm:);
-	[content addSubview:ok];
+	[grid addRowWithViews:@[ [self makeLabel:@"Size (MB):"], self.sizeField ]];
+	[grid addRowWithViews:@[ [self makeLabel:@"Cylinders:"], self.cylindersField ]];
+	[grid addRowWithViews:@[ [self makeLabel:@"Heads:"], self.headsField ]];
+	[grid addRowWithViews:@[ [self makeLabel:@"Sectors:"], self.sectorsField ]];
 
-	NSButton *cancel = [[NSButton alloc] initWithFrame:NSMakeRect(368.0, 14.0, 80.0, 30.0)];
-	cancel.title = @"Cancel";
+	grid.translatesAutoresizingMaskIntoConstraints = NO;
+	grid.rowSpacing = 10.0;
+	grid.columnSpacing = 10.0;
+	[grid columnAtIndex:0].xPlacement = NSGridCellPlacementTrailing;
+	[grid columnAtIndex:1].xPlacement = NSGridCellPlacementLeading;
+	for (NSInteger i = 0; i < grid.numberOfRows; i++)
+		[grid rowAtIndex:i].yPlacement = NSGridCellPlacementCenter;
+
+	/* The path row should stretch to fill the column width */
+	if (creatingFile)
+		[grid cellAtColumnIndex:1 rowIndex:0].xPlacement = NSGridCellPlacementFill;
+
+	CGFloat fieldWidth = 120.0;
+	for (NSTextField *f in @[ self.sizeField, self.cylindersField, self.headsField, self.sectorsField ])
+		[f.widthAnchor constraintEqualToConstant:fieldWidth].active = YES;
+
+	NSButton *cancel = [NSButton buttonWithTitle:@"Cancel" target:self action:@selector(cancel:)];
 	cancel.bezelStyle = NSBezelStyleRounded;
 	cancel.keyEquivalent = @"\e";
-	cancel.target = self;
-	cancel.action = @selector(cancel:);
-	[content addSubview:cancel];
+
+	NSButton *ok = [NSButton buttonWithTitle:@"OK" target:self action:@selector(confirm:)];
+	ok.bezelStyle = NSBezelStyleRounded;
+	ok.keyEquivalent = @"\r";
+
+	NSStackView *buttonBar = [NSStackView stackViewWithViews:@[ cancel, ok ]];
+	buttonBar.translatesAutoresizingMaskIntoConstraints = NO;
+	buttonBar.spacing = 8.0;
+
+	[content addSubview:grid];
+	[content addSubview:buttonBar];
+
+	CGFloat pad = 20.0;
+	[NSLayoutConstraint activateConstraints:@[
+		[grid.topAnchor constraintEqualToAnchor:content.topAnchor constant:pad],
+		[grid.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:pad],
+		[grid.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-pad],
+		[buttonBar.topAnchor constraintEqualToAnchor:grid.bottomAnchor constant:pad],
+		[buttonBar.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-pad],
+		[buttonBar.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-pad],
+	]];
+
+	CGFloat windowWidth = creatingFile ? 460.0 : 340.0;
+	[self.window setContentMinSize:NSMakeSize(windowWidth, 0.0)];
+	[self.window setContentSize:NSMakeSize(windowWidth, 0.0)];
+	[content layoutSubtreeIfNeeded];
+	NSSize fitted = NSMakeSize(windowWidth, NSMaxY(grid.frame) + pad + buttonBar.fittingSize.height + pad);
+	[self.window setContentSize:fitted];
 
 	self.sectorsField.stringValue = [NSString stringWithFormat:@"%d", sectors];
 	self.headsField.stringValue = [NSString stringWithFormat:@"%d", heads];
@@ -279,19 +325,21 @@ static void hd_limits(int is_st506, int *max_cylinders, int *max_heads, int *min
 int ShowNewHD(wxWindow *parent, int *new_sectors, int *new_heads, int *new_cylinders, char *new_fn, int new_fn_size, bool is_st506)
 {
 	(void)parent;
+	char default_drive_path[1024];
 	int max_cylinders = 0;
 	int max_heads = 0;
 	int min_sectors = 0;
 	int max_sectors = 0;
 	int sector_size = 0;
 	hd_limits(is_st506, &max_cylinders, &max_heads, &min_sectors, &max_sectors, &sector_size);
+	platform_path_join_support(default_drive_path, "drives/disc.hdf", sizeof(default_drive_path));
 
 	ARCHardDiskDialog *dialog = [[ARCHardDiskDialog alloc] initWithTitle:@"New hard disc"
 						      creatingFile:YES
 							 sectors:sector_size == 512 ? 63 : 32
 							   heads:sector_size == 512 ? 16 : 8
 						       cylinders:sector_size == 512 ? 100 : 615
-							    path:@""
+							    path:arc_nsstring(default_drive_path)
 							maxCylinders:max_cylinders
 							    maxHeads:max_heads
 							  minSectors:min_sectors
