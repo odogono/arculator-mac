@@ -17,4 +17,7 @@ void platform_path_podules_bundle_dir(char *dest, size_t size);
 
 int platform_path_find_rom_path(char *dest, const char *relative, size_t size);
 
+void platform_paths_init_test(const char *support, const char *resources);
+void platform_paths_reset(void);
+
 #endif

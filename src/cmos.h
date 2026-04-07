@@ -2,6 +2,8 @@ void cmos_init();
 void cmos_load();
 void cmos_save();
 
+const uint8_t *cmos_get_ram_ptr(void);
+
 void i2c_change(int new_clock, int new_data);
 
 extern int cmos_changed;

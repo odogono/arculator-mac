@@ -661,6 +661,11 @@ static int arc_shell_init(void)
 
 static void arc_shell_shutdown(void)
 {
+	/*Tell the renderer to bail out of present/update immediately so
+	  the emulation thread won't block on [CAMetalLayer nextDrawable]
+	  while we hold the main thread waiting for it to exit.*/
+	video_renderer_begin_close();
+
 	pthread_mutex_lock(&shell_mutex);
 	emulation_quited = 1;
 	pthread_cond_broadcast(&shell_cond);
@@ -1355,6 +1360,10 @@ int main(int argc, char **argv)
 				config_arg = argv[i];
 				break;
 			}
+#ifndef NDEBUG
+			else if ((!strcmp(argv[i], "-ArculatorTestSupportPath") || !strcmp(argv[i], "-ArculatorTestConfig")) && i + 1 < argc)
+				i++;
+#endif
 			else if (!strcmp(argv[i], "-NSDocumentRevisionsDebugMode") && i + 1 < argc)
 				i++;
 		}

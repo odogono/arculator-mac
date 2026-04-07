@@ -456,7 +456,7 @@ Completed in this repo:
 - Added `src/macos/app_macos.mm` to provide a native AppKit shell with `NSApplication`, `NSWindow`, `MTKView`, native menu construction/dispatch, title updates, reopen/focus/fullscreen handling, and a pthread-backed emulation loop.
 - Updated the macOS Metal backend so `src/macos/video_metal.m` attaches directly to the native host view instead of depending on an SDL-managed window.
 - Rewired the macOS Xcode target to build the native shell path and drop the old wx/SDL macOS shell sources from the app target.
-- Added an interactive macOS GUI smoke test in `tests/run_macos_gui_smoke_test.sh` and `tests/macos_gui_smoke_test.applescript` covering app launch, config startup, menu interaction, reset, and clean exit.
+- Added an interactive macOS GUI smoke test (now removed — replaced by XCUITests in `tests/ArculatorUITests/`) that covered app launch, config startup, menu interaction, reset, and clean exit.
 - Kept wxWidgets initialized only as a temporary bridge for dialogs that are explicitly deferred to Phase 9.
 
 ### Phase 9: Native dialogs
@@ -696,9 +696,9 @@ Use this session to clear the remaining blocked verification items in one pass.
   - FV-02
   - Milestone A bundled-launch and native-config items
 - Terminal automation:
-  - Run `SKIP_BUILD=1 sh tests/run_macos_session1_check.sh` after a successful Debug build.
-  - This validates copied-app launch from a non-repo directory via `open`, machine config create/edit/relaunch persistence, and config rename/copy/delete behavior under `~/Library/Application Support/Arculator/configs/`.
-  - It does not replace the explicit Finder launch step required by FV-01.
+  - The legacy `tests/run_macos_session1_check.sh` AppleScript test has been removed and replaced by XCUITests (`tests/ArculatorUITests/ConfigManagementUITests.swift`).
+  - Those XCUITests validate config create/edit/relaunch persistence, and config rename/duplicate/delete behavior.
+  - They do not replace the explicit Finder launch step required by FV-01.
 - Steps:
   1. Copy `build/Debug/Arculator.app` to a non-repo directory.
   2. Launch it from Finder.

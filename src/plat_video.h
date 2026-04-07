@@ -2,6 +2,7 @@
 
 int video_renderer_init(void *main_window);
 int video_renderer_reinit(void *main_window);
+void video_renderer_begin_close(void);
 void video_renderer_close();
 
 void video_renderer_update_layout(void);

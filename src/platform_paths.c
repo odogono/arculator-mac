@@ -278,6 +278,27 @@ void platform_paths_init(const char *argv0)
 	paths_initialized = 1;
 }
 
+void platform_paths_init_test(const char *support, const char *resources)
+{
+	if (paths_initialized)
+		return;
+
+	copy_string(support_root, sizeof(support_root), support);
+	copy_string(resources_root, sizeof(resources_root), resources);
+	copy_string(legacy_root, sizeof(legacy_root), support);
+	paths_initialized = 1;
+}
+
+void platform_paths_reset(void)
+{
+	support_root[0] = 0;
+	resources_root[0] = 0;
+	legacy_root[0] = 0;
+	cached_rom_root[0] = 0;
+	rom_root_cached = 0;
+	paths_initialized = 0;
+}
+
 void platform_path_join_resource(char *dest, const char *relative, size_t size)
 {
 	ensure_paths_initialized();

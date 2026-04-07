@@ -127,17 +127,36 @@ class ArculatorUITestCase: XCTestCase {
         menuBar.menuItems[itemTitle].click()
     }
 
-    /// Select the fixture config and start emulation via toolbar.
-    func selectFixtureConfigAndRun() {
+    /// Select the fixture config and wait for the config editor to appear.
+    func selectFixtureConfig() {
         _ = waitForIdle()
 
         let configRow = app.staticTexts["configRow_\(fixtureConfigName)"]
         XCTAssertTrue(configRow.waitForExistence(timeout: 5), "Fixture config should exist")
         configRow.click()
 
-        _ = app.otherElements["configEditor"].waitForExistence(timeout: 3)
+        let editor = app.groups["configEditor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5), "Config editor should appear")
+    }
+
+    /// Select the fixture config and start emulation via toolbar.
+    func selectFixtureConfigAndRun() {
+        selectFixtureConfig()
         clickToolbarButton("Run")
     }
 
     var supportPath: String { tempSupportDir.path }
+
+    /// Remove all config files from the fixture configs directory.
+    func removeAllFixtureConfigs() {
+        let configsDir = URL(fileURLWithPath: supportPath)
+            .appendingPathComponent("configs")
+        if let files = try? FileManager.default.contentsOfDirectory(atPath: configsDir.path) {
+            for file in files {
+                try? FileManager.default.removeItem(
+                    at: configsDir.appendingPathComponent(file)
+                )
+            }
+        }
+    }
 }

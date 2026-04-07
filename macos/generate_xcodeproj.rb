@@ -269,9 +269,8 @@ end
 
 # --- ArculatorUITests target ---
 
-UI_TEST_FILES = Dir.glob("../tests/ArculatorUITests/*.swift").map { |p|
-  p.sub(%r{^\.\./}, "")
-}.sort.freeze
+ui_test_target = nil
+UI_TEST_FILES = Dir.glob("tests/ArculatorUITests/*.swift").sort.freeze
 
 unless UI_TEST_FILES.empty?
   ui_test_target = project.new_target(:unit_test_bundle, "ArculatorUITests", :osx, "13.0")
@@ -301,4 +300,97 @@ unless UI_TEST_FILES.empty?
   end
 end
 
+# --- ArculatorCoreTests target ---
+
+core_test_target = nil
+
+# C sources compiled into the headless test bundle (subset of emulator + stubs)
+CORE_TEST_C_SOURCES = %w[
+  src/config.c
+  src/cmos.c
+  src/platform_paths.c
+  src/timer.c
+  tests/ArculatorCoreTests/core_test_stubs.c
+].freeze
+
+# ObjC XCTest files
+CORE_TEST_OBJ_FILES = Dir.glob("tests/ArculatorCoreTests/*.m").sort.freeze
+
+CORE_TEST_ALL_SOURCES = (CORE_TEST_C_SOURCES + CORE_TEST_OBJ_FILES).freeze
+
+CORE_TEST_FIXTURES_SCRIPT = <<~SCRIPT.freeze
+  set -euo pipefail
+  fixtures_src="$SRCROOT/tests/fixtures"
+  resources_dir="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+  fixtures_dst="$resources_dir/fixtures"
+  mkdir -p "$resources_dir"
+  rm -rf "$fixtures_dst"
+  cp -R "$fixtures_src" "$fixtures_dst"
+SCRIPT
+
+unless CORE_TEST_OBJ_FILES.empty?
+  core_test_target = project.new_target(:unit_test_bundle, "ArculatorCoreTests", :osx, "13.0")
+  # No dependency on the main app target — this is a host-less unit test bundle.
+
+  core_test_target.build_configurations.each do |config|
+    settings = config.build_settings
+    settings["CODE_SIGN_STYLE"] = "Automatic"
+    settings["PRODUCT_BUNDLE_IDENTIFIER"] = "com.arculator.mac.coretests"
+    settings["GENERATE_INFOPLIST_FILE"] = "YES"
+    settings["MACOSX_DEPLOYMENT_TARGET"] = "13.0"
+    settings["ARCHS"] = "arm64"
+    settings["HEADER_SEARCH_PATHS"] = [
+      "$(inherited)",
+      "$(SRCROOT)/src"
+    ]
+    settings["OTHER_CFLAGS"] = [
+      "$(inherited)",
+      "-D_FILE_OFFSET_BITS=64"
+    ]
+    # No TEST_HOST or BUNDLE_LOADER — host-less
+    settings.delete("TEST_HOST")
+    settings.delete("BUNDLE_LOADER")
+  end
+
+  # Link CoreFoundation (needed by platform_paths.c)
+  cf_ref = frameworks_group.new_file("System/Library/Frameworks/CoreFoundation.framework")
+  cf_ref.source_tree = "SDKROOT"
+  core_test_target.frameworks_build_phase.add_file_reference(cf_ref, true)
+
+  core_tests_group = main_group.find_subpath("tests/ArculatorCoreTests", true)
+  core_tests_src_group = main_group.find_subpath("src", false) || src_group
+
+  CORE_TEST_ALL_SOURCES.each do |path|
+    if path.start_with?("tests/")
+      ref = core_tests_group.new_file(path)
+    else
+      ref = core_tests_src_group.new_file(path)
+    end
+    core_test_target.source_build_phase.add_file_reference(ref, true)
+  end
+
+  # Copy test fixtures into the bundle resources
+  fixtures_phase = core_test_target.new_shell_script_build_phase("Copy Test Fixtures")
+  fixtures_phase.shell_path = "/bin/sh"
+  fixtures_phase.shell_script = CORE_TEST_FIXTURES_SCRIPT
+end
+
 project.save
+
+# --- Shared scheme ---
+
+scheme = Xcodeproj::XCScheme.new
+scheme.add_build_target(target)
+scheme.set_launch_target(target)
+
+if ui_test_target
+  scheme.add_build_target(ui_test_target, false)
+  scheme.add_test_target(ui_test_target)
+end
+
+if core_test_target
+  scheme.add_build_target(core_test_target, false)
+  scheme.add_test_target(core_test_target)
+end
+
+scheme.save_as(project.path, PROJECT_NAME, true)

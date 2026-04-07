@@ -105,6 +105,7 @@ struct ConfigListView: View {
                 showingNewConfig = true
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("createFirstMachineButton")
             Spacer()
         }
         .frame(maxWidth: .infinity)

@@ -140,6 +140,11 @@ void cmos_load()
 	cmos_get_time();
 }
 
+const uint8_t *cmos_get_ram_ptr(void)
+{
+	return cmos.ram;
+}
+
 void cmos_save()
 {
 	char fn[512];
@@ -152,6 +157,11 @@ void cmos_save()
 
 	LOG_CMOS("Writing %s\n", fn);
 	cmosf = fopen(fn, "wb");
+	if (!cmosf)
+	{
+		rpclog("cmos_save: failed to open %s\n", fn);
+		return;
+	}
 	fwrite(cmos.ram, 256, 1, cmosf);
 	fclose(cmosf);
 }

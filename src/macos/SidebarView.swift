@@ -22,6 +22,8 @@ struct SidebarView: View {
                 RunningControlsView(emulatorState: emulatorState)
             }
         }
-        .accessibilityIdentifier("sidebar")
+        // Note: no accessibilityIdentifier here — child views
+        // (ConfigListView, RunningControlsView) set their own identifiers
+        // and a Group identifier would override them in the accessibility tree.
     }
 }

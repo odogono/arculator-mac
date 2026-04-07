@@ -35,6 +35,7 @@ struct DiscSlotView: View {
                 .truncationMode(.middle)
                 .lineLimit(1)
                 .help(isEmpty ? "" : discName)
+                .accessibilityIdentifier("discName_\(driveIndex)")
 
             HStack(spacing: 6) {
                 Button("Change") {
@@ -47,6 +48,7 @@ struct DiscSlotView: View {
                 }
                 .controlSize(.mini)
                 .disabled(isEmpty)
+                .accessibilityIdentifier("discEjectButton_\(driveIndex)")
             }
         }
         .padding(.vertical, 2)

@@ -39,6 +39,7 @@ struct MutabilityGatedModifier: ViewModifier {
                 Text(hint)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("mutabilityHint_\(settingKey)")
             }
         }
     }
@@ -71,10 +72,12 @@ struct PendingResetBanner: View {
                     pendingReset = false
                 }
                 .controlSize(.small)
+                .accessibilityIdentifier("applyAndResetButton")
             }
             .padding(8)
             .background(.orange.opacity(0.1))
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            .accessibilityIdentifier("pendingResetBanner")
         }
     }
 }

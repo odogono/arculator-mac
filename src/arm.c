@@ -740,15 +740,18 @@ void dumpregs()
 	memmode = MEMMODE_SUPER;
 
 	f=fopen("modules.dmp","wb");
-	for (c=0x0000;c<0x100000;c+=4)
+	if (f)
 	{
-		l=readmeml(c+0x1800000);
-		putc(l,f);
-		putc(l>>8,f);
-		putc(l>>16,f);
-		putc(l>>24,f);
+		for (c=0x0000;c<0x100000;c+=4)
+		{
+			l=readmeml(c+0x1800000);
+			putc(l,f);
+			putc(l>>8,f);
+			putc(l>>16,f);
+			putc(l>>24,f);
+		}
+		fclose(f);
 	}
-	fclose(f);
 /*        f=fopen("ram.dmp","wb");
 	for (c=0x0000;c<0x100000;c++)
 	    putc(readmemb(c),f);

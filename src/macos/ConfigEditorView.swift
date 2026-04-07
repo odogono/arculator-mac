@@ -33,15 +33,21 @@ enum ConfigCategory: String, CaseIterable, Identifiable {
 struct ConfigEditorView: View {
     @ObservedObject var config: MachineConfigModel
     @ObservedObject var emulatorState: EmulatorState
-    @State private var selectedCategory: ConfigCategory = .general
+    @State private var selectedCategory: ConfigCategory? = .general
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             List(ConfigCategory.allCases, selection: $selectedCategory) { category in
                 Label(category.rawValue, systemImage: category.icon)
+                    .tag(category)
+                    .accessibilityIdentifier("categoryTab_\(category.rawValue)")
             }
-            .navigationSplitViewColumnWidth(min: 140, ideal: 160, max: 200)
-        } detail: {
+            .listStyle(.sidebar)
+            .accessibilityIdentifier("categoryList")
+            .frame(width: 160)
+
+            Divider()
+
             VStack(spacing: 0) {
                 PendingResetBanner(pendingReset: $config.pendingReset) {
                     config.applyAndReset()
@@ -52,7 +58,7 @@ struct ConfigEditorView: View {
                 detailView
             }
         }
-        .navigationSplitViewStyle(.balanced)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("configEditor")
     }
 
@@ -61,12 +67,18 @@ struct ConfigEditorView: View {
         switch selectedCategory {
         case .general:
             GeneralSettingsView(config: config, emulatorState: emulatorState)
+                .accessibilityIdentifier("settingsDetail_General")
         case .storage:
             StorageSettingsView(config: config, emulatorState: emulatorState)
+                .accessibilityIdentifier("settingsDetail_Storage")
         case .peripherals:
             PeripheralsSettingsView(config: config, emulatorState: emulatorState)
+                .accessibilityIdentifier("settingsDetail_Peripherals")
         case .display:
             DisplaySettingsView(config: config, emulatorState: emulatorState)
+                .accessibilityIdentifier("settingsDetail_Display")
+        case .none:
+            EmptyView()
         }
     }
 }

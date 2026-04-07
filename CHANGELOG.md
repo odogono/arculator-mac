@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.6 (unreleased)
+
+- core: Add test seam APIs - `platform_paths_init_test()`, `platform_paths_reset()`, `cmos_get_ram_ptr()`, `video_renderer_begin_close()`
+- core: Fix potential null pointer dereference in `dumpregs()`
+- core: Add null check in `cmos_save()` to handle failed file opens gracefully
+
+- testing: Add headless XCTest bundle target (ArculatorCoreTests) for core emulator testing
+- testing: Add XCUITests for config rename, duplicate, delete, and persistence across relaunch
+- testing: Add XCUITests for disc slot attach/eject and mutability gating
+- testing: Add accessibility identifiers throughout SwiftUI views for UI test automation
+- testing: Remove legacy AppleScript-based GUI smoke tests (`run_macos_gui_smoke_test.sh`, `macos_gui_smoke_test.applescript`, `run_macos_session1_check.sh`, `macos_session1_check.applescript`)
+
 ## v2.5 (unreleased)
 
 - macOS: Replace wxWidgets-based config dialog with native SwiftUI UI (MainSplitViewController, SidebarView, ConfigEditorView, etc.)

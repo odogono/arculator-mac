@@ -1,378 +1,251 @@
-# XCTest and XCUITest Plan for Arculator macOS
+# Testing Plan for Arculator macOS UI Redesign
 
-## Context
+Last updated: 2026-04-05
 
-The native macOS port is functionally complete, but there are three known regressions that need to be confirmed, fixed, and kept fixed:
+## Summary
 
-1. **'a' key dead**: `KEY_A` is `0x00` in `keyboard_macos.h`, but shared keyboard logic treats keycodes as 1-based in two places:
-   - `keyboard_init()` writes `keytable[keys[c][0] - 1]`
-   - `keyboard_poll()` scans `key[1..511]`
-2. **Boots to CLI instead of desktop**: likely the wrong CMOS file, wrong support path, or wrong machine config is being loaded.
-3. **Mono desktop, color cursor**: likely the wrong `monitor_type` is being loaded from config, or a config/path mismatch is causing a mono fallback.
+The previous version of this plan is now partly obsolete.
 
-Goal: build an all-Xcode test strategy that can confirm these regressions programmatically, support debugging them with deterministic fixtures, and prevent regressions in both the emulator core and the macOS app shell.
+Roughly half of it is outdated for the UI redesign track:
 
-## Test Strategy
+- the macOS keyboard `KEY_A == 0` regression has already been fixed
+- app-side UI test launch hooks already exist
+- repo-owned UI fixtures already exist
+- several XCUITests for the redesigned shell already exist
 
-Use two test targets, with clear ownership:
+What is still relevant:
 
-### `ArculatorCoreTests`
+- keep UI-shell testing separate from future headless core testing
+- use temporary support directories and repo-owned fixtures for tests
+- retire AppleScript only after XCUITest coverage is reliable
+- add deterministic core seams before attempting golden/reference tests
 
-Headless XCTest bundle for emulator-state validation.
+The main correction is that the immediate problem is no longer "design a UI test strategy from scratch". The immediate problem is "finish and wire up the UI tests that already exist, then decide how much core-level coverage is still needed for redesign sign-off".
 
-- Runs without Metal, Core Audio, or AppKit windows.
-- Links the emulator core plus test capture/null backends.
-- Owns path resolution, CMOS loading, keyboard mapping, monitor/config state, and deterministic boot inspection.
+## Current State
 
-### `ArculatorUITests`
+### Implemented now
 
-Hosted XCUITest target for app-shell validation.
+- The redesigned macOS shell is in place under [`src/macos`](/Users/alex/work/arculator-mac/src/macos).
+- Existing XCUITest sources live under [`tests/ArculatorUITests`](/Users/alex/work/arculator-mac/tests/ArculatorUITests).
+- Existing repo fixtures live under [`tests/fixtures`](/Users/alex/work/arculator-mac/tests/fixtures).
+- The app accepts debug-only UI test launch arguments in [`src/macos/app_macos.mm`](/Users/alex/work/arculator-mac/src/macos/app_macos.mm):
+  - `-ArculatorTestSupportPath`
+  - `-ArculatorTestConfig`
+- The macOS keycode bias fix is already present in [`src/keyboard_macos.h`](/Users/alex/work/arculator-mac/src/keyboard_macos.h) and [`src/macos/input_macos.m`](/Users/alex/work/arculator-mac/src/macos/input_macos.m).
+- The Xcode project generator already contains UI test target generation in [`macos/generate_xcodeproj.rb`](/Users/alex/work/arculator-mac/macos/generate_xcodeproj.rb).
 
-- Launches the actual macOS app.
-- Replaces the current AppleScript-based GUI smoke coverage.
-- Owns launch, menus, dialogs, config persistence, and shutdown flows.
+### Existing UI coverage
 
-This split matters: emulator-state regressions should be debugged with small, deterministic headless tests; app-shell regressions should be covered with XCUITest, not shell scripts or AppleScript.
+The current XCUITests already cover:
 
-## Phase 0: Determinism and Test Seams
+- idle launch and config selection
+- launch with a preselected config
+- run, pause, resume, and stop flows
+- menu and toolbar state basics
+- fullscreen entry and exit
+- create and delete config flows
 
-Before adding long-running boot or golden-reference tests, make the runtime deterministic and observable.
+Current files:
 
-### Required seams
+- [`tests/ArculatorUITests/LaunchIdleUITests.swift`](/Users/alex/work/arculator-mac/tests/ArculatorUITests/LaunchIdleUITests.swift)
+- [`tests/ArculatorUITests/PreselectedConfigUITests.swift`](/Users/alex/work/arculator-mac/tests/ArculatorUITests/PreselectedConfigUITests.swift)
+- [`tests/ArculatorUITests/MenuToolbarSyncUITests.swift`](/Users/alex/work/arculator-mac/tests/ArculatorUITests/MenuToolbarSyncUITests.swift)
+- [`tests/ArculatorUITests/ConfigManagementUITests.swift`](/Users/alex/work/arculator-mac/tests/ArculatorUITests/ConfigManagementUITests.swift)
+- [`tests/ArculatorUITests/EmulationLifecycleUITests.swift`](/Users/alex/work/arculator-mac/tests/ArculatorUITests/EmulationLifecycleUITests.swift)
 
-**`src/platform_paths.h` / `src/platform_paths.c`**
+### Still missing now
 
-Add test-only initialization/reset hooks:
+- The checked-in [`Arculator.xcodeproj/project.pbxproj`](/Users/alex/work/arculator-mac/Arculator.xcodeproj/project.pbxproj) does not currently expose an `ArculatorUITests` target or scheme, even though the generator script knows how to create one.
+- `xcodebuild -list -project Arculator.xcodeproj` currently shows only target/scheme `Arculator`.
+- `xcodebuild test -project Arculator.xcodeproj -scheme ArculatorUITests ...` currently fails because that scheme does not exist in the checked-in project.
+- VIDC inspection seams (`vidc_get_palette(...)`, `vidc_get_control_register()`) are deferred to later core-test priorities.
+- No test-only capture backends exist under `src/test/`.
+- Frame/audio golden tests and deeper boot-state checkpoints remain as later core-test priorities.
 
-- `platform_paths_init_test(const char *resources_root, const char *support_root)`
-- `platform_paths_reset()`
+## What Is Outdated
 
-`platform_paths_reset()` must also clear any cached ROM-root state, not just the initialized flag.
+These parts of the previous plan should no longer be treated as pending redesign work:
 
-**`src/cmos.h` / `src/cmos.c`**
+### 1. The keyboard `'a'` regression as an open fix item
 
-Add:
+This is already addressed by the keycode bias layer.
 
-- `const uint8_t *cmos_get_ram_ptr(void)`
+Keep it as a regression to cover in future tests if desired, but it should not remain listed as an active redesign blocker.
 
-Also add a deterministic RTC override for tests, either via:
+### 2. "Replace AppleScript smoke tests with XCUITest" as a greenfield task
 
-- a small setter API, or
-- a test-only environment variable checked by CMOS init/load code
+This has already started. The correct remaining work is:
 
-Without fixed RTC values, boot-state and golden-reference tests will drift.
+- make the existing XCUITests runnable from the checked-in project and CI
+- close the remaining coverage gaps
+- then remove the AppleScript scripts
 
-**`src/vidc.h` / `src/vidc.c`**
+### 3. The UI test file creation list
 
-Add minimal read accessors used only for assertions:
+The old plan lists several UI test files as if they do not exist yet. They already exist, although some coverage is still incomplete.
 
-- `uint32_t vidc_get_palette(int index)`
-- `uint32_t vidc_get_control_register(void)`
+### 4. The assumption that app-side test launch plumbing is missing
 
-### Optional but useful seam
+Support-path and preselected-config launch hooks already exist in the app. The plan should build on those hooks rather than re-propose them.
 
-For keyboard tests, add a narrow observability hook instead of relying on indirect side effects from `keyboard_poll()`. For example:
+### 5. The verification commands as written
 
-- expose the translated row/column for a host keycode, or
-- add a tiny test callback/log for dispatched keyboard events
+The old commands assume an `ArculatorUITests` scheme is already available. That is not true in the current checked-in project state.
 
-This keeps keyboard tests simple and avoids depending on unrelated emulator state.
+## What Is Still Relevant
 
-## Phase 1: Headless Capture Backends
+### 1. Separate UI-shell tests from future core tests
 
-Create a small test-only backend layer under `src/test/`.
+This is still the right split:
 
-### `src/test/video_capture.c`
+- XCUITest for shell behavior, menus, lifecycle, persistence, and redesigned window flow
+- headless XCTest for config loading, CMOS, monitor state, keyboard mapping, and deterministic emulator assertions
 
-Implements `plat_video.h`.
+### 2. Use temporary support roots and repo fixtures
 
-- `video_renderer_init()` / `video_renderer_reinit()` / `video_renderer_close()` are no-ops.
-- `video_renderer_update()` hashes the dirty pixel region.
-- `video_renderer_present()` records a frame checksum into a ring buffer.
+This remains correct and is already the pattern used by the current UI test base class.
 
-### `src/test/sound_capture.c`
+### 3. Retire AppleScript only after parity exists
 
-Implements `plat_sound.h`.
+This is still the right exit criterion. The AppleScript coverage should be treated as temporary fallback, not extended further.
 
-- `sound_dev_init()` / `sound_dev_close()` are no-ops.
-- `sound_givebuffer()` and `sound_givebufferdd()` hash emitted buffers into a ring buffer.
+### 4. Core seams before golden tests
 
-### `src/test/input_null.c`
+Still correct. Golden/reference tests remain premature until the runtime is deterministic and observable.
 
-Implements `plat_input.h` entry points needed by the core test target.
+### 5. Config/CMOS/monitor-state assertions are still useful
 
-- No-op host snapshot capture/apply.
-- Stable zeroed keyboard/mouse state for unattended boot tests.
+The old "boots to CLI" and "mono desktop" hypotheses should no longer anchor the redesign plan, but they are still valid candidates for later core tests if those regressions still reproduce.
 
-### `src/test/test_capture.h`
+## Updated Plan
 
-Declares read APIs used by tests, for example:
+## Phase 1: Make Existing XCUITests Runnable ✅
 
-- frame count
-- frame checksum by index
-- audio buffer count
-- audio checksum by index
-- reset helpers
+This is the immediate blocker.
 
-## Phase 2: Shared Core Build for Tests
+### Goals
 
-Do not maintain a hand-curated, drifting “test-only source list” if it can be avoided.
+- sync the checked-in Xcode project with the generator
+- expose UI tests through a shared scheme
+- make `xcodebuild test` usable locally and in CI
 
-Preferred approach:
+### Required work
 
-- build a reusable `ArculatorCore` static library or shared source grouping in Xcode
-- have both the app target and `ArculatorCoreTests` consume it
-- swap only the platform backends for the headless test target
+- Regenerate or update [`Arculator.xcodeproj/project.pbxproj`](/Users/alex/work/arculator-mac/Arculator.xcodeproj/project.pbxproj) so it actually contains the UI test target described in [`macos/generate_xcodeproj.rb`](/Users/alex/work/arculator-mac/macos/generate_xcodeproj.rb).
+- Ensure at least one shared scheme runs the UI tests:
+  - either a dedicated `ArculatorUITests` scheme
+  - or the main `Arculator` scheme with UI tests in its test action
+- Document the canonical command for running UI tests once this is wired correctly.
 
-If the project cannot be restructured that far yet, the plan must at least document the exact non-UI dependencies still required by `arc_init()`, since startup does more than video/input/audio initialization.
+### Exit criteria
 
-## Phase 3: `ArculatorCoreTests`
+- `xcodebuild -list -project Arculator.xcodeproj` shows a runnable UI test path
+- UI tests can be run without opening Xcode manually
 
-Add a native XCTest bundle target:
+## Phase 2: Finish Redesign UI Coverage ✅
 
-- product type: unit test bundle
-- no UI host application required
-- links emulator core plus `src/test/*.c`
-- excludes AppKit/Metal/CoreAudio frontend sources
+Build on the tests that already exist instead of replacing them.
 
-### Fixture model
+### Coverage already present
 
-Use repo-owned fixtures under `tests/fixtures/`, not files copied from a developer machine.
+- launch to idle shell
+- select config and show editor
+- preselected config auto-run
+- run, pause, resume, stop
+- hard reset
+- fullscreen
+- create config
+- delete config
 
-Fixtures should include:
+### Highest-priority gaps
 
-- `arc.cfg`
-- `configs/test-machine.cfg`
-- `cmos/test-machine.<romset>.cmos.bin`
+- Rename config flow.
+- Duplicate config flow.
+- Persistence across relaunch for renamed or duplicated configs.
+- First-run welcome state and "Create Your First Machine" path.
+- Mutability-gating behavior while running or paused.
+- Pending-reset banner and "Apply and Reset" flow.
+- Disc-slot attach/eject flows in the running sidebar, if redesign completion still includes those interactions.
 
-These fixtures should be intentionally minimal and documented. ROM images remain external and are located via `ARCULATOR_TEST_ROM_PATH` or a known default path.
+### Notes
 
-### Test setup
+- Some of these tests will need more stable accessibility identifiers on editor controls and banners.
+- Prefer expanding the current Swift XCUITests, not adding more AppleScript.
 
-Each test case should:
+### Exit criteria
 
-1. Create a temporary support directory.
-2. Copy fixture config/CMOS files into it.
-3. Resolve ROMs from `ARCULATOR_TEST_ROM_PATH`, else a standard local default.
-4. Skip cleanly if ROMs are unavailable.
-5. Call `platform_paths_init_test(...)`.
-6. Set `machine_config_name` and `machine_config_file`.
-7. Apply deterministic RTC/test overrides.
+- The redesign-specific behaviors called out in [`docs/UI_REDESIGN_PLAN.md`](/Users/alex/work/arculator-mac/docs/UI_REDESIGN_PLAN.md) are covered by XCUITest at the shell level.
 
-Each teardown should:
+## Phase 3: Remove Legacy AppleScript Coverage ✅
 
-1. call `arc_close()` if startup completed
-2. call `platform_paths_reset()`
-3. remove the temporary directory
+All four legacy AppleScript files have been removed:
 
-### Initial core tests
+- `tests/run_macos_gui_smoke_test.sh`
+- `tests/macos_gui_smoke_test.applescript`
+- `tests/run_macos_session1_check.sh`
+- `tests/macos_session1_check.applescript`
 
-#### `BootInspectTests`
+Preconditions were met: XCUITest coverage is equivalent and reliable.
 
-State-based tests should come first.
+## Phase 4: Add Headless Core Tests as a Follow-On Track ✅ (first priorities)
 
-**`testCMOSLoadedCorrectly`**
+The first core-test priorities are implemented as a host-less XCTest unit bundle (`ArculatorCoreTests`).
 
-- Start the emulator.
-- Read `cmos_get_ram_ptr()`.
-- Assert key bytes match the fixture CMOS image.
+### Implemented
 
-This should confirm or disprove the CMOS/path hypothesis directly.
+- `ArculatorCoreTests` target in the Xcode project (host-less unit test bundle)
+- Test seams: `platform_paths_init_test()`, `platform_paths_reset()`, `cmos_get_ram_ptr()`
+- CMOS fixture at `tests/fixtures/cmos/`
+- Linker stubs in `tests/ArculatorCoreTests/core_test_stubs.c`
 
-**`testMonitorTypeLoadedFromConfig`**
+### First core priorities — covered
 
-- Start the emulator.
-- Assert `monitor_type` matches the fixture config expectation.
+- config load path correctness (`ConfigLoadTests.m` — 7 tests)
+- CMOS file resolution correctness (`CMOSLoadTests.m` — 3 tests)
+- monitor type loaded from config (covered by `ConfigLoadTests`)
+- keyboard mapping assertions for macOS keycodes (`KeyboardMappingTests.m` — 6 tests)
+- platform path API (`PlatformPathTests.m` — 6 tests)
 
-This is the fastest way to confirm whether the mono display issue is a config-load problem.
+### Later core priorities — still future work
 
-**`testVIDCEntersColorMode`**
+- VIDC inspection seams (`vidc_get_palette(...)`, `vidc_get_control_register()`)
+- deterministic RTC override
+- frame or audio golden tests
+- deeper boot-state checkpoints
 
-- Run enough frames to reach normal video initialization.
-- Assert control register and palette state are compatible with a color desktop.
+## Planned Files
 
-This should be secondary to `monitor_type`, not the first line of diagnosis.
+### Still future work
 
-#### `KeyboardMappingTests`
-
-Keep these narrow and deterministic.
-
-**`testMacOSKeycodesAreSafeForSharedKeyboardLogic`**
-
-- Validate that all macOS keycodes used by the input backend are valid for the shared keyboard tables and polling logic.
-- Explicitly catch the `KEY_A == 0` case.
-
-**`testKeyAProducesExpectedMapping`**
-
-- Assert that the 'A' key is not dropped by the host-keycode to emulated-key mapping path.
-- Prefer a direct mapping/assertion seam over a fully booted emulator test.
-
-## Phase 4: Fix the Known Regressions
-
-### Fix #1: Keyboard 'a' key
-
-The current diagnosis is sound:
-
-- `keyboard_init()` writes `keytable[keycode - 1]`
-- `keyboard_poll()` iterates `key[1..511]`
-
-For macOS keycodes, `0x00` is therefore invalid in shared logic.
-
-Recommended fix:
-
-- add `KEYCODE_MACOS_BIAS 1` in `src/keyboard_macos.h`
-- bias all macOS `KEY_*` definitions that participate in the shared key arrays
-- update `src/macos/input_macos.m` to translate back to the raw macOS virtual key code before calling `CGEventSourceKeyState`
-
-This keeps the shared keyboard code untouched and limits the platform-specific adaptation to the macOS layer.
-
-### Fix #2: CLI boot instead of desktop
-
-Investigate only after `testCMOSLoadedCorrectly` is in place.
-
-Likely causes:
-
-- wrong support root
-- wrong machine config path
-- wrong CMOS filename or naming convention
-- fallback CMOS resource unexpectedly used
-
-The test should be designed to identify which file was loaded, not just that boot output differed.
-
-### Fix #3: Mono desktop
-
-Investigate only after the config/path tests are in place.
-
-Likely causes:
-
-- wrong `monitor_type` loaded from machine config
-- config not loaded at all
-- config from an unexpected location
-
-Start with `monitor_type` assertions before adding video-hash comparisons.
-
-## Phase 5: Golden Reference Tests
-
-Only add golden/reference tests after:
-
-- deterministic RTC behavior exists
-- CMOS/config-path tests are stable
-- keyboard bug is fixed
-- color/monitor-state tests are stable
-
-### Scope
-
-Golden tests should compare a small number of deliberate checkpoints, for example:
-
-- selected frame checksums
-- selected audio checksums
-- selected palette values
-- final monitor/config state
-
-### Generation
-
-Golden generation must be explicit, never implicit.
-
-Use either:
-
-- a dedicated script, or
-- an explicit env flag such as `ARCULATOR_GENERATE_GOLDENS=1`
-
-`xcodebuild test` should fail on mismatch, not silently rewrite fixtures.
-
-## Phase 6: `ArculatorUITests`
-
-Replace the AppleScript smoke tests with hosted XCUITests.
-
-Add a UI test target that launches the real app and uses launch arguments/environment to point the app at a temporary support directory and known test config.
-
-### Required app-side support
-
-The app should accept test launch configuration such as:
-
-- support root override
-- resources/ROM override if needed
-- initial machine config selection
-- optional flags that disable nonessential prompts or audio for UI tests
-
-This is better than mutating the real `~/Library/Application Support/Arculator` directory during UI automation.
-
-### Initial UI test coverage
-
-`LaunchAndMenusUITests`
-
-- launch app with a known config
-- wait for the main window
-- open “Configure Machine...”
-- cancel and verify the window closes
-- invoke “Hard Reset”
-- exit cleanly
-
-`ConfigPersistenceUITests`
-
-- create a config
-- rename it
-- copy/delete as needed
-- relaunch the app
-- verify the persisted config state is visible and correct
-
-These tests replace the current GUI smoke intent, but with first-party Xcode automation instead of AppleScript.
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/test/video_capture.c` | Headless video capture backend |
-| `src/test/sound_capture.c` | Headless sound capture backend |
-| `src/test/input_null.c` | Null input backend for unattended tests |
-| `src/test/test_capture.h` | Capture/test query API |
-| `tests/ArculatorCoreTests/BootInspectTests.m` | Headless startup/state tests |
-| `tests/ArculatorCoreTests/KeyboardMappingTests.m` | Keyboard mapping regression tests |
-| `tests/ArculatorCoreTests/GoldenReferenceTests.m` | Deterministic golden/reference tests |
-| `tests/ArculatorUITests/LaunchAndMenusUITests.m` | XCUITest launch/menu flows |
-| `tests/ArculatorUITests/ConfigPersistenceUITests.m` | XCUITest config persistence flows |
-| `tests/fixtures/arc.cfg` | Global config fixture |
-| `tests/fixtures/configs/test-machine.cfg` | Machine config fixture |
-| `tests/fixtures/cmos/` | CMOS fixtures |
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/platform_paths.h` | Declare test init/reset APIs |
-| `src/platform_paths.c` | Implement test init/reset and clear caches |
-| `src/cmos.h` | Declare CMOS accessor and deterministic test hook as needed |
-| `src/cmos.c` | Implement CMOS accessor and deterministic RTC override |
-| `src/vidc.h` | Declare minimal inspection accessors |
-| `src/vidc.c` | Implement palette/control-register accessors |
-| `src/keyboard_macos.h` | Add keycode bias and update `KEY_*` definitions |
-| `src/macos/input_macos.m` | Translate biased test/runtime keycodes back to raw macOS virtual keycodes |
-| `Arculator.xcodeproj/project.pbxproj` | Add core/unit/UI test targets |
+- `src/test/video_capture.c`
+- `src/test/sound_capture.c`
+- `src/test/input_null.c`
+- `src/test/test_capture.h`
+- Additional core tests as needed for later priorities
 
 ## Verification
 
-### Core tests
+### Current reality
 
-Run:
+As of 2026-04-05:
+
+- `xcodebuild -list -project Arculator.xcodeproj` exposes `Arculator`, `ArculatorUITests`, and `ArculatorCoreTests`
+- The shared `Arculator` scheme includes both test targets in its test action
+
+### Target verification after Phase 1
+
+Run whichever command matches the shared scheme that is actually created, for example:
 
 ```sh
 xcodebuild test \
   -project Arculator.xcodeproj \
-  -scheme ArculatorCoreTests \
+  -scheme Arculator \
   -configuration Debug \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-Expected flow:
-
-1. state-based tests fail first and confirm the current regressions
-2. fixes land
-3. state-based tests pass
-4. deterministic golden tests are added and remain stable
-
-### UI tests
-
-Run:
+or:
 
 ```sh
 xcodebuild test \
@@ -382,8 +255,24 @@ xcodebuild test \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-Expected flow:
+### Target verification after Phase 4
 
-1. AppleScript GUI smoke coverage is retired
-2. XCUITest covers launch/menu/config flows
-3. UI regressions are caught inside Xcode and CI without external scripting
+Core tests only:
+
+```sh
+xcodebuild test \
+  -project Arculator.xcodeproj \
+  -scheme Arculator \
+  -only-testing ArculatorCoreTests \
+  -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+## Definition of Done for the Redesign Testing Track
+
+The redesign testing work should be considered complete when:
+
+- existing XCUITests are runnable from the checked-in project and CI ✅
+- redesign-critical shell flows are covered by XCUITest ✅
+- AppleScript smoke scripts are removed ✅
+- any remaining core-test work is explicitly tracked as emulator regression coverage, not hidden inside the UI redesign milestone ✅

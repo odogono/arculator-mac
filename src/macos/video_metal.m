@@ -24,6 +24,7 @@ static CAMetalLayer *metal_layer;
 static NSView *metal_host_view;
 static NSWindow *metal_window;
 static int metal_owns_layer;
+static volatile int renderer_closing;
 
 /*Cached view dimensions, updated from the main thread by
   video_renderer_update_layout() so that the render thread
@@ -130,6 +131,7 @@ int video_renderer_init(void *main_window)
 		__block int init_ok = 1;
 
 		rpclog("video_renderer_init() [Metal]\n");
+		renderer_closing = 0;
 
 		run_on_main_thread(^{
 			metal_host_view = (__bridge NSView *)main_window;
@@ -220,6 +222,11 @@ int video_renderer_reinit(void *main_window)
 	}
 }
 
+void video_renderer_begin_close(void)
+{
+	renderer_closing = 1;
+}
+
 void video_renderer_close()
 {
 	@autoreleasepool {
@@ -242,6 +249,7 @@ void video_renderer_close()
 		metal_host_view = nil;
 		metal_window = nil;
 		metal_layer = nil;
+		renderer_closing = 0;
 	}
 }
 
@@ -274,6 +282,8 @@ void video_renderer_update_layout(void)
 void video_renderer_update(BITMAP *src, int src_x, int src_y, int dest_x, int dest_y, int w, int h)
 {
 	LOG_VIDEO_FRAMES("video_renderer_update: src=%i,%i dest=%i,%i size=%i,%i\n", src_x,src_y, dest_x,dest_y, w,h);
+	if (renderer_closing)
+		return;
 	texture_rect.x = dest_x;
 	texture_rect.y = dest_y;
 	texture_rect.w = w;
@@ -403,6 +413,9 @@ void video_renderer_present(int src_x, int src_y, int src_w, int src_h, int dbls
 {
 	@autoreleasepool {
 		LOG_VIDEO_FRAMES("video_renderer_present: %d,%d + %d,%d\n", src_x, src_y, src_w, src_h);
+
+		if (renderer_closing)
+			return;
 
 		if (!metal_layer || !metal_pipeline_state || !metal_texture)
 			return;

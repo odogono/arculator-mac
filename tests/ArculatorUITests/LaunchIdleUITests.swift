@@ -43,17 +43,56 @@ final class LaunchIdleUITests: ArculatorUITestCase {
         }
     }
 
-    func testEmptyConfigListShowsEmptyState() throws {
-        let configsDir = URL(fileURLWithPath: supportPath)
-            .appendingPathComponent("configs")
-        if let files = try? FileManager.default.contentsOfDirectory(atPath: configsDir.path) {
-            for file in files {
-                try? FileManager.default.removeItem(
-                    at: configsDir.appendingPathComponent(file)
-                )
-            }
-        }
+    func testFirstRunWelcomeAppears() throws {
+        removeAllFixtureConfigs()
+        launchApp()
 
+        let welcome = app.otherElements["firstRunWelcome"]
+        XCTAssertTrue(
+            welcome.waitForExistence(timeout: 10),
+            "First-run welcome view should appear when no configs exist"
+        )
+
+        let createButton = app.buttons["createFirstMachineButton"]
+        XCTAssertTrue(
+            createButton.waitForExistence(timeout: 5),
+            "Create Your First Machine button should be visible"
+        )
+    }
+
+    func testFirstRunCreateConfigFromWelcome() throws {
+        removeAllFixtureConfigs()
+        launchApp()
+
+        let createButton = app.buttons["createFirstMachineButton"]
+        XCTAssertTrue(createButton.waitForExistence(timeout: 10))
+        createButton.click()
+
+        let popoverCreate = app.buttons["Create"]
+        XCTAssertTrue(
+            popoverCreate.waitForExistence(timeout: 5),
+            "New config popover should appear with Create button"
+        )
+
+        // Popover pre-fills a config name from the selected preset;
+        // replace it with a known name for verification.
+        let nameField = app.textFields.firstMatch
+        XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+        nameField.click()
+        nameField.typeKey("a", modifierFlags: .command)
+        nameField.typeText("Welcome Config")
+
+        popoverCreate.click()
+
+        let newRow = app.staticTexts["configRow_Welcome Config"]
+        XCTAssertTrue(
+            newRow.waitForExistence(timeout: 5),
+            "Config created from welcome should appear in the list"
+        )
+    }
+
+    func testEmptyConfigListShowsEmptyState() throws {
+        removeAllFixtureConfigs()
         launchApp()
 
         let emptyState = app.otherElements["configListEmpty"]

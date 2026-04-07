@@ -51,6 +51,7 @@ private struct FirstRunWelcomeView: View {
                 showingNewConfig = true
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("createFirstMachineButton")
             .popover(isPresented: $showingNewConfig) {
                 NewConfigPopover(configList: configList, isPresented: $showingNewConfig)
             }
