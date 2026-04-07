@@ -32,7 +32,7 @@ import Combine
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        sidebarController = SidebarHostingController(configList: configList)
+        sidebarController = SidebarHostingController(configList: configList, configModel: configModel)
         contentController = ContentHostingController(configList: configList)
 
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarController)

@@ -100,7 +100,7 @@ enum SwiftInteropSmoke {
     }
 
     static func verifySidebarHostingController() -> Bool {
-        let vc = SidebarHostingController(configList: ConfigListModel())
+        let vc = SidebarHostingController(configList: ConfigListModel(), configModel: MachineConfigModel())
         _ = vc.view
         return true
     }
@@ -166,7 +166,7 @@ enum SwiftInteropSmoke {
     }
 
     static func verifyRunningControlsViewCreation() -> Bool {
-        _ = RunningControlsView(emulatorState: EmulatorState.shared)
+        _ = RunningControlsView(configModel: MachineConfigModel(), emulatorState: EmulatorState.shared)
         return true
     }
 

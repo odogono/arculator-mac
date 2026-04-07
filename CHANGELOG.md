@@ -2,6 +2,9 @@
 
 ## v2.6 (unreleased)
 
+- macOS: Pass configModel to sidebar for drive count awareness
+- macOS: Show correct number of disc slots in running controls based on machine IO type
+
 - core: Add test seam APIs - `platform_paths_init_test()`, `platform_paths_reset()`, `cmos_get_ram_ptr()`, `video_renderer_begin_close()`
 - core: Fix potential null pointer dereference in `dumpregs()`
 - core: Add null check in `cmos_save()` to handle failed file opens gracefully

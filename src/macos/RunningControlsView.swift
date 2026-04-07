@@ -10,7 +10,13 @@ import SwiftUI
 
 struct RunningControlsView: View {
 
+    @ObservedObject var configModel: MachineConfigModel
     @ObservedObject var emulatorState: EmulatorState
+
+    private var visibleDriveIndices: [Int] {
+        let driveCount = (configModel.ioType == .new_) ? 2 : 4
+        return Array(emulatorState.discNames.indices.prefix(driveCount))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -48,7 +54,7 @@ struct RunningControlsView: View {
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
 
-            ForEach(emulatorState.discNames.indices, id: \.self) { index in
+            ForEach(visibleDriveIndices, id: \.self) { index in
                 DiscSlotView(
                     driveIndex: index,
                     discName: emulatorState.discNames[index]
