@@ -229,3 +229,12 @@ int arc_init();
 void arc_reset();
 void arc_run();
 void arc_close();
+
+/* Initialise the emulator from a snapshot load context. The caller is
+ * responsible for having already pointed machine_config_file /
+ * machine_config_name at the rebased runtime config produced by
+ * snapshot_prepare_runtime(). On success, takes ownership of the
+ * snapshot context and closes it before returning. Returns 0 on
+ * success, non-zero on failure. */
+struct snapshot_load_ctx_t;
+int arc_init_from_snapshot(struct snapshot_load_ctx_t *ctx);

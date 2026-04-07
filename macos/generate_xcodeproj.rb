@@ -63,6 +63,7 @@ SOURCE_FILES = %w[
   src/riscdev_hdfc.c
   src/romload.c
   src/snapshot.c
+  src/snapshot_load.c
   src/sound.c
   src/st506.c
   src/st506_akd52.c
@@ -233,6 +234,7 @@ src_macos_group.new_file("src/macos/ScriptingCommandSupport.h")
 src_macos_group.new_file("src/macos/InputInjectionBridge.h")
 src_group.new_file("src/snapshot.h")
 src_group.new_file("src/snapshot_chunks.h")
+src_group.new_file("src/snapshot_internal.h")
 src_group.new_file("src/snapshot_subsystems.h")
 
 SOURCE_FILES.each do |path|

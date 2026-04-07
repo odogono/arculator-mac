@@ -174,6 +174,12 @@ int snapshot_reader_next_chunk(snapshot_reader_t *r,
                                const uint8_t **payload_out, uint64_t *size_out,
                                char *error_buf, size_t error_buf_len);
 
+/* Save / restore the current chunk-iteration cursor. Used by the
+ * loader to rewind after a peek or to make multiple passes over the
+ * state chunks. The cursor value is opaque — treat it as a cookie. */
+size_t snapshot_reader_cursor(const snapshot_reader_t *r);
+void   snapshot_reader_set_cursor(snapshot_reader_t *r, size_t cursor);
+
 /* Manifest helpers (operate on a payload buffer that came from
  * snapshot_reader_next_chunk for an MNFT chunk). */
 int snapshot_decode_manifest(const uint8_t *payload, uint64_t size,

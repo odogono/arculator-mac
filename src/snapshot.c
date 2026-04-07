@@ -11,6 +11,7 @@
 
 #include "snapshot.h"
 #include "snapshot_chunks.h"
+#include "snapshot_internal.h"
 
 #include <errno.h>
 #include <stdarg.h>
@@ -628,6 +629,21 @@ int snapshot_reader_next_chunk(snapshot_reader_t *r,
 	return 1;
 }
 
+size_t snapshot_reader_cursor(const snapshot_reader_t *r)
+{
+	return r ? r->cursor : 0;
+}
+
+void snapshot_reader_set_cursor(snapshot_reader_t *r, size_t cursor)
+{
+	if (!r)
+		return;
+	if (cursor > r->size)
+		cursor = r->size;
+	r->cursor = cursor;
+	r->current_payload = NULL;
+}
+
 /* ----- payload reader (per-chunk decoder used by *_load_state) -------- */
 
 void snapshot_payload_reader_init(snapshot_payload_reader_t *r,
@@ -876,12 +892,6 @@ truncated:
 
 /* ----- high-level public API ------------------------------------------ */
 
-struct snapshot_load_ctx_t {
-	snapshot_reader_t *reader;
-	arcsnap_manifest_t manifest;
-	int                manifest_loaded;
-};
-
 /* Externs from across the emulator that the scope guard inspects.
  *
  * These are deliberately declared inline rather than #include'd from
@@ -1028,35 +1038,15 @@ snapshot_load_ctx_t *snapshot_open(const char *path, char *err, size_t err_size)
 	}
 
 	ctx->manifest_loaded = 1;
+	ctx->post_manifest_cursor = snapshot_reader_cursor(ctx->reader);
+	ctx->state_chunks_cursor = ctx->post_manifest_cursor;
 	return ctx;
 }
 
-int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
-                             char *runtime_dir_out, size_t runtime_dir_out_len,
-                             char *runtime_config_out, size_t runtime_config_out_len,
-                             char *runtime_name_out, size_t runtime_name_out_len,
-                             char *err, size_t err_size)
-{
-	(void)ctx;
-	(void)runtime_dir_out;
-	(void)runtime_dir_out_len;
-	(void)runtime_config_out;
-	(void)runtime_config_out_len;
-	(void)runtime_name_out;
-	(void)runtime_name_out_len;
-	/* Phase 1 stub: real implementation lives in Phase 4. */
-	set_error(err, err_size, "snapshot prepare_runtime not yet implemented");
-	return 0;
-}
-
-int snapshot_apply_machine_state(snapshot_load_ctx_t *ctx, char *err, size_t err_size)
-{
-	(void)ctx;
-	(void)err;
-	(void)err_size;
-	/* Phase 1 stub: real implementation lives in Phases 2-4. */
-	return 1;
-}
+/* snapshot_prepare_runtime() and snapshot_apply_machine_state() are
+ * implemented in src/snapshot_load.c — they pull in config / platform /
+ * per-subsystem load_state dependencies that the standalone format
+ * tests can't (and don't need to) link against. */
 
 const char *snapshot_original_config_name(const snapshot_load_ctx_t *ctx)
 {

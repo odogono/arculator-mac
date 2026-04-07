@@ -13,6 +13,7 @@
 #include "arm.h"
 #include "cmos.h"
 #include "config.h"
+#include "snapshot.h"
 #include "ddnoise.h"
 #include "disc.h"
 #include "disc_adf.h"
@@ -234,6 +235,43 @@ int arc_init()
         if (machine_type == MACHINE_TYPE_A4)
                 lc_init();
 
+        return 0;
+}
+
+int arc_init_from_snapshot(struct snapshot_load_ctx_t *ctx)
+{
+        char err[256];
+        int rc;
+
+        if (!ctx)
+                return -1;
+
+        /* Standard arc_init() runs against the rebased runtime config
+         * written by snapshot_prepare_runtime() — it loads the ROM,
+         * boots every subsystem, and autoloads the extracted floppy
+         * images via the usual config-driven disc_load() path. */
+        rc = arc_init();
+        if (rc)
+        {
+                snapshot_close(ctx);
+                return rc;
+        }
+
+        /* Overwrite the freshly-initialised machine state with the
+         * captured state. The per-subsystem *_load_state functions do
+         * their own derived-state rebuild (vidc palette, disc seeks,
+         * etc.), so once this returns the emulator is at the exact
+         * paused point that was saved. */
+        err[0] = 0;
+        if (!snapshot_apply_machine_state(ctx, err, sizeof(err)))
+        {
+                rpclog("arc_init_from_snapshot: apply failed: %s\n",
+                       err[0] ? err : "(unknown error)");
+                snapshot_close(ctx);
+                return -1;
+        }
+
+        snapshot_close(ctx);
         return 0;
 }
 
