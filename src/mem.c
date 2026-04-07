@@ -868,17 +868,21 @@ data_abort:
  * The MEM chunk owns the RAM contents and the page-table state. RAM is
  * stored as a single raw blob whose length matches realmemsize*1024.
  *
- * memstat[] is saved as-is. mempoint[] is saved as a 16k-entry table of
- * int64 byte offsets relative to the live ram[] base, with a sentinel
- * (INT64_MIN) marking entries that aren't RAM (NULL or ROM-pointing).
- * On load we re-derive mempoint[] for RAM entries from the saved
- * offsets, and leave the ROM area (0x3800..0x4000) alone — initmem()
- * has already populated those before snapshot_apply_machine_state runs.
+ * memstat[] and mempoint[] cover the 16k-entry page table, but only
+ * indices [0..MEM_STATE_PAGE_COUNT) are serialised — the upper 2k
+ * entries are the static ROM area, which initmem() has already
+ * populated before snapshot_apply_machine_state runs.
+ *
+ * mempoint[] is written as a table of int64 byte offsets relative to
+ * the live ram[] base, with a sentinel (INT64_MIN) marking entries
+ * that aren't RAM (NULL or ROM-pointing). On load the offsets are
+ * range-checked and re-added to the fresh ram[] base.
  */
 
 #include <limits.h>
 
 #define MEM_STATE_VERSION 1u
+#define MEM_STATE_PAGE_COUNT 0x3800
 #define MEM_MEMPOINT_NULL_SENTINEL ((int64_t)INT64_MIN)
 
 int mem_save_state(snapshot_writer_t *w)
@@ -890,19 +894,19 @@ int mem_save_state(snapshot_writer_t *w)
 		return 0;
 
 	saved_memsize = (int32_t)realmemsize;
-	if (!snapshot_writer_append_i32(w, saved_memsize))    goto fail;
-	if (!snapshot_writer_append_i32(w, memmode))          goto fail;
-	if (!snapshot_writer_append_i32(w, mem_dorefresh))    goto fail;
-	if (!snapshot_writer_append_u64(w, mem_spd_multi))    goto fail;
-	if (!snapshot_writer_append_i32(w, mem_romspeed_n))   goto fail;
-	if (!snapshot_writer_append_i32(w, mem_romspeed_s))   goto fail;
+	snapshot_writer_append_i32(w, saved_memsize);
+	snapshot_writer_append_i32(w, memmode);
+	snapshot_writer_append_i32(w, mem_dorefresh);
+	snapshot_writer_append_u64(w, mem_spd_multi);
+	snapshot_writer_append_i32(w, mem_romspeed_n);
+	snapshot_writer_append_i32(w, mem_romspeed_s);
 
 	/* RAM contents */
-	if (!snapshot_writer_append(w, ram, (size_t)realmemsize * 1024)) goto fail;
+	snapshot_writer_append(w, ram, (size_t)realmemsize * 1024);
 
-	/* Page tables */
-	if (!snapshot_writer_append(w, memstat, sizeof(memstat))) goto fail;
-	for (i = 0; i < 0x4000; i++)
+	/* Page tables (RAM area only — ROM area is rebuilt by initmem()) */
+	snapshot_writer_append(w, memstat, MEM_STATE_PAGE_COUNT);
+	for (i = 0; i < MEM_STATE_PAGE_COUNT; i++)
 	{
 		int64_t offset;
 		uint8_t access = memstat[i];
@@ -912,13 +916,10 @@ int mem_save_state(snapshot_writer_t *w)
 		else
 			offset = MEM_MEMPOINT_NULL_SENTINEL;
 
-		if (!snapshot_writer_append_u64(w, (uint64_t)offset)) goto fail;
+		snapshot_writer_append_u64(w, (uint64_t)offset);
 	}
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int mem_load_state(snapshot_payload_reader_t *r, uint32_t version)
@@ -944,34 +945,36 @@ int mem_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	if (!snapshot_payload_reader_read(r, ram, (size_t)realmemsize * 1024))
 		return 0;
 
-	/* memstat[]: read into a temporary first so a short payload doesn't
-	 * leave us with half-applied state. */
+	/* Read memstat and mempoint offsets for the RAM area (MEM_STATE_PAGE_COUNT
+	 * entries). The ROM area is untouched — initmem() has already set it up. */
 	{
-		uint8_t loaded_memstat[0x4000];
-		int64_t loaded_offsets[0x4000];
+		const uint64_t ram_bytes = (uint64_t)realmemsize * 1024;
+		uint8_t loaded_memstat[MEM_STATE_PAGE_COUNT];
 
 		if (!snapshot_payload_reader_read(r, loaded_memstat, sizeof(loaded_memstat)))
 			return 0;
-		for (i = 0; i < 0x4000; i++)
+		for (i = 0; i < MEM_STATE_PAGE_COUNT; i++)
 		{
 			uint64_t raw;
+			int64_t  off;
+
 			if (!snapshot_payload_reader_read_u64(r, &raw))
 				return 0;
-			loaded_offsets[i] = (int64_t)raw;
-		}
+			off = (int64_t)raw;
 
-		/* Apply: don't touch the static ROM area in memstat (initmem
-		 * has already set it up correctly), but do restore the rest.
-		 * Conservatively also avoid clobbering mempoint entries we
-		 * shouldn't be touching. */
-		for (i = 0; i < 0x3800; i++)
 			memstat[i] = loaded_memstat[i];
-		for (i = 0; i < 0x3800; i++)
-		{
-			if (loaded_offsets[i] != MEM_MEMPOINT_NULL_SENTINEL)
-				mempoint[i] = (uint8_t *)((intptr_t)ram + (intptr_t)loaded_offsets[i]);
-			else
+			if (off == MEM_MEMPOINT_NULL_SENTINEL)
+			{
 				mempoint[i] = NULL;
+				continue;
+			}
+			/* Reject out-of-range offsets so a malformed file can't
+			 * be coaxed into handing out arbitrary host pointers. A
+			 * RAM-backed page needs at least 4096 readable bytes at
+			 * the computed address. */
+			if (off < 0 || (uint64_t)off + 4096u > ram_bytes)
+				return 0;
+			mempoint[i] = ram + (size_t)off;
 		}
 	}
 

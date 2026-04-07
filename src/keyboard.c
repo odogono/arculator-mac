@@ -625,37 +625,28 @@ int keyboard_save_state(snapshot_writer_t *w)
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_KBD, KBD_STATE_VERSION))
 		return 0;
 
-	if (!snapshot_writer_append_i32(w, keystat))    goto fail;
-	if (!snapshot_writer_append_i32(w, mouseena))   goto fail;
-	if (!snapshot_writer_append_i32(w, keyena))     goto fail;
-	if (!snapshot_writer_append_i32(w, ledcaps))    goto fail;
-	if (!snapshot_writer_append_i32(w, lednum))     goto fail;
-	if (!snapshot_writer_append_i32(w, ledscr))     goto fail;
-	if (!snapshot_writer_append_i32(w, mousedown[0])) goto fail;
-	if (!snapshot_writer_append_i32(w, mousedown[1])) goto fail;
-	if (!snapshot_writer_append_i32(w, mousedown[2])) goto fail;
-	if (!snapshot_writer_append_u8 (w, key_data[0])) goto fail;
-	if (!snapshot_writer_append_u8 (w, key_data[1])) goto fail;
-	if (!snapshot_writer_append_i32(w, keyboard_type)) goto fail;
+	snapshot_writer_append_i32(w, keystat);
+	snapshot_writer_append_i32(w, mouseena);
+	snapshot_writer_append_i32(w, keyena);
+	snapshot_writer_append_i32(w, ledcaps);
+	snapshot_writer_append_i32(w, lednum);
+	snapshot_writer_append_i32(w, ledscr);
+	snapshot_writer_append_i32(w, mousedown[0]);
+	snapshot_writer_append_i32(w, mousedown[1]);
+	snapshot_writer_append_i32(w, mousedown[2]);
+	snapshot_writer_append_u8 (w, key_data[0]);
+	snapshot_writer_append_u8 (w, key_data[1]);
+	snapshot_writer_append_i32(w, keyboard_type);
 
 	for (i = 0; i < 512; i++)
-		if (!snapshot_writer_append_i32(w, keydat[i])) goto fail;
+		snapshot_writer_append_i32(w, keydat[i]);
 
 	/* Three timers: poll, rx, tx */
-	if (!snapshot_writer_append_u32(w, keyboard_timer.ts_integer))    goto fail;
-	if (!snapshot_writer_append_u32(w, keyboard_timer.ts_frac))       goto fail;
-	if (!snapshot_writer_append_i32(w, keyboard_timer.enabled))       goto fail;
-	if (!snapshot_writer_append_u32(w, keyboard_rx_timer.ts_integer)) goto fail;
-	if (!snapshot_writer_append_u32(w, keyboard_rx_timer.ts_frac))    goto fail;
-	if (!snapshot_writer_append_i32(w, keyboard_rx_timer.enabled))    goto fail;
-	if (!snapshot_writer_append_u32(w, keyboard_tx_timer.ts_integer)) goto fail;
-	if (!snapshot_writer_append_u32(w, keyboard_tx_timer.ts_frac))    goto fail;
-	if (!snapshot_writer_append_i32(w, keyboard_tx_timer.enabled))    goto fail;
+	timer_save(w, &keyboard_timer);
+	timer_save(w, &keyboard_rx_timer);
+	timer_save(w, &keyboard_tx_timer);
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int keyboard_load_state(snapshot_payload_reader_t *r, uint32_t version)
@@ -667,8 +658,6 @@ int keyboard_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	uint8_t  loaded_key_data[2];
 	int32_t  loaded_keyboard_type;
 	int32_t  loaded_keydat[512];
-	uint32_t poll_int, poll_frac, rx_int, rx_frac, tx_int, tx_frac;
-	int32_t  poll_ena, rx_ena, tx_ena;
 
 	(void)version;
 
@@ -688,15 +677,9 @@ int keyboard_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	for (i = 0; i < 512; i++)
 		if (!snapshot_payload_reader_read_i32(r, &loaded_keydat[i])) return 0;
 
-	if (!snapshot_payload_reader_read_u32(r, &poll_int))  return 0;
-	if (!snapshot_payload_reader_read_u32(r, &poll_frac)) return 0;
-	if (!snapshot_payload_reader_read_i32(r, &poll_ena))  return 0;
-	if (!snapshot_payload_reader_read_u32(r, &rx_int))    return 0;
-	if (!snapshot_payload_reader_read_u32(r, &rx_frac))   return 0;
-	if (!snapshot_payload_reader_read_i32(r, &rx_ena))    return 0;
-	if (!snapshot_payload_reader_read_u32(r, &tx_int))    return 0;
-	if (!snapshot_payload_reader_read_u32(r, &tx_frac))   return 0;
-	if (!snapshot_payload_reader_read_i32(r, &tx_ena))    return 0;
+	if (!timer_load_restore(r, &keyboard_timer))    return 0;
+	if (!timer_load_restore(r, &keyboard_rx_timer)) return 0;
+	if (!timer_load_restore(r, &keyboard_tx_timer)) return 0;
 
 	keystat   = (int)loaded_keystat;
 	mouseena  = (int)loaded_mouseena;
@@ -713,10 +696,6 @@ int keyboard_load_state(snapshot_payload_reader_t *r, uint32_t version)
 
 	for (i = 0; i < 512; i++)
 		keydat[i] = (int)loaded_keydat[i];
-
-	timer_restore(&keyboard_timer,    poll_int, poll_frac, (int)poll_ena);
-	timer_restore(&keyboard_rx_timer, rx_int,   rx_frac,   (int)rx_ena);
-	timer_restore(&keyboard_tx_timer, tx_int,   tx_frac,   (int)tx_ena);
 
 	return 1;
 }

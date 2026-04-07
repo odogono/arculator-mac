@@ -305,30 +305,23 @@ int sound_save_state(snapshot_writer_t *w)
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_SND, SND_STATE_VERSION))
 		return 0;
 
-	if (!snapshot_writer_append_i32(w, sample_period))    goto fail;
-	if (!snapshot_writer_append_u64(w, sample_16_time))   goto fail;
-	if (!snapshot_writer_append_u64(w, sound_timer_base_period)) goto fail;
-	if (!snapshot_writer_append_i32(w, SAMP_INC))         goto fail;
-	if (!snapshot_writer_append_u32(w, samp_rp))          goto fail;
-	if (!snapshot_writer_append_u32(w, samp_wp))          goto fail;
-	if (!snapshot_writer_append_u32(w, samp_fp))          goto fail;
-	if (!snapshot_writer_append_i32(w, sound_first_poll)) goto fail;
-	if (!snapshot_writer_append_i32(w, sound_write_ptr))  goto fail;
-	if (!snapshot_writer_append_i32(w, sound_clock_mhz))  goto fail;
-	if (!snapshot_writer_append_i32(w, sound_filter))     goto fail;
-	if (!snapshot_writer_append_i32(w, sound_gain))       goto fail;
+	snapshot_writer_append_i32(w, sample_period);
+	snapshot_writer_append_u64(w, sample_16_time);
+	snapshot_writer_append_u64(w, sound_timer_base_period);
+	snapshot_writer_append_i32(w, SAMP_INC);
+	snapshot_writer_append_u32(w, samp_rp);
+	snapshot_writer_append_u32(w, samp_wp);
+	snapshot_writer_append_u32(w, samp_fp);
+	snapshot_writer_append_i32(w, sound_first_poll);
+	snapshot_writer_append_i32(w, sound_write_ptr);
+	snapshot_writer_append_i32(w, sound_clock_mhz);
+	snapshot_writer_append_i32(w, sound_filter);
+	snapshot_writer_append_i32(w, sound_gain);
 
-	if (!snapshot_writer_append_u32(w, sound_timer.ts_integer)) goto fail;
-	if (!snapshot_writer_append_u32(w, sound_timer.ts_frac))    goto fail;
-	if (!snapshot_writer_append_i32(w, sound_timer.enabled))    goto fail;
-	if (!snapshot_writer_append_u32(w, sound_timer_100ms.ts_integer)) goto fail;
-	if (!snapshot_writer_append_u32(w, sound_timer_100ms.ts_frac))    goto fail;
-	if (!snapshot_writer_append_i32(w, sound_timer_100ms.enabled))    goto fail;
+	timer_save(w, &sound_timer);
+	timer_save(w, &sound_timer_100ms);
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int sound_load_state(snapshot_payload_reader_t *r, uint32_t version)
@@ -337,8 +330,6 @@ int sound_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	int32_t  loaded_write_ptr, loaded_clock_mhz, loaded_sound_filter, loaded_sound_gain;
 	uint64_t loaded_sample_16_time, loaded_base_period;
 	uint32_t loaded_samp_rp, loaded_samp_wp, loaded_samp_fp;
-	uint32_t loaded_t1_int, loaded_t1_frac, loaded_t2_int, loaded_t2_frac;
-	int32_t  loaded_t1_ena, loaded_t2_ena;
 
 	(void)version;
 
@@ -355,12 +346,8 @@ int sound_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	if (!snapshot_payload_reader_read_i32(r, &loaded_sound_filter))    return 0;
 	if (!snapshot_payload_reader_read_i32(r, &loaded_sound_gain))      return 0;
 
-	if (!snapshot_payload_reader_read_u32(r, &loaded_t1_int))   return 0;
-	if (!snapshot_payload_reader_read_u32(r, &loaded_t1_frac))  return 0;
-	if (!snapshot_payload_reader_read_i32(r, &loaded_t1_ena))   return 0;
-	if (!snapshot_payload_reader_read_u32(r, &loaded_t2_int))   return 0;
-	if (!snapshot_payload_reader_read_u32(r, &loaded_t2_frac))  return 0;
-	if (!snapshot_payload_reader_read_i32(r, &loaded_t2_ena))   return 0;
+	if (!timer_load_restore(r, &sound_timer))       return 0;
+	if (!timer_load_restore(r, &sound_timer_100ms)) return 0;
 
 	sample_period           = (int)loaded_sample_period;
 	sample_16_time          = loaded_sample_16_time;
@@ -388,7 +375,5 @@ int sound_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	memset(sound_in_buffer,  0, sizeof(sound_in_buffer));
 	memset(sound_out_buffer, 0, sizeof(sound_out_buffer));
 
-	timer_restore(&sound_timer,       loaded_t1_int, loaded_t1_frac, (int)loaded_t1_ena);
-	timer_restore(&sound_timer_100ms, loaded_t2_int, loaded_t2_frac, (int)loaded_t2_ena);
 	return 1;
 }

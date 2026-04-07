@@ -1463,85 +1463,80 @@ int vidc_save_state(snapshot_writer_t *w)
 
 	/* Register cache */
 	for (i = 0; i < 64; i++)
-		if (!snapshot_writer_append_u32(w, vidcr[i])) goto fail;
+		snapshot_writer_append_u32(w, vidcr[i]);
 
 	/* Top-level VIDC outputs that are reachable from outside the file */
-	if (!snapshot_writer_append_i32(w, vidc_dma_length))   goto fail;
-	if (!snapshot_writer_append_i32(w, vidc_framecount))   goto fail;
-	if (!snapshot_writer_append_i32(w, vidc_displayon))    goto fail;
-	if (!snapshot_writer_append_i32(w, soundhz))           goto fail;
-	if (!snapshot_writer_append_i32(w, soundper))          goto fail;
-	if (!snapshot_writer_append_i32(w, flyback))           goto fail;
-	if (!snapshot_writer_append_i32(w, videodma))          goto fail;
-	if (!snapshot_writer_append_i32(w, palchange))         goto fail;
-	if (!snapshot_writer_append_i32(w, redrawpalette))     goto fail;
-	if (!snapshot_writer_append_i32(w, oldflash))          goto fail;
+	snapshot_writer_append_i32(w, vidc_dma_length);
+	snapshot_writer_append_i32(w, vidc_framecount);
+	snapshot_writer_append_i32(w, vidc_displayon);
+	snapshot_writer_append_i32(w, soundhz);
+	snapshot_writer_append_i32(w, soundper);
+	snapshot_writer_append_i32(w, flyback);
+	snapshot_writer_append_i32(w, videodma);
+	snapshot_writer_append_i32(w, palchange);
+	snapshot_writer_append_i32(w, redrawpalette);
+	snapshot_writer_append_i32(w, oldflash);
 
 	/* The static vidc struct: timing/DMA/state-machine fields */
-	if (!snapshot_writer_append_u32(w, vidc.vtot))             goto fail;
-	if (!snapshot_writer_append_u32(w, vidc.htot))             goto fail;
-	if (!snapshot_writer_append_u32(w, vidc.vsync))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.line))             goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.displayon))        goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.borderon))         goto fail;
-	if (!snapshot_writer_append_u32(w, vidc.addr))             goto fail;
-	if (!snapshot_writer_append_u32(w, vidc.caddr))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.vbstart))          goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.vbend))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.vdstart))          goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.vdend))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.hbstart))          goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.hbend))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.hdstart))          goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.hdend))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.hdstart2))         goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.hdend2))           goto fail;
-	if (!snapshot_writer_append_u32(w, vidc.cr))               goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.sync))             goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.inter))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.horiz_length))     goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.hsync_length))     goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.front_porch_length)) goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.display_length))   goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.back_porch_length)) goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.state))            goto fail;
-	if (!snapshot_writer_append_u64(w, vidc.pixel_time))       goto fail;
-	if (!snapshot_writer_append_u64(w, vidc.fetch_time))       goto fail;
-	if (!snapshot_writer_append_u64(w, vidc.initial_fetch_time)) goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.cursor_lines))     goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.first_line))       goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.cx))               goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.cys))              goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.cye))              goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.cxh))              goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.scanrate))         goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.in_display))       goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.cyclesperline_display))  goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.cyclesperline_blanking)) goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.cycles_per_fetch)) goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.fetch_count))      goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.clear_pending))    goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.clock))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.disp_len))         goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.disp_rate))        goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.disp_count))       goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.disp_y_min))       goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.disp_y_max))       goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.y_min))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.y_max))            goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.border_was_disabled))  goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.display_was_disabled)) goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.output_enable))    goto fail;
+	snapshot_writer_append_u32(w, vidc.vtot);
+	snapshot_writer_append_u32(w, vidc.htot);
+	snapshot_writer_append_u32(w, vidc.vsync);
+	snapshot_writer_append_i32(w, vidc.line);
+	snapshot_writer_append_i32(w, vidc.displayon);
+	snapshot_writer_append_i32(w, vidc.borderon);
+	snapshot_writer_append_u32(w, vidc.addr);
+	snapshot_writer_append_u32(w, vidc.caddr);
+	snapshot_writer_append_i32(w, vidc.vbstart);
+	snapshot_writer_append_i32(w, vidc.vbend);
+	snapshot_writer_append_i32(w, vidc.vdstart);
+	snapshot_writer_append_i32(w, vidc.vdend);
+	snapshot_writer_append_i32(w, vidc.hbstart);
+	snapshot_writer_append_i32(w, vidc.hbend);
+	snapshot_writer_append_i32(w, vidc.hdstart);
+	snapshot_writer_append_i32(w, vidc.hdend);
+	snapshot_writer_append_i32(w, vidc.hdstart2);
+	snapshot_writer_append_i32(w, vidc.hdend2);
+	snapshot_writer_append_u32(w, vidc.cr);
+	snapshot_writer_append_i32(w, vidc.sync);
+	snapshot_writer_append_i32(w, vidc.inter);
+	snapshot_writer_append_i32(w, vidc.horiz_length);
+	snapshot_writer_append_i32(w, vidc.hsync_length);
+	snapshot_writer_append_i32(w, vidc.front_porch_length);
+	snapshot_writer_append_i32(w, vidc.display_length);
+	snapshot_writer_append_i32(w, vidc.back_porch_length);
+	snapshot_writer_append_i32(w, vidc.state);
+	snapshot_writer_append_u64(w, vidc.pixel_time);
+	snapshot_writer_append_u64(w, vidc.fetch_time);
+	snapshot_writer_append_u64(w, vidc.initial_fetch_time);
+	snapshot_writer_append_i32(w, vidc.cursor_lines);
+	snapshot_writer_append_i32(w, vidc.first_line);
+	snapshot_writer_append_i32(w, vidc.cx);
+	snapshot_writer_append_i32(w, vidc.cys);
+	snapshot_writer_append_i32(w, vidc.cye);
+	snapshot_writer_append_i32(w, vidc.cxh);
+	snapshot_writer_append_i32(w, vidc.scanrate);
+	snapshot_writer_append_i32(w, vidc.in_display);
+	snapshot_writer_append_i32(w, vidc.cyclesperline_display);
+	snapshot_writer_append_i32(w, vidc.cyclesperline_blanking);
+	snapshot_writer_append_i32(w, vidc.cycles_per_fetch);
+	snapshot_writer_append_i32(w, vidc.fetch_count);
+	snapshot_writer_append_i32(w, vidc.clear_pending);
+	snapshot_writer_append_i32(w, vidc.clock);
+	snapshot_writer_append_i32(w, vidc.disp_len);
+	snapshot_writer_append_i32(w, vidc.disp_rate);
+	snapshot_writer_append_i32(w, vidc.disp_count);
+	snapshot_writer_append_i32(w, vidc.disp_y_min);
+	snapshot_writer_append_i32(w, vidc.disp_y_max);
+	snapshot_writer_append_i32(w, vidc.y_min);
+	snapshot_writer_append_i32(w, vidc.y_max);
+	snapshot_writer_append_i32(w, vidc.border_was_disabled);
+	snapshot_writer_append_i32(w, vidc.display_was_disabled);
+	snapshot_writer_append_i32(w, vidc.output_enable);
 
 	/* Embedded line timer */
-	if (!snapshot_writer_append_u32(w, vidc.timer.ts_integer)) goto fail;
-	if (!snapshot_writer_append_u32(w, vidc.timer.ts_frac))    goto fail;
-	if (!snapshot_writer_append_i32(w, vidc.timer.enabled))    goto fail;
+	timer_save(w, &vidc.timer);
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int vidc_load_state(snapshot_payload_reader_t *r, uint32_t version)
@@ -1566,8 +1561,6 @@ int vidc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	int32_t  loaded_clock, loaded_disp_len, loaded_disp_rate, loaded_disp_count;
 	int32_t  loaded_disp_y_min, loaded_disp_y_max, loaded_y_min, loaded_y_max;
 	int32_t  loaded_border_was_disabled, loaded_display_was_disabled, loaded_output_enable;
-	uint32_t loaded_timer_ts_int, loaded_timer_ts_frac;
-	int32_t  loaded_timer_enabled;
 
 	(void)version;
 
@@ -1640,9 +1633,7 @@ int vidc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	if (!snapshot_payload_reader_read_i32(r, &loaded_display_was_disabled)) return 0;
 	if (!snapshot_payload_reader_read_i32(r, &loaded_output_enable)) return 0;
 
-	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_ts_int))  return 0;
-	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_ts_frac)) return 0;
-	if (!snapshot_payload_reader_read_i32(r, &loaded_timer_enabled)) return 0;
+	if (!timer_load_restore(r, &vidc.timer)) return 0;
 
 	for (i = 0; i < 64; i++)
 		vidcr[i] = loaded_vidcr[i];
@@ -1712,8 +1703,6 @@ int vidc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	vidc.border_was_disabled  = (int)loaded_border_was_disabled;
 	vidc.display_was_disabled = (int)loaded_display_was_disabled;
 	vidc.output_enable        = (int)loaded_output_enable;
-
-	timer_restore(&vidc.timer, loaded_timer_ts_int, loaded_timer_ts_frac, (int)loaded_timer_enabled);
 
 	/* Rebuild derived state from the freshly-restored vidcr[] */
 	vidc_redopalette();

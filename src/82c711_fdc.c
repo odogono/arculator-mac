@@ -936,60 +936,55 @@ int c82c711_fdc_save_state(snapshot_writer_t *w)
 	const FDC *fdc = &_fdc;
 	int i;
 
-	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_FDC, C82C711_STATE_VERSION))
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_FDCS, C82C711_STATE_VERSION))
 		return 0;
 
-	if (!snapshot_writer_append_u8 (w, fdc->dor))      goto fail;
-	if (!snapshot_writer_append_u8 (w, fdc->stat))     goto fail;
-	if (!snapshot_writer_append_u8 (w, fdc->command))  goto fail;
-	if (!snapshot_writer_append_u8 (w, fdc->dat))      goto fail;
-	if (!snapshot_writer_append_u8 (w, fdc->st0))      goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->head))     goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->track[0])) goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->track[1])) goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->sector))   goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->drive))    goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->lastdrive)) goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->pos))      goto fail;
+	snapshot_writer_append_u8 (w, fdc->dor);
+	snapshot_writer_append_u8 (w, fdc->stat);
+	snapshot_writer_append_u8 (w, fdc->command);
+	snapshot_writer_append_u8 (w, fdc->dat);
+	snapshot_writer_append_u8 (w, fdc->st0);
+	snapshot_writer_append_i32(w, fdc->head);
+	snapshot_writer_append_i32(w, fdc->track[0]);
+	snapshot_writer_append_i32(w, fdc->track[1]);
+	snapshot_writer_append_i32(w, fdc->sector);
+	snapshot_writer_append_i32(w, fdc->drive);
+	snapshot_writer_append_i32(w, fdc->lastdrive);
+	snapshot_writer_append_i32(w, fdc->pos);
 
 	for (i = 0; i < 16; i++)
-		if (!snapshot_writer_append_u8(w, fdc->params[i])) goto fail;
+		snapshot_writer_append_u8(w, fdc->params[i]);
 	for (i = 0; i < 16; i++)
-		if (!snapshot_writer_append_u8(w, fdc->res[i]))    goto fail;
+		snapshot_writer_append_u8(w, fdc->res[i]);
 
-	if (!snapshot_writer_append_i32(w, fdc->pnum))     goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->ptot))     goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->rate))     goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->density))  goto fail;
-	if (!snapshot_writer_append_u8 (w, fdc->specify[0])) goto fail;
-	if (!snapshot_writer_append_u8 (w, fdc->specify[1])) goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->eot[0]))   goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->eot[1]))   goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->lock))     goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->perp))     goto fail;
-	if (!snapshot_writer_append_u8 (w, fdc->config))   goto fail;
-	if (!snapshot_writer_append_u8 (w, fdc->pretrk))   goto fail;
-	if (!snapshot_writer_append_u8 (w, fdc->dma_dat))  goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->written))  goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->tc))       goto fail;
+	snapshot_writer_append_i32(w, fdc->pnum);
+	snapshot_writer_append_i32(w, fdc->ptot);
+	snapshot_writer_append_i32(w, fdc->rate);
+	snapshot_writer_append_i32(w, fdc->density);
+	snapshot_writer_append_u8 (w, fdc->specify[0]);
+	snapshot_writer_append_u8 (w, fdc->specify[1]);
+	snapshot_writer_append_i32(w, fdc->eot[0]);
+	snapshot_writer_append_i32(w, fdc->eot[1]);
+	snapshot_writer_append_i32(w, fdc->lock);
+	snapshot_writer_append_i32(w, fdc->perp);
+	snapshot_writer_append_u8 (w, fdc->config);
+	snapshot_writer_append_u8 (w, fdc->pretrk);
+	snapshot_writer_append_u8 (w, fdc->dma_dat);
+	snapshot_writer_append_i32(w, fdc->written);
+	snapshot_writer_append_i32(w, fdc->tc);
 
 	for (i = 0; i < 256; i++)
-		if (!snapshot_writer_append_u8(w, fdc->format_dat[i])) goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->format_state)) goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->data_ready))   goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->inread))       goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->discint))      goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->paramstogo))   goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->fdc_reset_stat)) goto fail;
+		snapshot_writer_append_u8(w, fdc->format_dat[i]);
+	snapshot_writer_append_i32(w, fdc->format_state);
+	snapshot_writer_append_i32(w, fdc->data_ready);
+	snapshot_writer_append_i32(w, fdc->inread);
+	snapshot_writer_append_i32(w, fdc->discint);
+	snapshot_writer_append_i32(w, fdc->paramstogo);
+	snapshot_writer_append_i32(w, fdc->fdc_reset_stat);
 
-	if (!snapshot_writer_append_u32(w, fdc->timer.ts_integer)) goto fail;
-	if (!snapshot_writer_append_u32(w, fdc->timer.ts_frac))    goto fail;
-	if (!snapshot_writer_append_i32(w, fdc->timer.enabled))    goto fail;
+	timer_save(w, &fdc->timer);
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int c82c711_fdc_load_state(snapshot_payload_reader_t *r, uint32_t version)
@@ -1006,8 +1001,6 @@ int c82c711_fdc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	int32_t  written, tc;
 	uint8_t  format_dat[256];
 	int32_t  format_state, data_ready, inread, discint, paramstogo, fdc_reset_stat;
-	uint32_t timer_int, timer_frac;
-	int32_t  timer_enabled;
 
 	(void)version;
 
@@ -1053,10 +1046,7 @@ int c82c711_fdc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	if (!snapshot_payload_reader_read_i32(r, &discint))      return 0;
 	if (!snapshot_payload_reader_read_i32(r, &paramstogo))   return 0;
 	if (!snapshot_payload_reader_read_i32(r, &fdc_reset_stat)) return 0;
-
-	if (!snapshot_payload_reader_read_u32(r, &timer_int))    return 0;
-	if (!snapshot_payload_reader_read_u32(r, &timer_frac))   return 0;
-	if (!snapshot_payload_reader_read_i32(r, &timer_enabled)) return 0;
+	if (!timer_load_restore(r, &fdc->timer))                   return 0;
 
 	fdc->dor      = dor;
 	fdc->stat     = stat;
@@ -1095,6 +1085,5 @@ int c82c711_fdc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	fdc->paramstogo      = (int)paramstogo;
 	fdc->fdc_reset_stat  = (int)fdc_reset_stat;
 
-	timer_restore(&fdc->timer, timer_int, timer_frac, (int)timer_enabled);
 	return 1;
 }

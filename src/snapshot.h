@@ -13,11 +13,10 @@ extern "C" {
 /*
  * Public C API for the floppy-only snapshot feature (.arcsnap files).
  *
- * Phase 1 implements the format primitives, the in-memory chunk
- * writer/reader, and the header/manifest encode/decode helpers.
- * The high-level save() flow and the loader's prepare_runtime() and
- * apply_machine_state() entry points are stubbed at this point and
- * filled in by later phases.
+ * The format primitives, in-memory chunk writer/reader, and
+ * header/manifest encode/decode helpers are implemented below. The
+ * high-level save() flow and the loader's prepare_runtime() and
+ * apply_machine_state() entry points are currently stubbed.
  */
 
 /* ----- High level save/load API (callable by the shell). ------------- */
@@ -34,7 +33,7 @@ int snapshot_save(const char *path,
 
 /* Returns 1 if a snapshot can be saved right now, 0 otherwise.
  * On failure, writes a precise rejection reason to `error_buf`.
- * Phase 1: stub that always returns 1. */
+ * Currently stubbed; always returns 1. */
 int snapshot_can_save(char *error_buf, size_t error_buf_len);
 
 /* Opaque load context, lifecycle owned by snapshot_open / snapshot_close. */
@@ -52,7 +51,7 @@ snapshot_load_ctx_t *snapshot_open(const char *path,
  *   - runtime_config_out: absolute path of the rebased machine config
  *   - runtime_name_out:   synthetic config name (`__snapshot_<id>`),
  *                         used to keep CMOS isolated
- * Phase 1: stub that returns 0 with "not implemented" until Phase 4. */
+ * Currently stubbed; returns 0 with "not implemented". */
 int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
                              char *runtime_dir_out, size_t runtime_dir_out_len,
                              char *runtime_config_out, size_t runtime_config_out_len,
@@ -61,7 +60,7 @@ int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
 
 /* Applies the captured machine state on top of an already-initialised
  * emulation (i.e. immediately after `arc_init()` has been called against
- * the rebased runtime config). Phase 1: stub no-op returning 1. */
+ * the rebased runtime config). Currently stubbed; returns 1. */
 int snapshot_apply_machine_state(snapshot_load_ctx_t *ctx,
                                  char *error_buf, size_t error_buf_len);
 
@@ -101,9 +100,9 @@ typedef struct {
 
 /* ----- Framework primitives ------------------------------------------- *
  *
- * The writer/reader are intentionally exposed in the public header so
- * Phase 2's per-subsystem `*_save_state` / `*_load_state` functions can
- * call them. They operate on opaque heap-allocated objects, owning a
+ * The writer/reader are exposed in the public header so the
+ * per-subsystem `*_save_state` / `*_load_state` functions can call
+ * them. They operate on opaque heap-allocated objects, owning a
  * single in-memory growable buffer.
  */
 

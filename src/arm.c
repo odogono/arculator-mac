@@ -2762,46 +2762,43 @@ int arm_save_state(snapshot_writer_t *w)
 
 	/* Live registers */
 	for (i = 0; i < 16; i++)
-		if (!snapshot_writer_append_u32(w, armregs[i])) goto fail;
+		snapshot_writer_append_u32(w, armregs[i]);
 
 	/* Pipeline + opcode latches */
-	if (!snapshot_writer_append_u32(w, opcode))   goto fail;
-	if (!snapshot_writer_append_u32(w, opcode2))  goto fail;
-	if (!snapshot_writer_append_u32(w, opcode3))  goto fail;
+	snapshot_writer_append_u32(w, opcode);
+	snapshot_writer_append_u32(w, opcode2);
+	snapshot_writer_append_u32(w, opcode3);
 
 	/* Banked register files */
-	for (i = 0; i < 16; i++) if (!snapshot_writer_append_u32(w, userregs[i]))  goto fail;
-	for (i = 0; i < 16; i++) if (!snapshot_writer_append_u32(w, superregs[i])) goto fail;
-	for (i = 0; i < 16; i++) if (!snapshot_writer_append_u32(w, fiqregs[i]))   goto fail;
-	for (i = 0; i < 16; i++) if (!snapshot_writer_append_u32(w, irqregs[i]))   goto fail;
+	for (i = 0; i < 16; i++) snapshot_writer_append_u32(w, userregs[i]);
+	for (i = 0; i < 16; i++) snapshot_writer_append_u32(w, superregs[i]);
+	for (i = 0; i < 16; i++) snapshot_writer_append_u32(w, fiqregs[i]);
+	for (i = 0; i < 16; i++) snapshot_writer_append_u32(w, irqregs[i]);
 
-	if (!snapshot_writer_append_i32(w, mode))            goto fail;
-	if (!snapshot_writer_append_i32(w, osmode))          goto fail;
+	snapshot_writer_append_i32(w, mode);
+	snapshot_writer_append_i32(w, osmode);
 
 	/* Exception/IRQ latches */
-	if (!snapshot_writer_append_i32(w, armirq))          goto fail;
-	if (!snapshot_writer_append_i32(w, irq))             goto fail;
-	if (!snapshot_writer_append_i32(w, databort))        goto fail;
-	if (!snapshot_writer_append_i32(w, prefabort))       goto fail;
-	if (!snapshot_writer_append_i32(w, prefabort_next))  goto fail;
-	if (!snapshot_writer_append_i32(w, vidc_fetches))    goto fail;
+	snapshot_writer_append_i32(w, armirq);
+	snapshot_writer_append_i32(w, irq);
+	snapshot_writer_append_i32(w, databort);
+	snapshot_writer_append_i32(w, prefabort);
+	snapshot_writer_append_i32(w, prefabort_next);
+	snapshot_writer_append_i32(w, vidc_fetches);
 
 	/* Pipeline / DMA scheduling state */
-	if (!snapshot_writer_append_i32(w, clock_domain))    goto fail;
-	if (!snapshot_writer_append_u64(w, mem_available_ts))goto fail;
-	if (!snapshot_writer_append_u64(w, refresh_ts))      goto fail;
-	if (!snapshot_writer_append_i32(w, pending_reads))   goto fail;
-	if (!snapshot_writer_append_u32(w, cache_fill_addr)) goto fail;
-	if (!snapshot_writer_append_u64(w, min_timer))       goto fail;
-	if (!snapshot_writer_append_i32(w, next_dma_source)) goto fail;
-	if (!snapshot_writer_append_u64(w, last_cycle_length)) goto fail;
-	if (!snapshot_writer_append_i32(w, cache_was_on))    goto fail;
-	if (!snapshot_writer_append_i32(w, promote_fetch_to_n)) goto fail;
+	snapshot_writer_append_i32(w, clock_domain);
+	snapshot_writer_append_u64(w, mem_available_ts);
+	snapshot_writer_append_u64(w, refresh_ts);
+	snapshot_writer_append_i32(w, pending_reads);
+	snapshot_writer_append_u32(w, cache_fill_addr);
+	snapshot_writer_append_u64(w, min_timer);
+	snapshot_writer_append_i32(w, next_dma_source);
+	snapshot_writer_append_u64(w, last_cycle_length);
+	snapshot_writer_append_i32(w, cache_was_on);
+	snapshot_writer_append_i32(w, promote_fetch_to_n);
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int arm_load_state(snapshot_payload_reader_t *r, uint32_t version)
@@ -2891,10 +2888,13 @@ int arm_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	promote_fetch_to_n = (int)loaded_promote_fetch_to_n;
 
 	/* Rebuild the banked-register pointer table for the restored mode.
-	 * usrregs[15] is always &armregs[15]; the other entries depend on
-	 * the active mode. The simplest way to get them right without
-	 * duplicating updatemode()'s switch is to rerun it.*/
-	usrregs[15] = &armregs[15];
+	 * updatemode() saves armregs[8..14] back to the current mode's bank
+	 * before switching; that's a no-op here because `mode` was just set
+	 * to the loaded value and `armregs` already holds that bank's live
+	 * contents, so the save-back writes the same values it read. The
+	 * useful side effect is that it repopulates usrregs[0..14] for the
+	 * now-active mode. */
+	updatemode(mode);
 
 	/* Invalidate the ARM3 cache: the snapshot doesn't store its content,
 	 * so let it rebuild naturally as code executes after the load. */

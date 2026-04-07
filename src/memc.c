@@ -318,51 +318,48 @@ int memc_save_state(snapshot_writer_t *w)
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_MEMC, MEMC_STATE_VERSION))
 		return 0;
 
-	if (!snapshot_writer_append_u32(w, memctrl))             goto fail;
-	if (!snapshot_writer_append_i32(w, pagesize))            goto fail;
-	if (!snapshot_writer_append_i32(w, sdmaena))             goto fail;
-	if (!snapshot_writer_append_i32(w, bigcyc))              goto fail;
-	if (!snapshot_writer_append_i32(w, memc_videodma_enable)) goto fail;
-	if (!snapshot_writer_append_i32(w, memc_refreshon))      goto fail;
-	if (!snapshot_writer_append_i32(w, memc_refresh_always)) goto fail;
+	snapshot_writer_append_u32(w, memctrl);
+	snapshot_writer_append_i32(w, pagesize);
+	snapshot_writer_append_i32(w, sdmaena);
+	snapshot_writer_append_i32(w, bigcyc);
+	snapshot_writer_append_i32(w, memc_videodma_enable);
+	snapshot_writer_append_i32(w, memc_refreshon);
+	snapshot_writer_append_i32(w, memc_refresh_always);
 
-	if (!snapshot_writer_append_u32(w, vinit))   goto fail;
-	if (!snapshot_writer_append_u32(w, vstart))  goto fail;
-	if (!snapshot_writer_append_u32(w, vend))    goto fail;
-	if (!snapshot_writer_append_u32(w, cinit))   goto fail;
-	if (!snapshot_writer_append_u32(w, sstart))  goto fail;
-	if (!snapshot_writer_append_u32(w, ssend))   goto fail;
-	if (!snapshot_writer_append_u32(w, sptr))    goto fail;
-	if (!snapshot_writer_append_u32(w, spos))    goto fail;
-	if (!snapshot_writer_append_u32(w, sendN))   goto fail;
-	if (!snapshot_writer_append_u32(w, sstart2)) goto fail;
-	if (!snapshot_writer_append_i32(w, nextvalid)) goto fail;
+	snapshot_writer_append_u32(w, vinit);
+	snapshot_writer_append_u32(w, vstart);
+	snapshot_writer_append_u32(w, vend);
+	snapshot_writer_append_u32(w, cinit);
+	snapshot_writer_append_u32(w, sstart);
+	snapshot_writer_append_u32(w, ssend);
+	snapshot_writer_append_u32(w, sptr);
+	snapshot_writer_append_u32(w, spos);
+	snapshot_writer_append_u32(w, sendN);
+	snapshot_writer_append_u32(w, sstart2);
+	snapshot_writer_append_i32(w, nextvalid);
 
 	/* DMA request flags / timestamps */
-	if (!snapshot_writer_append_i32(w, memc_dma_sound_req))           goto fail;
-	if (!snapshot_writer_append_u64(w, memc_dma_sound_req_ts))        goto fail;
-	if (!snapshot_writer_append_i32(w, memc_dma_video_req))           goto fail;
-	if (!snapshot_writer_append_u64(w, memc_dma_video_req_ts))        goto fail;
-	if (!snapshot_writer_append_u64(w, memc_dma_video_req_start_ts))  goto fail;
-	if (!snapshot_writer_append_u64(w, memc_dma_video_req_period))    goto fail;
-	if (!snapshot_writer_append_i32(w, memc_dma_cursor_req))          goto fail;
-	if (!snapshot_writer_append_u64(w, memc_dma_cursor_req_ts))       goto fail;
+	snapshot_writer_append_i32(w, memc_dma_sound_req);
+	snapshot_writer_append_u64(w, memc_dma_sound_req_ts);
+	snapshot_writer_append_i32(w, memc_dma_video_req);
+	snapshot_writer_append_u64(w, memc_dma_video_req_ts);
+	snapshot_writer_append_u64(w, memc_dma_video_req_start_ts);
+	snapshot_writer_append_u64(w, memc_dma_video_req_period);
+	snapshot_writer_append_i32(w, memc_dma_cursor_req);
+	snapshot_writer_append_u64(w, memc_dma_cursor_req_ts);
 
 	/* CAM */
 	for (i = 0; i < 512; i++)
 	{
-		if (!snapshot_writer_append_u32(w, memc_cam[i].logical_addr)) goto fail;
-		if (!snapshot_writer_append_u8 (w, memc_cam[i].ppl))          goto fail;
+		snapshot_writer_append_u32(w, memc_cam[i].logical_addr);
+		snapshot_writer_append_u8 (w, memc_cam[i].ppl);
 	}
 
 	/* memcpages[0x2000] — int per entry */
 	for (i = 0; i < 0x2000; i++)
-		if (!snapshot_writer_append_i32(w, (int32_t)memcpages[i]))    goto fail;
+		snapshot_writer_append_i32(w, (int32_t)memcpages[i]);
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int memc_load_state(snapshot_payload_reader_t *r, uint32_t version)

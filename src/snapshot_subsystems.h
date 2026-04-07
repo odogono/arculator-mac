@@ -2,19 +2,16 @@
 #define SNAPSHOT_SUBSYSTEMS_H
 
 /*
- * Phase 2 of the snapshot work (docs/SNAPSHOT_IMPLEMENTATION_PLAN.md).
+ * Per-subsystem snapshot save/load entry points.
  *
  * Each emulated subsystem owns a `*_save_state` writer and a
  * `*_load_state` reader. The save side appends a single tagged chunk
  * to a snapshot writer; the load side decodes a single chunk's payload
  * on top of an already-initialised subsystem (i.e. arc_init() has run
- * and any timers are already registered with `timer_add()`).
- *
- * The orchestrator in src/snapshot.c (Phase 4) walks chunks in a fixed
- * init-order and dispatches to the appropriate `*_load_state` based on
- * the chunk's FourCC ID. Per-chunk versioning is intentional: bumping a
- * subsystem's chunk version lets one phase change its on-disk shape
- * without forcing every other subsystem to rev too.
+ * and any timers are already registered with `timer_add()`). The
+ * orchestrator dispatches to `*_load_state` based on the chunk's
+ * FourCC ID. Per-chunk versioning lets one subsystem change its
+ * on-disk shape without forcing every other subsystem to rev too.
  *
  * Conventions:
  *   - Save functions return 1 on success, 0 on writer failure (OOM, etc.)
@@ -39,8 +36,7 @@ int arm_save_state(snapshot_writer_t *w);
 int arm_load_state(snapshot_payload_reader_t *r, uint32_t version);
 
 /* CP15 / ARM3 cache controller (src/cp15.c). Only emitted/loaded when
- * arm_has_cp15 is set; the loader rejects mismatches via the manifest's
- * scope flags. */
+ * arm_has_cp15 is set. */
 int cp15_save_state(snapshot_writer_t *w);
 int cp15_load_state(snapshot_payload_reader_t *r, uint32_t version);
 

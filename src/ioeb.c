@@ -107,13 +107,10 @@ int ioeb_save_state(snapshot_writer_t *w)
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_IOEB, IOEB_STATE_VERSION))
 		return 0;
 
-	if (!snapshot_writer_append_i32(w, ioeb_clock_select)) goto fail;
-	if (!snapshot_writer_append_i32(w, hs_invert))         goto fail;
+	snapshot_writer_append_i32(w, ioeb_clock_select);
+	snapshot_writer_append_i32(w, hs_invert);
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int ioeb_load_state(snapshot_payload_reader_t *r, uint32_t version)

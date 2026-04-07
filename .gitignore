@@ -14,6 +14,7 @@
 arculator
 src/arculator
 src/wx-resources.cc
+build/
 
 # Autotools generated
 autom4te.cache

@@ -159,11 +159,16 @@ static inline void timer_restore(emu_timer_t *timer, uint32_t ts_int,
 		timer_enable(timer);
 }
 
-/*Snapshot helpers for the global timer state (tsc + timer_target).
-  These do not touch the per-timer linked list — that is reconstructed
-  via timer_restore() called by each subsystem's load function.*/
+/*Snapshot helpers for timers. timer_save() appends a 12-byte tuple
+  (ts_integer, ts_frac, enabled) to the writer. timer_load_restore()
+  reads the same tuple and applies it via timer_restore() — the timer
+  must already have been registered with timer_add() before the load
+  runs. Both helpers also cover the global timer state (tsc, target,
+  TIMER_USEC).*/
 struct snapshot_writer_t;
 struct snapshot_payload_reader_t;
+int  timer_save(struct snapshot_writer_t *w, const emu_timer_t *timer);
+int  timer_load_restore(struct snapshot_payload_reader_t *r, emu_timer_t *timer);
 int  timer_save_global(struct snapshot_writer_t *w);
 int  timer_load_global(struct snapshot_payload_reader_t *r, uint32_t version);
 

@@ -1,14 +1,12 @@
 /*
  * .arcsnap file format primitives and serialization framework.
  *
- * Phase 1 of the snapshot work documented in
- * docs/SNAPSHOT_IMPLEMENTATION_PLAN.md. This file owns:
+ * This file owns:
  *   - the on-disk header / chunk encoding
  *   - a small in-memory growable writer
  *   - a memory-resident reader with per-chunk CRC validation
  *   - manifest encode / decode
- *   - stubs for the high-level save() / load() entry points that are
- *     filled in by Phases 2-5.
+ *   - stubs for the high-level save() / load() entry points
  */
 
 #include "snapshot.h"
@@ -118,6 +116,11 @@ struct snapshot_writer_t {
 	size_t   capacity;
 	int      header_written;
 	int      in_chunk;
+	/* Latched sticky-ok flag: once any append/reserve fails, every
+	 * subsequent operation is a no-op that returns 0. This lets
+	 * subsystem save functions chain appends without a per-call
+	 * error check — they only need to check the final end_chunk(). */
+	int      ok;
 	size_t   chunk_header_offset;
 	uint32_t chunk_id;
 	uint32_t chunk_version;
@@ -135,6 +138,7 @@ snapshot_writer_t *snapshot_writer_create(void)
 		free(w);
 		return NULL;
 	}
+	w->ok = 1;
 	return w;
 }
 
@@ -152,10 +156,13 @@ static int writer_reserve(snapshot_writer_t *w, size_t extra)
 	size_t new_capacity;
 	uint8_t *new_buf;
 
-	if (!w)
+	if (!w || !w->ok)
 		return 0;
 	if (extra > (size_t)-1 - w->size)
+	{
+		w->ok = 0;
 		return 0;
+	}
 	needed = w->size + extra;
 	if (needed <= w->capacity)
 		return 1;
@@ -172,7 +179,10 @@ static int writer_reserve(snapshot_writer_t *w, size_t extra)
 	}
 	new_buf = (uint8_t *)realloc(w->buf, new_capacity);
 	if (!new_buf)
+	{
+		w->ok = 0;
 		return 0;
+	}
 	w->buf = new_buf;
 	w->capacity = new_capacity;
 	return 1;
@@ -180,8 +190,13 @@ static int writer_reserve(snapshot_writer_t *w, size_t extra)
 
 int snapshot_writer_append(snapshot_writer_t *w, const void *data, size_t size)
 {
-	if (!w || (!data && size))
+	if (!w || !w->ok)
 		return 0;
+	if (!data && size)
+	{
+		w->ok = 0;
+		return 0;
+	}
 	if (!writer_reserve(w, size))
 		return 0;
 	if (size)
@@ -266,8 +281,12 @@ int snapshot_writer_begin_chunk(snapshot_writer_t *w, uint32_t id, uint32_t vers
 {
 	uint8_t placeholder[ARCSNAP_CHUNK_HEADER_DISK_SIZE];
 
-	if (!w || w->in_chunk || !w->header_written)
+	if (!w || !w->ok || w->in_chunk || !w->header_written)
+	{
+		if (w)
+			w->ok = 0;
 		return 0;
+	}
 
 	w->chunk_header_offset = w->size;
 	w->chunk_id = id;
@@ -291,6 +310,11 @@ int snapshot_writer_end_chunk(snapshot_writer_t *w)
 
 	if (!w || !w->in_chunk)
 		return 0;
+	if (!w->ok)
+	{
+		w->in_chunk = 0;
+		return 0;
+	}
 
 	payload_size = (uint64_t)(w->size - w->chunk_header_offset - ARCSNAP_CHUNK_HEADER_DISK_SIZE);
 	header = w->buf + w->chunk_header_offset;

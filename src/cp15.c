@@ -72,15 +72,12 @@ int cp15_save_state(snapshot_writer_t *w)
 {
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_CP15, CP15_STATE_VERSION))
 		return 0;
-	if (!snapshot_writer_append_u32(w, arm3cp.ctrl))    goto fail;
-	if (!snapshot_writer_append_u32(w, arm3cp.cache))   goto fail;
-	if (!snapshot_writer_append_u32(w, arm3cp.update))  goto fail;
-	if (!snapshot_writer_append_u32(w, arm3cp.disrupt)) goto fail;
-	if (!snapshot_writer_append_i32(w, cp15_cacheon))   goto fail;
+	snapshot_writer_append_u32(w, arm3cp.ctrl);
+	snapshot_writer_append_u32(w, arm3cp.cache);
+	snapshot_writer_append_u32(w, arm3cp.update);
+	snapshot_writer_append_u32(w, arm3cp.disrupt);
+	snapshot_writer_append_i32(w, cp15_cacheon);
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int cp15_load_state(snapshot_payload_reader_t *r, uint32_t version)

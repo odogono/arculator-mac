@@ -356,28 +356,23 @@ int lc_save_state(snapshot_writer_t *w)
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_LC, LC_STATE_VERSION))
 		return 0;
 
-	if (!snapshot_writer_append(w, lc.ram, sizeof(lc.ram))) goto fail;
-	if (!snapshot_writer_append_u32(w, lc.wp))   goto fail;
-	if (!snapshot_writer_append_u32(w, lc.vdsr)) goto fail;
-	if (!snapshot_writer_append_u32(w, lc.vdlr)) goto fail;
-	if (!snapshot_writer_append_u32(w, lc.hdsr)) goto fail;
-	if (!snapshot_writer_append_u32(w, lc.hdlr)) goto fail;
-	if (!snapshot_writer_append_u32(w, lc.licr)) goto fail;
-	if (!snapshot_writer_append_i32(w, lc.v_delay))   goto fail;
-	if (!snapshot_writer_append_i32(w, lc.v_display)) goto fail;
-	if (!snapshot_writer_append_i32(w, lc.vc))        goto fail;
+	snapshot_writer_append(w, lc.ram, sizeof(lc.ram));
+	snapshot_writer_append_u32(w, lc.wp);
+	snapshot_writer_append_u32(w, lc.vdsr);
+	snapshot_writer_append_u32(w, lc.vdlr);
+	snapshot_writer_append_u32(w, lc.hdsr);
+	snapshot_writer_append_u32(w, lc.hdlr);
+	snapshot_writer_append_u32(w, lc.licr);
+	snapshot_writer_append_i32(w, lc.v_delay);
+	snapshot_writer_append_i32(w, lc.v_display);
+	snapshot_writer_append_i32(w, lc.vc);
 	for (i = 0; i < 16; i++)
-		if (!snapshot_writer_append_u32(w, lc.pal[i])) goto fail;
-	if (!snapshot_writer_append_i32(w, lc.has_updated)) goto fail;
+		snapshot_writer_append_u32(w, lc.pal[i]);
+	snapshot_writer_append_i32(w, lc.has_updated);
 
-	if (!snapshot_writer_append_u32(w, lc.blank_timer.ts_integer)) goto fail;
-	if (!snapshot_writer_append_u32(w, lc.blank_timer.ts_frac))    goto fail;
-	if (!snapshot_writer_append_i32(w, lc.blank_timer.enabled))    goto fail;
+	timer_save(w, &lc.blank_timer);
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int lc_load_state(snapshot_payload_reader_t *r, uint32_t version)
@@ -388,8 +383,6 @@ int lc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	int32_t  loaded_v_delay, loaded_v_display, loaded_vc;
 	uint32_t loaded_pal[16];
 	int32_t  loaded_has_updated;
-	uint32_t loaded_timer_int, loaded_timer_frac;
-	int32_t  loaded_timer_enabled;
 
 	(void)version;
 
@@ -406,10 +399,7 @@ int lc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	for (i = 0; i < 16; i++)
 		if (!snapshot_payload_reader_read_u32(r, &loaded_pal[i])) return 0;
 	if (!snapshot_payload_reader_read_i32(r, &loaded_has_updated)) return 0;
-
-	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_int))     return 0;
-	if (!snapshot_payload_reader_read_u32(r, &loaded_timer_frac))    return 0;
-	if (!snapshot_payload_reader_read_i32(r, &loaded_timer_enabled)) return 0;
+	if (!timer_load_restore(r, &lc.blank_timer))                   return 0;
 
 	memcpy(lc.ram, loaded_ram, sizeof(lc.ram));
 	lc.wp   = loaded_wp;
@@ -425,6 +415,5 @@ int lc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 		lc.pal[i] = loaded_pal[i];
 	lc.has_updated = (int)loaded_has_updated;
 
-	timer_restore(&lc.blank_timer, loaded_timer_int, loaded_timer_frac, (int)loaded_timer_enabled);
 	return 1;
 }

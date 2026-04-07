@@ -350,38 +350,33 @@ int ioc_save_state(snapshot_writer_t *w)
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_IOC, IOC_STATE_VERSION))
 		return 0;
 
-	if (!snapshot_writer_append_u8(w, ioc.irqa)) goto fail;
-	if (!snapshot_writer_append_u8(w, ioc.irqb)) goto fail;
-	if (!snapshot_writer_append_u8(w, ioc.fiq))  goto fail;
-	if (!snapshot_writer_append_u8(w, ioc.mska)) goto fail;
-	if (!snapshot_writer_append_u8(w, ioc.mskb)) goto fail;
-	if (!snapshot_writer_append_u8(w, ioc.mskf)) goto fail;
-	if (!snapshot_writer_append_u8(w, ioc.ctrl)) goto fail;
+	snapshot_writer_append_u8(w, ioc.irqa);
+	snapshot_writer_append_u8(w, ioc.irqb);
+	snapshot_writer_append_u8(w, ioc.fiq);
+	snapshot_writer_append_u8(w, ioc.mska);
+	snapshot_writer_append_u8(w, ioc.mskb);
+	snapshot_writer_append_u8(w, ioc.mskf);
+	snapshot_writer_append_u8(w, ioc.ctrl);
 
 	for (i = 0; i < 4; i++)
 	{
-		if (!snapshot_writer_append_i32(w, ioc.timerc[i])) goto fail;
-		if (!snapshot_writer_append_i32(w, ioc.timerl[i])) goto fail;
-		if (!snapshot_writer_append_i32(w, ioc.timerr[i])) goto fail;
+		snapshot_writer_append_i32(w, ioc.timerc[i]);
+		snapshot_writer_append_i32(w, ioc.timerl[i]);
+		snapshot_writer_append_i32(w, ioc.timerr[i]);
 
 		/* Per-timer state: integer/frac timestamp + enabled flag */
-		if (!snapshot_writer_append_u32(w, ioc.timers[i].ts_integer)) goto fail;
-		if (!snapshot_writer_append_u32(w, ioc.timers[i].ts_frac))    goto fail;
-		if (!snapshot_writer_append_i32(w, ioc.timers[i].enabled))    goto fail;
+		timer_save(w, &ioc.timers[i]);
 	}
 
-	if (!snapshot_writer_append_i32(w, ref8m_period)) goto fail;
-	if (!snapshot_writer_append_i32(w, keyway))       goto fail;
-	if (!snapshot_writer_append_u8 (w, tempkey))      goto fail;
-	if (!snapshot_writer_append_u8 (w, iockey))       goto fail;
-	if (!snapshot_writer_append_u8 (w, iockey2))      goto fail;
-	if (!snapshot_writer_append_i32(w, keydelay))     goto fail;
-	if (!snapshot_writer_append_i32(w, keydelay2))    goto fail;
+	snapshot_writer_append_i32(w, ref8m_period);
+	snapshot_writer_append_i32(w, keyway);
+	snapshot_writer_append_u8 (w, tempkey);
+	snapshot_writer_append_u8 (w, iockey);
+	snapshot_writer_append_u8 (w, iockey2);
+	snapshot_writer_append_i32(w, keydelay);
+	snapshot_writer_append_i32(w, keydelay2);
 
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int ioc_load_state(snapshot_payload_reader_t *r, uint32_t version)
@@ -389,8 +384,6 @@ int ioc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	int i;
 	uint8_t  irqa, irqb, fiq, mska, mskb, mskf, ctrl;
 	int32_t  timerc[4], timerl[4], timerr[4];
-	uint32_t timer_ts_int[4], timer_ts_frac[4];
-	int32_t  timer_enabled[4];
 	int32_t  loaded_ref8m_period, loaded_keyway, loaded_keydelay, loaded_keydelay2;
 	uint8_t  loaded_tempkey, loaded_iockey, loaded_iockey2;
 
@@ -409,9 +402,7 @@ int ioc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 		if (!snapshot_payload_reader_read_i32(r, &timerc[i])) return 0;
 		if (!snapshot_payload_reader_read_i32(r, &timerl[i])) return 0;
 		if (!snapshot_payload_reader_read_i32(r, &timerr[i])) return 0;
-		if (!snapshot_payload_reader_read_u32(r, &timer_ts_int[i])) return 0;
-		if (!snapshot_payload_reader_read_u32(r, &timer_ts_frac[i])) return 0;
-		if (!snapshot_payload_reader_read_i32(r, &timer_enabled[i])) return 0;
+		if (!timer_load_restore(r, &ioc.timers[i]))           return 0;
 	}
 
 	if (!snapshot_payload_reader_read_i32(r, &loaded_ref8m_period)) return 0;
@@ -435,7 +426,6 @@ int ioc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 		ioc.timerc[i] = (int)timerc[i];
 		ioc.timerl[i] = (int)timerl[i];
 		ioc.timerr[i] = (int)timerr[i];
-		timer_restore(&ioc.timers[i], timer_ts_int[i], timer_ts_frac[i], (int)timer_enabled[i]);
 	}
 
 	ref8m_period = (int)loaded_ref8m_period;

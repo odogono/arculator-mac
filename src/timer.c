@@ -149,17 +149,34 @@ void timer_add(emu_timer_t *timer, void (*callback)(void *p), void *p, int start
 
 #define TIMR_STATE_VERSION 1u
 
+int timer_save(snapshot_writer_t *w, const emu_timer_t *timer)
+{
+	snapshot_writer_append_u32(w, timer->ts_integer);
+	snapshot_writer_append_u32(w, timer->ts_frac);
+	snapshot_writer_append_i32(w, timer->enabled);
+	return 1;
+}
+
+int timer_load_restore(snapshot_payload_reader_t *r, emu_timer_t *timer)
+{
+	uint32_t ts_int, ts_frac;
+	int32_t  enabled;
+
+	if (!snapshot_payload_reader_read_u32(r, &ts_int))  return 0;
+	if (!snapshot_payload_reader_read_u32(r, &ts_frac)) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &enabled)) return 0;
+	timer_restore(timer, ts_int, ts_frac, (int)enabled);
+	return 1;
+}
+
 int timer_save_global(snapshot_writer_t *w)
 {
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_TIMR, TIMR_STATE_VERSION))
 		return 0;
-	if (!snapshot_writer_append_u64(w, tsc))            goto fail;
-	if (!snapshot_writer_append_u32(w, timer_target))   goto fail;
-	if (!snapshot_writer_append_u64(w, TIMER_USEC))     goto fail;
+	snapshot_writer_append_u64(w, tsc);
+	snapshot_writer_append_u32(w, timer_target);
+	snapshot_writer_append_u64(w, TIMER_USEC);
 	return snapshot_writer_end_chunk(w);
-
-fail:
-	return 0;
 }
 
 int timer_load_global(snapshot_payload_reader_t *r, uint32_t version)
