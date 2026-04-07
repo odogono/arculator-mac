@@ -12,6 +12,7 @@ extern "C"
 #endif
 #include "arc.h"
 #include "config.h"
+#include "platform_paths.h"
 #include "podules.h"
 }
 
@@ -24,19 +25,32 @@ int main(int argc, char **argv)
 	strncpy(exname, argv[0], 511);
 	char *p = (char *)get_filename(exname);
 	*p = 0;
+	platform_paths_init(argv[0]);
 
-	if (argc > 1)
+	const char *config_arg = NULL;
+	for (int i = 1; i < argc; i++)
 	{
-		wxString config_path = GetConfigPath(argv[1]);
+		if (argv[i][0] != '-')
+		{
+			config_arg = argv[i];
+			break;
+		}
+		else if (i + 1 < argc && argv[i + 1][0] != '-')
+			i++; /* skip value of flag arguments like -NSDocumentRevisionsDebugMode YES */
+	}
+
+	if (config_arg)
+	{
+		wxString config_path = GetConfigPath(config_arg);
 
 		if (wxFileName(config_path).Exists())
 		{
 			strcpy(machine_config_file, config_path.mb_str());
-			strcpy(machine_config_name, argv[1]);
+			strcpy(machine_config_name, config_arg);
 		}
 		else
 		{
-			wxMessageBox("A configuration with the name '" + wxString(argv[1]) + "' does not exist", "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP);
+			wxMessageBox("A configuration with the name '" + wxString(config_arg) + "' does not exist", "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP);
 			exit(-1);
 		}
 	}

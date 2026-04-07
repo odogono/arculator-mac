@@ -18,6 +18,7 @@
 #include "podules.h"
 #include "podule_api.h"
 #include "ide_config.h"
+#include "platform_paths.h"
 
 static const podule_callbacks_t *podule_callbacks;
 
@@ -45,7 +46,7 @@ static int zidefs_a3k_ide_init(struct podule_t *podule)
 	zidefs_a3k_ide_t *zidefs = malloc(sizeof(zidefs_a3k_ide_t));
 	memset(zidefs, 0, sizeof(zidefs_a3k_ide_t));
 
-	append_filename(fn, exname, "roms/podules/zidefs_a3k/zidefsrom", 511);
+	platform_path_find_rom_path(fn, "podules/zidefs_a3k/zidefsrom", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (f)
 	{
@@ -207,7 +208,7 @@ const podule_header_t *zidefs_a3k_ide_probe(const podule_callbacks_t *callbacks,
 	podule_callbacks = callbacks;
 	ide_config_init(callbacks);
 
-	append_filename(fn, exname, "roms/podules/zidefs_a3k/zidefsrom", 511);
+	platform_path_find_rom_path(fn, "podules/zidefs_a3k/zidefsrom", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (!f)
 		return NULL;

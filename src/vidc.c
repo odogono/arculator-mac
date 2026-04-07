@@ -16,6 +16,7 @@
 #include "keyboard.h"
 #include "mem.h"
 #include "memc.h"
+#include "platform_shell.h"
 #include "sound.h"
 #include "timer.h"
 #include "vidc.h"

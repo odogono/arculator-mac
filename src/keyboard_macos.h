@@ -1,0 +1,225 @@
+#ifndef KEYBOARD_MACOS_H
+#define KEYBOARD_MACOS_H
+
+/*
+ * macOS virtual key codes copied from HIToolbox Events.h so the emulator's
+ * platform header does not depend on the Carbon umbrella include layout.
+ */
+enum {
+	kVK_ANSI_A = 0x00,
+	kVK_ANSI_S = 0x01,
+	kVK_ANSI_D = 0x02,
+	kVK_ANSI_F = 0x03,
+	kVK_ANSI_H = 0x04,
+	kVK_ANSI_G = 0x05,
+	kVK_ANSI_Z = 0x06,
+	kVK_ANSI_X = 0x07,
+	kVK_ANSI_C = 0x08,
+	kVK_ANSI_V = 0x09,
+	kVK_ISO_Section = 0x0A,
+	kVK_ANSI_B = 0x0B,
+	kVK_ANSI_Q = 0x0C,
+	kVK_ANSI_W = 0x0D,
+	kVK_ANSI_E = 0x0E,
+	kVK_ANSI_R = 0x0F,
+	kVK_ANSI_Y = 0x10,
+	kVK_ANSI_T = 0x11,
+	kVK_ANSI_1 = 0x12,
+	kVK_ANSI_2 = 0x13,
+	kVK_ANSI_3 = 0x14,
+	kVK_ANSI_4 = 0x15,
+	kVK_ANSI_6 = 0x16,
+	kVK_ANSI_5 = 0x17,
+	kVK_ANSI_Equal = 0x18,
+	kVK_ANSI_9 = 0x19,
+	kVK_ANSI_7 = 0x1A,
+	kVK_ANSI_Minus = 0x1B,
+	kVK_ANSI_8 = 0x1C,
+	kVK_ANSI_0 = 0x1D,
+	kVK_ANSI_RightBracket = 0x1E,
+	kVK_ANSI_O = 0x1F,
+	kVK_ANSI_U = 0x20,
+	kVK_ANSI_LeftBracket = 0x21,
+	kVK_ANSI_I = 0x22,
+	kVK_ANSI_P = 0x23,
+	kVK_Return = 0x24,
+	kVK_ANSI_L = 0x25,
+	kVK_ANSI_J = 0x26,
+	kVK_ANSI_Quote = 0x27,
+	kVK_ANSI_K = 0x28,
+	kVK_ANSI_Semicolon = 0x29,
+	kVK_ANSI_Backslash = 0x2A,
+	kVK_ANSI_Comma = 0x2B,
+	kVK_ANSI_Slash = 0x2C,
+	kVK_ANSI_N = 0x2D,
+	kVK_ANSI_M = 0x2E,
+	kVK_ANSI_Period = 0x2F,
+	kVK_Tab = 0x30,
+	kVK_Space = 0x31,
+	kVK_ANSI_Grave = 0x32,
+	kVK_Delete = 0x33,
+	kVK_Escape = 0x35,
+	kVK_RightCommand = 0x36,
+	kVK_Command = 0x37,
+	kVK_Shift = 0x38,
+	kVK_CapsLock = 0x39,
+	kVK_Option = 0x3A,
+	kVK_Control = 0x3B,
+	kVK_RightShift = 0x3C,
+	kVK_RightOption = 0x3D,
+	kVK_RightControl = 0x3E,
+	kVK_ANSI_KeypadDecimal = 0x41,
+	kVK_ANSI_KeypadMultiply = 0x43,
+	kVK_ANSI_KeypadPlus = 0x45,
+	kVK_ANSI_KeypadClear = 0x47,
+	kVK_ANSI_KeypadDivide = 0x4B,
+	kVK_ANSI_KeypadEnter = 0x4C,
+	kVK_ANSI_KeypadMinus = 0x4E,
+	kVK_ANSI_Keypad0 = 0x52,
+	kVK_ANSI_Keypad1 = 0x53,
+	kVK_ANSI_Keypad2 = 0x54,
+	kVK_ANSI_Keypad3 = 0x55,
+	kVK_ANSI_Keypad4 = 0x56,
+	kVK_ANSI_Keypad5 = 0x57,
+	kVK_ANSI_Keypad6 = 0x58,
+	kVK_ANSI_Keypad7 = 0x59,
+	kVK_ANSI_Keypad8 = 0x5B,
+	kVK_ANSI_Keypad9 = 0x5C,
+	kVK_F5 = 0x60,
+	kVK_F6 = 0x61,
+	kVK_F7 = 0x62,
+	kVK_F3 = 0x63,
+	kVK_F8 = 0x64,
+	kVK_F9 = 0x65,
+	kVK_F11 = 0x67,
+	kVK_F13 = 0x69,
+	kVK_F14 = 0x6B,
+	kVK_F10 = 0x6D,
+	kVK_F12 = 0x6F,
+	kVK_F15 = 0x71,
+	kVK_Help = 0x72,
+	kVK_Home = 0x73,
+	kVK_PageUp = 0x74,
+	kVK_ForwardDelete = 0x75,
+	kVK_F4 = 0x76,
+	kVK_End = 0x77,
+	kVK_F2 = 0x78,
+	kVK_PageDown = 0x79,
+	kVK_F1 = 0x7A,
+	kVK_LeftArrow = 0x7B,
+	kVK_RightArrow = 0x7C,
+	kVK_DownArrow = 0x7D,
+	kVK_UpArrow = 0x7E
+};
+
+#define KEY_ESC               kVK_Escape
+#define KEY_1                 kVK_ANSI_1
+#define KEY_2                 kVK_ANSI_2
+#define KEY_3                 kVK_ANSI_3
+#define KEY_4                 kVK_ANSI_4
+#define KEY_5                 kVK_ANSI_5
+#define KEY_6                 kVK_ANSI_6
+#define KEY_7                 kVK_ANSI_7
+#define KEY_8                 kVK_ANSI_8
+#define KEY_9                 kVK_ANSI_9
+#define KEY_0                 kVK_ANSI_0
+#define KEY_MINUS             kVK_ANSI_Minus
+#define KEY_EQUALS            kVK_ANSI_Equal
+#define KEY_BACKSPACE         kVK_Delete
+#define KEY_TAB               kVK_Tab
+#define KEY_Q                 kVK_ANSI_Q
+#define KEY_W                 kVK_ANSI_W
+#define KEY_E                 kVK_ANSI_E
+#define KEY_R                 kVK_ANSI_R
+#define KEY_T                 kVK_ANSI_T
+#define KEY_Y                 kVK_ANSI_Y
+#define KEY_U                 kVK_ANSI_U
+#define KEY_I                 kVK_ANSI_I
+#define KEY_O                 kVK_ANSI_O
+#define KEY_P                 kVK_ANSI_P
+#define KEY_OPENBRACE         kVK_ANSI_LeftBracket
+#define KEY_CLOSEBRACE        kVK_ANSI_RightBracket
+#define KEY_ENTER             kVK_Return
+#define KEY_CONTROL           kVK_Control
+#define KEY_LCONTROL          kVK_Control
+#define KEY_A                 kVK_ANSI_A
+#define KEY_S                 kVK_ANSI_S
+#define KEY_D                 kVK_ANSI_D
+#define KEY_F                 kVK_ANSI_F
+#define KEY_G                 kVK_ANSI_G
+#define KEY_H                 kVK_ANSI_H
+#define KEY_J                 kVK_ANSI_J
+#define KEY_K                 kVK_ANSI_K
+#define KEY_L                 kVK_ANSI_L
+#define KEY_COLON             kVK_ANSI_Semicolon
+#define KEY_QUOTE             kVK_ANSI_Quote
+#define KEY_TILDE             kVK_ANSI_Grave
+#define KEY_LSHIFT            kVK_Shift
+#define KEY_BACKSLASH         kVK_ANSI_Backslash
+#define KEY_Z                 kVK_ANSI_Z
+#define KEY_X                 kVK_ANSI_X
+#define KEY_C                 kVK_ANSI_C
+#define KEY_V                 kVK_ANSI_V
+#define KEY_B                 kVK_ANSI_B
+#define KEY_N                 kVK_ANSI_N
+#define KEY_M                 kVK_ANSI_M
+#define KEY_COMMA             kVK_ANSI_Comma
+#define KEY_STOP              kVK_ANSI_Period
+#define KEY_SLASH             kVK_ANSI_Slash
+#define KEY_RSHIFT            kVK_RightShift
+#define KEY_ASTERISK          kVK_ANSI_KeypadMultiply
+#define KEY_ALT               kVK_Option
+#define KEY_SPACE             kVK_Space
+#define KEY_CAPSLOCK          kVK_CapsLock
+#define KEY_F1                kVK_F1
+#define KEY_F2                kVK_F2
+#define KEY_F3                kVK_F3
+#define KEY_F4                kVK_F4
+#define KEY_F5                kVK_F5
+#define KEY_F6                kVK_F6
+#define KEY_F7                kVK_F7
+#define KEY_F8                kVK_F8
+#define KEY_F9                kVK_F9
+#define KEY_F10               kVK_F10
+#define KEY_NUMLOCK           kVK_ANSI_KeypadClear
+#define KEY_SCRLOCK           kVK_F14
+#define KEY_HOME              kVK_Home
+#define KEY_UP                kVK_UpArrow
+#define KEY_PGUP              kVK_PageUp
+#define KEY_MINUS_PAD         kVK_ANSI_KeypadMinus
+#define KEY_LEFT              kVK_LeftArrow
+#define KEY_RIGHT             kVK_RightArrow
+#define KEY_PLUS_PAD          kVK_ANSI_KeypadPlus
+#define KEY_END               kVK_End
+#define KEY_DOWN              kVK_DownArrow
+#define KEY_PGDN              kVK_PageDown
+#define KEY_INSERT            kVK_Help
+#define KEY_DEL               kVK_ForwardDelete
+#define KEY_PRTSCR            kVK_F13
+#define KEY_F11               kVK_F11
+#define KEY_F12               kVK_F12
+#define KEY_LWIN              kVK_Command
+#define KEY_RWIN              kVK_RightCommand
+#define KEY_MENU              0x100
+#define KEY_RCONTROL          kVK_RightControl
+#define KEY_ALTGR             kVK_RightOption
+#define KEY_SLASH2            kVK_ANSI_Slash
+#define KEY_PAUSE             kVK_F15
+
+#define KEY_0_PAD             kVK_ANSI_Keypad0
+#define KEY_1_PAD             kVK_ANSI_Keypad1
+#define KEY_2_PAD             kVK_ANSI_Keypad2
+#define KEY_3_PAD             kVK_ANSI_Keypad3
+#define KEY_4_PAD             kVK_ANSI_Keypad4
+#define KEY_5_PAD             kVK_ANSI_Keypad5
+#define KEY_6_PAD             kVK_ANSI_Keypad6
+#define KEY_7_PAD             kVK_ANSI_Keypad7
+#define KEY_8_PAD             kVK_ANSI_Keypad8
+#define KEY_9_PAD             kVK_ANSI_Keypad9
+#define KEY_SEMICOLON         kVK_ANSI_Semicolon
+#define KEY_SLASH_PAD         kVK_ANSI_KeypadDivide
+#define KEY_BACKSLASH2        kVK_ISO_Section
+#define KEY_DEL_PAD           kVK_ANSI_KeypadDecimal
+#define KEY_ENTER_PAD         kVK_ANSI_KeypadEnter
+
+#endif

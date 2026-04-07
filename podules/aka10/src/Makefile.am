@@ -30,15 +30,18 @@ endif
 
 amrefresh:	
 
-libaka10_la_SOURCES = ../../common/uart/6850.c aka10.c ../../common/joystick/joystick_sdl2.c ../../common/adc/d7002c.c ../../common/misc/6522.c
+libaka10_la_SOURCES = ../../common/uart/6850.c aka10.c ../../common/adc/d7002c.c ../../common/misc/6522.c
 
 if OS_WINDOWS
+libaka10_la_SOURCES += ../../common/joystick/joystick_sdl2.c
 libaka10_la_SOURCES += ../../common/midi/midi_win.c
 endif
 if OS_LINUX
+libaka10_la_SOURCES += ../../common/joystick/joystick_sdl2.c
 libaka10_la_SOURCES += ../../common/midi/midi_alsa.c
 endif
 if OS_MACOSX
+libaka10_la_SOURCES += ../../common/joystick/joystick_gamecontroller.m
 libaka10_la_SOURCES += ../../common/midi/midi_null.c
 endif
 

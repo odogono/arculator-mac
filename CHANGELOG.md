@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.4 (unreleased)
+
+- core: Add emulation control command queue for thread-safe command handling
+- core: Add input snapshot functionality
+- core: Add platform paths module for cross-platform path handling
+- core: Add platform shell utilities
+
+- macOS: Add GameController joystick support via joystick_gamecontroller.m
+- macOS: Add CoreAudio sound output via sound_out_coreaudio.m
+
+- SDL2: Major refactor of wx-sdl2.c for thread-safe main thread operations on macOS
+- SDL2: Improve SDL2 input handling with better mouse capture semantics
+
+- docs: Add PHASE0_INVENTORY.md and PORTING_PLAN.md documentation
+
 ## v2.3 (unreleased)
 
 - build: Update .gitignore to ignore autotools-generated files
@@ -30,7 +45,7 @@
 - docs: Update readme.txt for v2.2
 - docs: Fix typos in readme.txt
 
-- macOS support: Add #ifdef __APPLE__ guards for macOS build compatibility
+- macOS support: Add #ifdef **APPLE** guards for macOS build compatibility
 
 - sound: Don't play any disc noise when disabled
 - sound: Fix missing include in sound_sdl2.c
@@ -100,7 +115,7 @@
 - build: Fix podules on Windows when building with autotools
 - build: Install arculator.exe on Windows when using autotools
 
-- cdrom: Recognise /dev/sr* as possible CD-ROM devices on Linux
+- cdrom: Recognise /dev/sr\* as possible CD-ROM devices on Linux
 
 - cmos: Add POSIX time/date functionality for non-Windows platforms
 
@@ -195,7 +210,7 @@
 
 - video: Fix non-functioning video output scaling on non-Windows platforms
 
-- win: 64-bit _findfirst fixes
+- win: 64-bit \_findfirst fixes
 
 ## v2.0
 
@@ -232,9 +247,9 @@
 - Add Readme-LINUX.txt.
 - Add better default CMOS images.
 - Update changes.txt.
-- Pick up the configured MIDI in/out device - can now play back and capture via real hardware, rather than just the Mirosoft GM software synth.  (Tested with two USB<>MIDI adaptors, MIDI keyboard). Issues with playback - notes are missed.  This does not appear to bea "RISC OS" issue (MWLite works fine with real Eagle MIDI card).  Suspect some kind of emulated 16550 buffer overrun - bug only happens when MIDI commands sent frequently.
-- First attempt at fixing MIDI playback issue - always use midiOutLongMsg instead of mixing with midiOutShortMsg as the latter is allegedly known flaky with some hardware.  Didn't fix it for me, but committing anyway as I think the code's a little cleaner.
-- This seems to fix playback of "non-trivial" MIDI on all tested examples. Played various complex XG stuff to XG synth perfectly.   Issue was lack of support for repeated "running status" commands. Only tested on Windows - ALSA code fix is presented as a "should work" as it's sufficiently trivial.
+- Pick up the configured MIDI in/out device - can now play back and capture via real hardware, rather than just the Mirosoft GM software synth. (Tested with two USB<>MIDI adaptors, MIDI keyboard). Issues with playback - notes are missed. This does not appear to bea "RISC OS" issue (MWLite works fine with real Eagle MIDI card). Suspect some kind of emulated 16550 buffer overrun - bug only happens when MIDI commands sent frequently.
+- First attempt at fixing MIDI playback issue - always use midiOutLongMsg instead of mixing with midiOutShortMsg as the latter is allegedly known flaky with some hardware. Didn't fix it for me, but committing anyway as I think the code's a little cleaner.
+- This seems to fix playback of "non-trivial" MIDI on all tested examples. Played various complex XG stuff to XG synth perfectly. Issue was lack of support for repeated "running status" commands. Only tested on Windows - ALSA code fix is presented as a "should work" as it's sufficiently trivial.
 - Add config name as optional command line parameter.
 - Add A500 prototype emulation. This has been tested with the available Arthur 1.2 and RISC OS 2.0 ROM images. Currently the altered floppy and hard drive controllers, and the different audio sample format are emulated. The seperate RTC chip and keyboard are not yet emulated.
 - Implement IDE IRQ disable bit. This fixes an issue which can cause data corruption when the drive is accessed while a long running IRQ/event handler is executing with IRQs enabled.
@@ -376,8 +391,8 @@
 - Move memc symbols into memc.c, and enable some more logging
 - Move IOC struct definition into ioc.c, and tidy some variables/logging
 - Mouse logging, and moved ml,mr,mt,mb definition into keyboard.c
-- Port romload.c from _findfirst/_findnext to opendir/readdir
-- romload.c uses _findfirst/_findnext on Windows, opendir/readdir on other systems.
+- Port romload.c from \_findfirst/\_findnext to opendir/readdir
+- romload.c uses \_findfirst/\_findnext on Windows, opendir/readdir on other systems.
 - Fix all remaining duplicate variable definitions
 - arm.c timing and documentation; also added braces around a couple of suspicious function calls
 - Arculator now runs on macOS :)
@@ -482,7 +497,7 @@
 - Added video scale menu, for fixed 0.5x - 4x scaling of the emulator window.
 - Rejig menu order a bit. Main emulator menu is now File/Disc/Video/Sound/Settings.
 - Add sound gain menu.
-- Major reworking of CPU & memory timing. Includes the following changes : - Improved emulation of ARM2 merged cycles - Improved (and hopefully correct!) MEMC1 timing - Proper emulation of FCLK/MCLK switching on ARM3 - Emulate CPU clocking during cache fills on ARM3 - Tweaked MUL/MLA timing - Reworked DMA timing. MEMC DMA sources will signal DMA requests when required   and the run_dma() function will determine delays to memory bus availability - Moved all CPU & DMA timestamps to 32:32 fixed point format
+- Major reworking of CPU & memory timing. Includes the following changes : - Improved emulation of ARM2 merged cycles - Improved (and hopefully correct!) MEMC1 timing - Proper emulation of FCLK/MCLK switching on ARM3 - Emulate CPU clocking during cache fills on ARM3 - Tweaked MUL/MLA timing - Reworked DMA timing. MEMC DMA sources will signal DMA requests when required and the run_dma() function will determine delays to memory bus availability - Moved all CPU & DMA timestamps to 32:32 fixed point format
 - Add emulation of unique machine ID chip.
 - Fix overflow in remaining samples calculation when switching sound clock. Also fix up a couple of other issues that could cause further sound clicking.
 - Fixed off-by-one video errors.
@@ -572,9 +587,8 @@
 - Remove some unused variables.
 - Added new icon.
 
-- VIDC: never return negative cyclesperline_{display, blanking}, and clean up logging and externs
+- VIDC: never return negative cyclesperline\_{display, blanking}, and clean up logging and externs
 
 ## Unreleased
 
 - Adding icon
-

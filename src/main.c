@@ -42,7 +42,6 @@
 #include "timer.h"
 #include "vidc.h"
 #include "video.h"
-#include "video_sdl2.h"
 #include "wd1770.h"
 
 #include "hostfs.h"
@@ -330,8 +329,7 @@ void arc_run()
 {
         LOG_EVENT_LOOP("arc_run()\n");
         joystick_poll_host();
-        mouse_poll_host();
-        keyboard_poll_host();
+        input_apply_host_snapshot();
         if (mousehack)
                 doosmouse();
         execarm((speed_mhz * 1000000) / 100);

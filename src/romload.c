@@ -12,6 +12,7 @@
 #include "arc.h"
 #include "config.h"
 #include "mem.h"
+#include "platform_paths.h"
 
 char romfns[17][256];
 int firstromload=1;
@@ -130,8 +131,11 @@ int loadrom()
 	{
 		chdir(olddir);
 	}
-	snprintf(s, sizeof(s), "roms/%s", config_get_romset_name(romset));
-	append_filename(fn, exname, s, sizeof(fn));
+	if (!platform_path_find_rom_path(fn, config_get_romset_name(romset), sizeof(fn)))
+	{
+		snprintf(s, sizeof(s), "roms/%s", config_get_romset_name(romset));
+		append_filename(fn, exname, s, sizeof(fn));
+	}
 
 	rpclog("Loading ROM set %d from %s\n",romset, fn);
 	if (chdir(fn) != 0)
@@ -273,7 +277,7 @@ void rom_load_5th_column(void)
 
 	/*If machine is an A4 and no 5th column ROM is specified, load in the default*/
 	if (machine_type == MACHINE_TYPE_A4 && _5th_column_fn[0] == 0)
-		append_filename(fn, exname, "roms/A4 5th Column.rom", sizeof(fn));
+		platform_path_find_rom_path(fn, "A4 5th Column.rom", sizeof(fn));
 
 	rpclog("  %s\n", fn);
 	f = fopen(fn, "rb");
@@ -291,7 +295,7 @@ void rom_load_arc_support_extrom(void)
 	char fn[512];
 	FILE *f;
 
-	append_filename(fn, exname, "roms/arcrom_ext", 511);
+	platform_path_find_rom_path(fn, "arcrom_ext", sizeof(fn));
 	f = fopen(fn, "rb");
 	fread(rom_arcrom, 0x10000, 1, f);
 	fclose(f);

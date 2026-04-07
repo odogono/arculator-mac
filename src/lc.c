@@ -5,6 +5,7 @@
 #include "config.h"
 #include "ioeb.h"
 #include "lc.h"
+#include "platform_shell.h"
 #include "timer.h"
 #include "vidc.h"
 #include "plat_video.h"

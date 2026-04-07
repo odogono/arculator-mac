@@ -30,6 +30,7 @@ extern "C"
 #include "debugger.h"
 #include "disc.h"
 #include "plat_joystick.h"
+#include "platform_shell.h"
 #include "plat_video.h"
 #include "romload.h"
 #include "sound.h"
@@ -114,6 +115,10 @@ Frame::Frame(App *app, const wxString &title, const wxPoint &pos,
 #ifdef _WIN32
 	Bind(WX_WIN_SEND_MESSAGE_EVENT, &Frame::OnWinSendMessageEvent, this);
 #endif
+#ifdef __APPLE__
+	shell_timer.SetOwner(this);
+	Bind(wxEVT_TIMER, &Frame::OnShellTimer, this);
+#endif
 
 	CenterOnScreen();
 }
@@ -126,7 +131,12 @@ Frame::~Frame()
 void Frame::Start()
 {
 	if (strlen(machine_config_name) != 0 || !ShowConfigSelection())
+	{
 		arc_start_main_thread(this, this->menu);
+#ifdef __APPLE__
+		shell_timer.Start(1);
+#endif
+	}
 	else
 		Quit(0);
 }
@@ -144,12 +154,20 @@ void Frame::Quit(bool stop_emulator)
 void Frame::OnStopEmulationEvent(wxCommandEvent &event)
 {
 	CloseConsoleWindow();
+#ifdef __APPLE__
+	shell_timer.Stop();
+#endif
 	arc_stop_main_thread();
 
 	debug_end();
 
 	if (!ShowConfigSelection())
+	{
 		arc_start_main_thread(this, this->menu);
+#ifdef __APPLE__
+		shell_timer.Start(1);
+#endif
+	}
 	else
 		Quit(0);
 }
@@ -158,6 +176,14 @@ void Frame::OnPrintErrorEvent(wxCommandEvent &event)
 {
 	wxMessageBox(event.GetString(), "Arculator", wxOK | wxCENTRE | wxSTAY_ON_TOP | wxICON_ERROR, this);
 }
+
+#ifdef __APPLE__
+void Frame::OnShellTimer(wxTimerEvent &event)
+{
+	(void)event;
+	arc_main_loop();
+}
+#endif
 
 void Frame::UpdateMenu(wxMenu *menu)
 {

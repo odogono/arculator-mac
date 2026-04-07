@@ -122,7 +122,7 @@ class Frame: public wxFrame
 {
 public:
 	Frame(App* app, const wxString& title, const wxPoint& pos,
-			const wxSize& size);
+				const wxSize& size);
 
 	virtual ~Frame();
 
@@ -139,8 +139,14 @@ private:
 #ifdef _WIN32
 	void OnWinSendMessageEvent(WinSendMessageEvent &event);
 #endif
-
+#ifdef __APPLE__
+	void OnShellTimer(wxTimerEvent &event);
+#endif
+	
 	wxMenu* menu;
+#ifdef __APPLE__
+	wxTimer shell_timer;
+#endif
 
 	void Quit(bool stop_emulator = 1);
 	void ChangeDisc(int drive);

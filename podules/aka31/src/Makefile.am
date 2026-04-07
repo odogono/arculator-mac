@@ -30,15 +30,18 @@ endif
 
 amrefresh:
 
-libaka31_la_SOURCES = aka31.c d71071l.c ../../common/scsi/hdd_file.c ../../common/scsi/scsi.c ../../common/scsi/scsi_cd.c ../../common/scsi/scsi_config.c ../../common/scsi/scsi_hd.c wd33c93a.c ../../common/sound/sound_out_sdl2.c
+libaka31_la_SOURCES = aka31.c d71071l.c ../../common/scsi/hdd_file.c ../../common/scsi/scsi.c ../../common/scsi/scsi_cd.c ../../common/scsi/scsi_config.c ../../common/scsi/scsi_hd.c wd33c93a.c
 
 if OS_WINDOWS
+libaka31_la_SOURCES += ../../common/sound/sound_out_sdl2.c
 libaka31_la_SOURCES += ../../common/cdrom/cdrom-windows-ioctl.c
 endif
 if OS_LINUX
+libaka31_la_SOURCES += ../../common/sound/sound_out_sdl2.c
 libaka31_la_SOURCES += ../../common/cdrom/cdrom-linux-ioctl.c
 endif
 if OS_MACOSX
+libaka31_la_SOURCES += ../../common/sound/sound_out_coreaudio.m
 libaka31_la_SOURCES += ../../common/cdrom/cdrom-osx-ioctl.c
 endif
 

@@ -1,3 +1,5 @@
+class wxWindow;
+
 struct podule_header_t;
 struct podule_config_t;
 

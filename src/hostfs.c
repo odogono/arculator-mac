@@ -46,6 +46,7 @@ typedef int bool;
 #include "config.h"
 #include "hostfs.h"
 #include "hostfs_internal.h"
+#include "platform_paths.h"
 
 #define HOSTFS_PROTOCOL_VERSION	3
 
@@ -2094,7 +2095,7 @@ hostfs_init(void)
 {
   int c;
 
-  append_filename(HOSTFS_ROOT, exname, "hostfs", sizeof(HOSTFS_ROOT));
+  platform_path_hostfs_dir(HOSTFS_ROOT, sizeof(HOSTFS_ROOT));
   for (c = 0; c < 511; c++) {
     if (HOSTFS_ROOT[c] == '\\') {
       HOSTFS_ROOT[c] = '/';

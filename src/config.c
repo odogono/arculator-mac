@@ -12,6 +12,7 @@
 #include "memc.h"
 #include "plat_joystick.h"
 #include "plat_video.h"
+#include "platform_paths.h"
 #include "podules.h"
 #include "sound.h"
 #include "st506.h"
@@ -681,7 +682,7 @@ void loadconfig()
 	char *p;
 	int c;
 
-	append_filename(config_file, exname, "arc.cfg", 511);
+	platform_path_global_config(config_file, sizeof(config_file));
 	rpclog("config_file=%s\n", config_file);
 	config_load(CFG_GLOBAL, config_file);
 	config_dump(CFG_GLOBAL);
@@ -824,7 +825,7 @@ void saveconfig()
 	char config_file[512];
 	int c;
 
-	append_filename(config_file, exname, "arc.cfg", 511);
+	platform_path_global_config(config_file, sizeof(config_file));
 
 	config_set_string(CFG_MACHINE, NULL, "machine", machine);
 	config_set_string(CFG_MACHINE, NULL,"disc_name_0",discname[0]);

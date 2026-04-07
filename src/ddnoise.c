@@ -7,6 +7,7 @@
 #include "config.h"
 #include "disc.h"
 #include "ddnoise.h"
+#include "platform_paths.h"
 #include "plat_sound.h"
 #include "timer.h"
 
@@ -203,7 +204,8 @@ void ddnoise_init()
 {
 	char path[512];
 
-	append_filename(path, exname, "ddnoise/35/", sizeof(path));
+	platform_path_join_resource(path, "ddnoise/35", sizeof(path));
+	append_slash(path, sizeof(path));
 	rpclog("ddnoise path %s\n", path);
 
 	seeksmp[0][0] = load_wav(path, "stepo.wav");

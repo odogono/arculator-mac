@@ -12,6 +12,7 @@
 #include "disc.h"
 #include "ioc.h"
 #include "plat_input.h"
+#include "platform_shell.h"
 #include "plat_video.h"
 #include "vidc.h"
 #include "video.h"

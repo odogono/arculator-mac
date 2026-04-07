@@ -14,6 +14,7 @@ extern "C"
 {
 	#include "arc.h"
 	#include "config.h"
+	#include "platform_paths.h"
 	void rpclog(const char *format, ...);
 };
 
@@ -55,10 +56,12 @@ void ConfigSelDialog::BuildConfigList()
 {
 	wxListBox* list = (wxListBox*)FindWindow(XRCID("IDC_LIST"));
 	wxString current_selection = list->GetStringSelection();
+	char config_dir[512];
 	list->Clear();
 	wxArrayString items;
-	wxString path(exname);
-	path += "configs/*.cfg";
+	platform_path_configs_dir(config_dir, sizeof(config_dir));
+	wxString path(config_dir);
+	path += "/*.cfg";
 	wxString f = wxFindFirstFile(path);
 	while (!f.empty())
 	{
@@ -303,5 +306,7 @@ int ShowConfigSelection()
 
 wxString GetConfigPath(wxString config_name)
 {
-	return wxString(exname) + "configs/" + config_name + ".cfg";
+	char path[512];
+	platform_path_machine_config(path, sizeof(path), config_name.mb_str());
+	return wxString(path);
 }

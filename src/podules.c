@@ -14,6 +14,7 @@
 #include "ide_zidefs_a3k.h"
 #include "ioc.h"
 #include "podules.h"
+#include "platform_shell.h"
 #include "riscdev_hdfc.h"
 #include "st506_akd52.h"
 #include "timer.h"
@@ -123,6 +124,8 @@ const char *podule_get_name(int c)
 			return NULL;
 	}
 
+	if (!current || !current->header)
+		return NULL;
 	return current->header->name;
 }
 
@@ -137,6 +140,8 @@ const char *podule_get_short_name(int c)
 			return NULL;
 	}
 
+	if (!current || !current->header)
+		return NULL;
 	return current->header->short_name;
 }
 
@@ -151,6 +156,8 @@ uint32_t podule_get_flags(int c)
 			return 0;
 	}
 
+	if (!current || !current->header)
+		return 0;
 	return current->header->flags;
 }
 

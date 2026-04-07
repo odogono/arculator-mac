@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include "arc.h"
 #include "config.h"
+#include "platform_paths.h"
 #include "podules.h"
 
 typedef struct dll_t
@@ -32,40 +33,52 @@ static void closedlls(void)
 	}
 }
 
-void opendlls(void)
+static void opendlls_from_path(const char *podule_path)
 {
-	char podule_path[512];
 	DIR *dirp;
 	struct dirent *dp;
 
-	atexit(closedlls);
-
-	append_filename(podule_path, exname, "podules/", sizeof(podule_path));
 	rpclog("Looking for podules in %s\n", podule_path);
 	dirp = opendir(podule_path);
 	if (!dirp)
 	{
-		perror("opendir: ");
-		fatal("Can't open rom dir %s\n", podule_path);
+		return;
 	}
 
 	while (((dp = readdir(dirp)) != NULL))
 	{
 		const podule_header_t *(*podule_probe)(const podule_callbacks_t *callbacks, char *path);
 		const podule_header_t *header;
-		char so_fn[512], so_name[512];
-		dll_t *dll = malloc(sizeof(dll_t));
-		memset(dll, 0, sizeof(dll_t));
+		char so_fn[512], so_name[512], podule_dir[512];
+		dll_t *dll;
 
-		if (dp->d_type != DT_DIR)
+		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, ".."))
+			continue;
+
+		if (dp->d_type == DT_DIR)
 		{
-			free(dll);
+			snprintf(so_name, sizeof(so_name), "%s.dylib", dp->d_name);
+			append_filename(podule_dir, podule_path, dp->d_name, sizeof(podule_dir));
+			append_filename(so_fn, podule_dir, so_name, sizeof(so_fn));
+			append_filename(podule_dir, podule_dir, "/", sizeof(podule_dir));
+		}
+		else if (dp->d_type == DT_REG)
+		{
+			const char *ext = strrchr(dp->d_name, '.');
+
+			if (!ext || strcmp(ext, ".dylib"))
+				continue;
+
+			append_filename(so_fn, podule_path, dp->d_name, sizeof(so_fn));
+			append_filename(podule_dir, podule_path, "/", sizeof(podule_dir));
+		}
+		else
+		{
 			continue;
 		}
 
-		sprintf(so_name, "/%s.dylib", dp->d_name);
-		append_filename(so_fn, podule_path, dp->d_name, sizeof(so_fn));
-		append_filename(so_fn, so_fn, so_name, sizeof(so_fn));
+		dll = malloc(sizeof(dll_t));
+		memset(dll, 0, sizeof(dll_t));
 
 		dll->lib = dlopen(so_fn, RTLD_NOW);
 		if (dll->lib == NULL)
@@ -83,9 +96,7 @@ void opendlls(void)
 			free(dll);
 			continue;
 		}
-		append_filename(so_fn, podule_path, dp->d_name, sizeof(so_fn));
-		append_filename(so_fn, so_fn, "/", sizeof(so_fn));
-		header = podule_probe(&podule_callbacks_def, so_fn);
+		header = podule_probe(&podule_callbacks_def, podule_dir);
 		if (!header)
 		{
 			rpclog("podule_probe failed %s\n", dp->d_name);
@@ -114,7 +125,8 @@ void opendlls(void)
 				break;
 			}
 
-			podule_add(header);
+			if (!podule_find(header->short_name))
+				podule_add(header);
 			header++;
 		} while (flags & PODULE_FLAGS_NEXT);
 
@@ -123,4 +135,19 @@ void opendlls(void)
 	}
 
 	(void)closedir(dirp);
+}
+
+void opendlls(void)
+{
+	char user_path[512];
+	char bundle_path[512];
+
+	atexit(closedlls);
+
+	platform_path_podules_user_dir(user_path, sizeof(user_path));
+	platform_path_podules_bundle_dir(bundle_path, sizeof(bundle_path));
+
+	opendlls_from_path(user_path);
+	if (strcmp(user_path, bundle_path))
+		opendlls_from_path(bundle_path);
 }

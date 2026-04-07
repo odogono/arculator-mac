@@ -30,15 +30,18 @@ endif
 
 amrefresh:
 
-libultimatecdrom_la_SOURCES = mitsumi.c ultimatecdrom.c ../../common/sound/sound_out_sdl2.c
+libultimatecdrom_la_SOURCES = mitsumi.c ultimatecdrom.c
 
 if OS_WINDOWS
+libultimatecdrom_la_SOURCES += ../../common/sound/sound_out_sdl2.c
 libultimatecdrom_la_SOURCES += ../../common/cdrom/cdrom-windows-ioctl.c
 endif
 if OS_LINUX
+libultimatecdrom_la_SOURCES += ../../common/sound/sound_out_sdl2.c
 libultimatecdrom_la_SOURCES += ../../common/cdrom/cdrom-linux-ioctl.c
 endif
 if OS_MACOSX
+libultimatecdrom_la_SOURCES += ../../common/sound/sound_out_coreaudio.m
 libultimatecdrom_la_SOURCES += ../../common/cdrom/cdrom-osx-ioctl.c
 endif
 

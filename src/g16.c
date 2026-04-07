@@ -22,6 +22,7 @@
 #include "g16.h"
 #include "config.h"
 #include "g332.h"
+#include "platform_paths.h"
 #include "podules.h"
 #include "podule_api.h"
 
@@ -63,7 +64,7 @@ static int g16_init(struct podule_t *podule)
 	g16_t *g16 = malloc(sizeof(g16_t));
 	memset(g16, 0, sizeof(g16_t));
 
-	append_filename(fn, exname, "roms/podules/g16/g16.rom", 511);
+	platform_path_find_rom_path(fn, "podules/g16/g16.rom", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (f)
 	{
@@ -294,7 +295,7 @@ const podule_header_t *g16_probe(const podule_callbacks_t *callbacks, char *path
 
 	podule_callbacks = callbacks;
 
-	append_filename(fn, exname, "roms/podules/g16/g16.rom", 511);
+	platform_path_find_rom_path(fn, "podules/g16/g16.rom", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (!f)
 		return NULL;

@@ -21,6 +21,7 @@
 #include "podules.h"
 #include "podule_api.h"
 #include "ide_config.h"
+#include "platform_paths.h"
 
 static const podule_callbacks_t *podule_callbacks;
 
@@ -48,7 +49,7 @@ static int ics_a3in_ide_init(struct podule_t *podule)
 	ide_a3in_ide_t *a3in = malloc(sizeof(ide_a3in_ide_t));
 	memset(a3in, 0, sizeof(ide_a3in_ide_t));
 
-	append_filename(fn, exname, "roms/podules/a3inv5/ICS 93 A3IN 3V5 3V06 - 256.BIN", 511);
+	platform_path_find_rom_path(fn, "podules/a3inv5/ICS 93 A3IN 3V5 3V06 - 256.BIN", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (f)
 	{
@@ -214,7 +215,7 @@ const podule_header_t *ics_a3inv5_ide_probe(const podule_callbacks_t *callbacks,
 	podule_callbacks = callbacks;
 	ide_config_init(callbacks);
 
-	append_filename(fn, exname, "roms/podules/a3inv5/ICS 93 A3IN 3V5 3V06 - 256.BIN", 511);
+	platform_path_find_rom_path(fn, "podules/a3inv5/ICS 93 A3IN 3V5 3V06 - 256.BIN", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (!f)
 		return NULL;

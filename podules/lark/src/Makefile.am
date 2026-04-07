@@ -39,7 +39,7 @@ if OS_LINUX
 liblark_la_SOURCES += ../../common/midi/midi_alsa.c ../../common/sound/sound_alsain.c ../../common/sound/sound_out_sdl2.c
 endif
 if OS_MACOSX
-liblark_la_SOURCES += ../../common/midi/midi_null.c ../../common/sound/sound_in_null.c ../../common/sound/sound_out_sdl2.c
+liblark_la_SOURCES += ../../common/midi/midi_null.c ../../common/sound/sound_in_null.c ../../common/sound/sound_out_coreaudio.m
 endif
 
 liblark_la_CFLAGS = $(SDL_CFLAGS) -I../../../src -I../../common/midi -I../../common/sound -I../../common/uart

@@ -22,6 +22,7 @@
 #include "arc.h"
 #include "82c711_fdc.h"
 #include "config.h"
+#include "platform_paths.h"
 #include "podules.h"
 #include "podule_api.h"
 
@@ -56,7 +57,7 @@ static int hdfc_init(struct podule_t *podule)
 	hdfc_t *hdfc = malloc(sizeof(hdfc_t));
 	memset(hdfc, 0, sizeof(hdfc_t));
 
-	append_filename(fn, exname, "roms/podules/hdfc/hdfc.rom", 511);
+	platform_path_find_rom_path(fn, "podules/hdfc/hdfc.rom", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (f)
 	{
@@ -270,7 +271,7 @@ const podule_header_t *riscdev_hdfc_probe(const podule_callbacks_t *callbacks, c
 
 	podule_callbacks = callbacks;
 
-	append_filename(fn, exname, "roms/podules/hdfc/hdfc.rom", 511);
+	platform_path_find_rom_path(fn, "podules/hdfc/hdfc.rom", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (!f)
 		return NULL;

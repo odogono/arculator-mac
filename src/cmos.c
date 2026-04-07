@@ -11,6 +11,7 @@
 #include "bmu.h"
 #include "cmos.h"
 #include "config.h"
+#include "platform_paths.h"
 #include "timer.h"
 
 int cmos_changed = 0;
@@ -75,12 +76,13 @@ static void cmos_get_time();
 void cmos_load()
 {
 	char fn[512];
+	char fallback_fn[512];
 	char cmos_name[512];
 	FILE *cmosf;
 
 	LOG_CMOS("Read cmos %i\n", romset);
 	snprintf(cmos_name, sizeof(cmos_name), "cmos/%s.%s.cmos.bin", machine_config_name, config_get_cmos_name(romset, fdctype));
-	append_filename(fn, exname, cmos_name, 511);
+	platform_path_join_support(fn, cmos_name, sizeof(fn));
 
 	cmosf = fopen(fn, "rb");
 	if (cmosf)
@@ -93,9 +95,9 @@ void cmos_load()
 	{
 		LOG_CMOS("%s doesn't exist; resetting CMOS\n", fn);
 		snprintf(cmos_name, sizeof(cmos_name), "cmos/%s/cmos.bin", config_get_cmos_name(romset, fdctype));
-		append_filename(fn, exname, cmos_name, 511);
+		platform_path_join_resource(fallback_fn, cmos_name, sizeof(fallback_fn));
 
-		cmosf = fopen(fn, "rb");
+		cmosf = fopen(fallback_fn, "rb");
 		if (cmosf)
 		{
 			fread(cmos.ram, 256, 1, cmosf);
@@ -115,7 +117,7 @@ void cmos_save()
 
 	LOG_CMOS("Writing CMOS %i\n", romset);
 	snprintf(cmos_name, sizeof(cmos_name), "cmos/%s.%s.cmos.bin", machine_config_name, config_get_cmos_name(romset, fdctype));
-	append_filename(fn, exname, cmos_name, 511);
+	platform_path_join_support(fn, cmos_name, sizeof(fn));
 
 	LOG_CMOS("Writing %s\n", fn);
 	cmosf = fopen(fn, "wb");

@@ -1,9 +1,22 @@
+#ifndef PLAT_JOYSTICK_H
+#define PLAT_JOYSTICK_H
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 	void joystick_init();
 	void joystick_close();
 	void joystick_poll_host();
+
+	#define PLAT_JOYSTICK_POV_CENTERED 0x00
+	#define PLAT_JOYSTICK_POV_UP       0x01
+	#define PLAT_JOYSTICK_POV_RIGHT    0x02
+	#define PLAT_JOYSTICK_POV_DOWN     0x04
+	#define PLAT_JOYSTICK_POV_LEFT     0x08
+	#define PLAT_JOYSTICK_POV_RIGHTUP  (PLAT_JOYSTICK_POV_RIGHT | PLAT_JOYSTICK_POV_UP)
+	#define PLAT_JOYSTICK_POV_RIGHTDOWN (PLAT_JOYSTICK_POV_RIGHT | PLAT_JOYSTICK_POV_DOWN)
+	#define PLAT_JOYSTICK_POV_LEFTUP   (PLAT_JOYSTICK_POV_LEFT | PLAT_JOYSTICK_POV_UP)
+	#define PLAT_JOYSTICK_POV_LEFTDOWN (PLAT_JOYSTICK_POV_LEFT | PLAT_JOYSTICK_POV_DOWN)
 
 	typedef struct plat_joystick_t
 	{
@@ -63,4 +76,6 @@ extern "C" {
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

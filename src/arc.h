@@ -15,7 +15,6 @@
 extern void rpclog(const char *format, ...);
 extern void error(const char *format, ...);
 extern void fatal(const char *format, ...);
-void arc_print_error(const char *format, ...);
 
 #ifdef DEBUG_CMOS
 #define LOG_CMOS rpclog
@@ -77,7 +76,6 @@ void arc_print_error(const char *format, ...);
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 extern void arc_set_cpu(int cpu, int memc);
-extern void updatewindowsize(int x, int y);
 
 extern int updatemips,inssec;
 
@@ -227,30 +225,7 @@ void updateins();
 
 void get_executable_name(char *s, int size);
 
-
-void updatewindowsize(int x, int y);
-
 int arc_init();
 void arc_reset();
 void arc_run();
 void arc_close();
-
-
-void arc_start_main_thread(void *wx_window, void *wx_menu);
-void arc_stop_main_thread();
-void arc_pause_main_thread();
-void arc_resume_main_thread();
-
-void arc_do_reset();
-void arc_disc_change(int drive, char *fn);
-void arc_disc_eject(int drive);
-void arc_enter_fullscreen();
-void arc_renderer_reset();
-void arc_set_display_mode(int new_display_mode);
-void arc_set_dblscan(int new_dblscan);
-
-
-void arc_stop_emulation();
-void arc_popup_menu();
-void arc_update_menu();
-void *wx_getnativemenu(void *menu);

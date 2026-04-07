@@ -30,7 +30,17 @@ endif
 
 amrefresh:	
 
-libmorley_uap_la_SOURCES = morley_uap.c ../../common/joystick/joystick_sdl2.c ../../common/adc/d7002c.c ../../common/misc/6522.c
+libmorley_uap_la_SOURCES = morley_uap.c ../../common/adc/d7002c.c ../../common/misc/6522.c
+
+if OS_WINDOWS
+libmorley_uap_la_SOURCES += ../../common/joystick/joystick_sdl2.c
+endif
+if OS_LINUX
+libmorley_uap_la_SOURCES += ../../common/joystick/joystick_sdl2.c
+endif
+if OS_MACOSX
+libmorley_uap_la_SOURCES += ../../common/joystick/joystick_gamecontroller.m
+endif
 
 libmorley_uap_la_CFLAGS = -I../../../src -I../../common/adc -I../../common/joystick -I../../common/misc $(SDL_CFLAGS)
 libmorley_uap_la_LIBADD = @LIBS@

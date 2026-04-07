@@ -20,6 +20,7 @@
 #include "config.h"
 #include "podules.h"
 #include "podule_api.h"
+#include "platform_paths.h"
 #include "st506.h"
 #include "st506_akd52.h"
 #include "ide_config.h"
@@ -48,7 +49,7 @@ static int akd52_init(struct podule_t *podule)
 	akd52_t *akd52 = malloc(sizeof(akd52_t));
 	memset(akd52, 0, sizeof(akd52_t));
 
-	append_filename(fn, exname, "roms/podules/akd52/akd52", 511);
+	platform_path_find_rom_path(fn, "podules/akd52/akd52", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (f)
 	{
@@ -227,7 +228,7 @@ const podule_header_t *akd52_probe(const podule_callbacks_t *callbacks, char *pa
 	podule_callbacks = callbacks;
 	st506_config_init(callbacks);
 
-	append_filename(fn, exname, "roms/podules/akd52/akd52", 511);
+	platform_path_find_rom_path(fn, "podules/akd52/akd52", sizeof(fn));
 	f = fopen(fn, "rb");
 	if (!f)
 		return NULL;

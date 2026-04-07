@@ -4,6 +4,7 @@
 #include "arc.h"
 #include "g332.h"
 #include "plat_video.h"
+#include "platform_shell.h"
 #include "vidc.h"
 
 #define G332_REG_BOOT            0x00
