@@ -114,6 +114,7 @@ SOURCE_FILES = %w[
 RESOURCE_FILES = %w[
   macos/Assets.xcassets
   macos/Arculator.sdef
+  macos/templates
 ].freeze
 
 SYSTEM_FRAMEWORKS = %w[
@@ -332,11 +333,15 @@ CORE_TEST_ALL_SOURCES = (CORE_TEST_C_SOURCES + CORE_TEST_OBJ_FILES).freeze
 CORE_TEST_FIXTURES_SCRIPT = <<~SCRIPT.freeze
   set -euo pipefail
   fixtures_src="$SRCROOT/tests/fixtures"
+  templates_src="$SRCROOT/macos/templates"
   resources_dir="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
   fixtures_dst="$resources_dir/fixtures"
+  templates_dst="$resources_dir/templates"
   mkdir -p "$resources_dir"
   rm -rf "$fixtures_dst"
+  rm -rf "$templates_dst"
   cp -R "$fixtures_src" "$fixtures_dst"
+  cp -R "$templates_src" "$templates_dst"
 SCRIPT
 
 unless CORE_TEST_OBJ_FILES.empty?

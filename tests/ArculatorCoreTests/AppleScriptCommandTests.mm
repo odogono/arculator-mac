@@ -1,4 +1,5 @@
 #import <XCTest/XCTest.h>
+#import <Carbon/Carbon.h>
 
 #import "macos/EmulatorBridge.h"
 #import "macos/ConfigBridge.h"
@@ -22,6 +23,7 @@ static BOOL gResumeEmulationCalled = NO;
 static BOOL gResetEmulationCalled = NO;
 static BOOL gStartEmulationForConfigResult = NO;
 static NSString *gLastStartedConfig = nil;
+static NSString *gLastStartError = nil;
 static int gLastChangedDiscDrive = -1;
 static NSString *gLastChangedDiscPath = nil;
 static int gLastEjectedDiscDrive = -1;
@@ -78,6 +80,7 @@ static void ResetAppleScriptTestState(void)
     gResetEmulationCalled = NO;
     gStartEmulationForConfigResult = NO;
     gLastStartedConfig = nil;
+    gLastStartError = nil;
     gLastChangedDiscDrive = -1;
     gLastChangedDiscPath = nil;
     gLastEjectedDiscDrive = -1;
@@ -125,6 +128,27 @@ static void ResetAppleScriptTestState(void)
     gLastScreenshotPath = nil;
 }
 
+static NSDictionary<NSString *, id> *UserRecordFieldsFromDescriptor(NSAppleEventDescriptor *descriptor)
+{
+    NSAppleEventDescriptor *fieldList = [descriptor descriptorForKeyword:keyASUserRecordFields];
+    NSMutableDictionary<NSString *, id> *fields = [NSMutableDictionary dictionary];
+
+    for (NSInteger i = 1; i + 1 <= fieldList.numberOfItems; i += 2)
+    {
+        NSString *key = [fieldList descriptorAtIndex:i].stringValue;
+        NSAppleEventDescriptor *valueDescriptor = [fieldList descriptorAtIndex:i + 1];
+        if (!key || !valueDescriptor)
+            continue;
+
+        if (valueDescriptor.descriptorType == typeSInt32)
+            fields[key] = @(valueDescriptor.int32Value);
+        else
+            fields[key] = valueDescriptor.stringValue ?: @"";
+    }
+
+    return fields;
+}
+
 @implementation EmulatorBridge
 
 + (void)startEmulation { gStartEmulationCalled = YES; }
@@ -137,6 +161,11 @@ static void ResetAppleScriptTestState(void)
 {
     gLastStartedConfig = [configName copy];
     return gStartEmulationForConfigResult;
+}
+
++ (NSString *)lastStartError
+{
+    return gLastStartError;
 }
 
 + (void)changeDisc:(int)drive path:(NSString *)path
@@ -479,6 +508,21 @@ static void ResetAppleScriptTestState(void)
     XCTAssertEqualObjects(gLastStartedConfig, @"A3010");
 }
 
+- (void)testStartConfigSurfacesBridgeStartError
+{
+    [gExistingConfigs addObject:@"Template IDE"];
+    gStartEmulationForConfigResult = NO;
+    gLastStartError = @"Cannot start emulation because no emulator window/view is available";
+
+    NSScriptCommand *command = [self commandNamed:@"StartConfigCommand"
+                                   directParameter:@"Template IDE"
+                                         arguments:nil];
+    [command performDefaultImplementation];
+
+    XCTAssertEqual(command.scriptErrorNumber, 1200);
+    XCTAssertEqualObjects(command.scriptErrorString, gLastStartError);
+}
+
 - (void)testCreateConfigPassesPresetArgumentToBridge
 {
     gCreateConfigResult = YES;
@@ -621,7 +665,10 @@ static void ResetAppleScriptTestState(void)
                         arguments:nil];
     id result = [command performDefaultImplementation];
     XCTAssertEqual(command.scriptErrorNumber, 0);
-    XCTAssertEqualObjects(result[@"path"], @"/tmp/test.hdf");
+    XCTAssertTrue([result isKindOfClass:[NSAppleEventDescriptor class]]);
+    NSDictionary *fields = UserRecordFieldsFromDescriptor(result);
+    XCTAssertEqualObjects(fields[@"path"], @"/tmp/test.hdf");
+    XCTAssertEqualObjects(fields[@"imageState"], @"blank raw");
 }
 
 - (void)testSetInternalDriveRequiresIdleAndValidParams
@@ -688,7 +735,9 @@ static void ResetAppleScriptTestState(void)
     XCTAssertEqual(command.scriptErrorNumber, 0);
     XCTAssertEqualObjects(gLastCreatedHDFPath, @"/tmp/new.hdf");
     XCTAssertTrue(gLastCreatedHDFIsST506);
-    XCTAssertEqualObjects(result[@"controller"], @"st506");
+    XCTAssertTrue([result isKindOfClass:[NSAppleEventDescriptor class]]);
+    NSDictionary *fields = UserRecordFieldsFromDescriptor(result);
+    XCTAssertEqualObjects(fields[@"controller"], @"st506");
 
     ResetAppleScriptTestState();
     command = [self commandNamed:@"CreateHardDiscImageCommand"
@@ -705,15 +754,18 @@ static void ResetAppleScriptTestState(void)
 {
     NSScriptCommand *command = [self commandNamed:@"CreateHardDiscImageCommand"
                                    directParameter:@"/tmp/ready.hdf"
-                                         arguments:@{@"cylinders": @100,
+                                         arguments:@{@"cylinders": @101,
                                                      @"heads": @16,
                                                      @"sectors": @63,
                                                      @"initialization": @"ready"}];
     id result = [command performDefaultImplementation];
     XCTAssertEqual(command.scriptErrorNumber, 0);
     XCTAssertEqualObjects(gLastReadyHDFPath, @"/tmp/ready.hdf");
+    XCTAssertEqual(gLastCreatedHDFCyl, 101);
     XCTAssertNil(gLastCreatedHDFPath);
-    XCTAssertEqualObjects(result[@"initialization"], @"ready");
+    XCTAssertTrue([result isKindOfClass:[NSAppleEventDescriptor class]]);
+    NSDictionary *fields = UserRecordFieldsFromDescriptor(result);
+    XCTAssertEqualObjects(fields[@"initialization"], @"ready");
 
     ResetAppleScriptTestState();
     command = [self commandNamed:@"CreateHardDiscImageCommand"

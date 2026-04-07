@@ -154,4 +154,58 @@ extern int soundena;
 	XCTAssertEqual(state, INTERNAL_DISK_IMAGE_UNKNOWN);
 }
 
+- (void)testBundledIDEReadyTemplateUses101CylinderLegacyHeaderLayout
+{
+	NSBundle *bundle = [NSBundle bundleForClass:[self class]];
+	NSString *templatePath = [bundle pathForResource:@"ide_101x16x63.hdf" ofType:@"zlib"
+		inDirectory:@"templates"];
+	XCTAssertNotNil(templatePath, @"Missing bundled IDE ready template fixture");
+	if (!templatePath)
+		return;
+
+	NSString *readyPath = [NSString stringWithFormat:@"%s/ready-ide.hdf", _tmpDir];
+	NSError *readError = nil;
+	NSData *compressedData = [NSData dataWithContentsOfFile:templatePath
+							options:0
+							  error:&readError];
+	XCTAssertNotNil(compressedData, @"Could not read compressed template: %@", readError);
+	if (!compressedData)
+		return;
+
+	NSError *decompressError = nil;
+	NSData *templateData = [compressedData decompressedDataUsingAlgorithm:NSDataCompressionAlgorithmZlib
+								 error:&decompressError];
+	XCTAssertNotNil(templateData, @"Could not decompress template: %@", decompressError);
+	if (!templateData)
+		return;
+
+	NSError *writeError = nil;
+	BOOL wroteTemplate = [templateData writeToFile:readyPath options:0 error:&writeError];
+	XCTAssertTrue(wroteTemplate, @"Could not write decompressed template: %@", writeError);
+	if (!wroteTemplate)
+		return;
+
+	struct stat st;
+	XCTAssertEqual(stat(readyPath.fileSystemRepresentation, &st), 0);
+	XCTAssertEqual(st.st_size, (off_t)101 * 16 * 63 * 512);
+
+	FILE *file = fopen(readyPath.fileSystemRepresentation, "rb");
+	XCTAssertNotEqual(file, NULL);
+	if (!file)
+		return;
+
+	uint8_t discRecordPrefix[4] = {0};
+	XCTAssertEqual(fseek(file, 0xFC0, SEEK_SET), 0);
+	XCTAssertEqual(fread(discRecordPrefix, 1, sizeof(discRecordPrefix), file), sizeof(discRecordPrefix));
+	fclose(file);
+
+	XCTAssertEqual(discRecordPrefix[0], 0x09);
+	XCTAssertEqual(discRecordPrefix[1], 0x3f);
+	XCTAssertEqual(discRecordPrefix[2], 0x10);
+	XCTAssertEqual(discRecordPrefix[3], 0x00);
+
+	int state = config_internal_disk_image_state(readyPath.fileSystemRepresentation, 101, 16, 63, 0);
+	XCTAssertEqual(state, INTERNAL_DISK_IMAGE_INITIALIZED);
+}
+
 @end

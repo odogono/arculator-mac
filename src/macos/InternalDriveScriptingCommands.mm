@@ -7,6 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <Carbon/Carbon.h>
 #import "EmulatorBridge.h"
 #import "ConfigBridge.h"
 #import "ScriptingCommandSupport.h"
@@ -38,6 +39,37 @@ static int validatedDriveIndex(NSScriptCommand *cmd)
     return index;
 }
 
+static NSAppleEventDescriptor *descriptorForValue(id value)
+{
+    if ([value isKindOfClass:[NSString class]])
+        return [NSAppleEventDescriptor descriptorWithString:value];
+
+    if ([value isKindOfClass:[NSNumber class]])
+        return [NSAppleEventDescriptor descriptorWithInt32:[value intValue]];
+
+    return [NSAppleEventDescriptor nullDescriptor];
+}
+
+// Builds an AppleScript user record from a flat array of alternating key/value pairs.
+// Keys are NSStrings; values are NSString or NSNumber. Preserves caller-supplied order.
+static NSAppleEventDescriptor *userRecordDescriptor(NSArray *keyValuePairs)
+{
+    NSAppleEventDescriptor *record = [NSAppleEventDescriptor recordDescriptor];
+    NSAppleEventDescriptor *userFields = [NSAppleEventDescriptor listDescriptor];
+    NSInteger slot = 1;
+
+    for (NSUInteger i = 0; i + 1 < keyValuePairs.count; i += 2)
+    {
+        NSString *key = keyValuePairs[i];
+        id value = keyValuePairs[i + 1];
+        [userFields insertDescriptor:[NSAppleEventDescriptor descriptorWithString:key] atIndex:slot++];
+        [userFields insertDescriptor:descriptorForValue(value) atIndex:slot++];
+    }
+
+    [record setDescriptor:userFields forKeyword:keyASUserRecordFields];
+    return record;
+}
+
 #pragma mark - internal drive info
 
 @interface InternalDriveInfoCommand : NSScriptCommand
@@ -51,7 +83,15 @@ static int validatedDriveIndex(NSScriptCommand *cmd)
     if (index < 0)
         return nil;
 
-    return [ConfigBridge internalDriveInfoForIndex:index];
+    NSDictionary *info = [ConfigBridge internalDriveInfoForIndex:index];
+    return userRecordDescriptor(@[
+        @"path", info[@"path"] ?: @"",
+        @"cylinders", info[@"cylinders"] ?: @0,
+        @"heads", info[@"heads"] ?: @0,
+        @"sectors", info[@"sectors"] ?: @0,
+        @"controllerKind", info[@"controllerKind"] ?: @"",
+        @"imageState", info[@"imageState"] ?: @""
+    ]);
 }
 
 @end
@@ -185,14 +225,14 @@ static int validatedDriveIndex(NSScriptCommand *cmd)
     if (error)
         return ScriptingError(self, 1200, error);
 
-    return @{
-        @"path": path,
-        @"cylinders": cylinders,
-        @"heads": heads,
-        @"sectors": sectors,
-        @"controller": isST506 ? @"st506" : @"ide",
-        @"initialization": ready ? @"ready" : @"blank"
-    };
+    return userRecordDescriptor(@[
+        @"path", path,
+        @"cylinders", cylinders,
+        @"heads", heads,
+        @"sectors", sectors,
+        @"controller", isST506 ? @"st506" : @"ide",
+        @"initialization", ready ? @"ready" : @"blank"
+    ]);
 }
 
 @end

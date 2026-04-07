@@ -29,6 +29,7 @@ typedef NS_ENUM(NSInteger, ARCSessionState) {
 
 // High-level: load config by name and start emulation
 + (BOOL)startEmulationForConfig:(NSString *)configName;
++ (nullable NSString *)lastStartError;
 
 // Disc operations
 + (void)changeDisc:(int)drive path:(NSString *)path;

@@ -32,6 +32,17 @@ static volatile int renderer_closing;
 static int cached_view_w;
 static int cached_view_h;
 static CGFloat cached_backing_scale = 1.0;
+static int last_present_src_x;
+static int last_present_src_y;
+static int last_present_src_w;
+static int last_present_src_h;
+
+static void release_capture_buffer(void *info, const void *data, size_t size)
+{
+	(void)info;
+	(void)size;
+	free((void *)data);
+}
 
 int selected_video_renderer;
 
@@ -249,6 +260,10 @@ void video_renderer_close()
 		metal_host_view = nil;
 		metal_window = nil;
 		metal_layer = nil;
+		last_present_src_x = 0;
+		last_present_src_y = 0;
+		last_present_src_w = 0;
+		last_present_src_h = 0;
 		renderer_closing = 0;
 	}
 }
@@ -420,6 +435,11 @@ void video_renderer_present(int src_x, int src_y, int src_w, int src_h, int dbls
 		if (!metal_layer || !metal_pipeline_state || !metal_texture)
 			return;
 
+		last_present_src_x = src_x;
+		last_present_src_y = src_y;
+		last_present_src_w = src_w;
+		last_present_src_h = src_h;
+
 		CGFloat scale = cached_backing_scale;
 		int win_w = cached_view_w;
 		int win_h = cached_view_h;
@@ -484,6 +504,79 @@ void video_renderer_present(int src_x, int src_y, int src_w, int src_h, int dbls
 		[commandBuffer presentDrawable:drawable];
 		[commandBuffer commit];
 		[commandBuffer waitUntilScheduled];
+	}
+}
+
+NSString *video_renderer_capture_screenshot(NSString *path)
+{
+	@autoreleasepool {
+		if (!metal_texture)
+			return @"Metal texture is unavailable";
+
+		int capture_x = last_present_src_x;
+		int capture_y = last_present_src_y;
+		int capture_w = last_present_src_w;
+		int capture_h = last_present_src_h;
+
+		if (capture_w <= 0 || capture_h <= 0)
+			return @"No emulation frame has been presented yet";
+
+		if (capture_x < 0) capture_x = 0;
+		if (capture_y < 0) capture_y = 0;
+		if (capture_x + capture_w > TEXTURE_SIZE)
+			capture_w = TEXTURE_SIZE - capture_x;
+		if (capture_y + capture_h > TEXTURE_SIZE)
+			capture_h = TEXTURE_SIZE - capture_y;
+
+		if (capture_w <= 0 || capture_h <= 0)
+			return @"Computed capture region is invalid";
+
+		NSUInteger bytesPerRow = (NSUInteger)capture_w * 4;
+		NSUInteger dataSize = bytesPerRow * (NSUInteger)capture_h;
+		void *raw = calloc(1, dataSize);
+		if (!raw)
+			return @"Failed to allocate screenshot buffer";
+
+		MTLRegion region = MTLRegionMake2D(capture_x, capture_y, capture_w, capture_h);
+		[metal_texture getBytes:raw bytesPerRow:bytesPerRow fromRegion:region mipmapLevel:0];
+
+		CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, raw, dataSize, release_capture_buffer);
+		if (!provider)
+		{
+			free(raw);
+			return @"Failed to create screenshot data provider";
+		}
+
+		CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+		CGImageRef imageRef = CGImageCreate(capture_w,
+						     capture_h,
+						     8,
+						     32,
+						     bytesPerRow,
+						     colorSpace,
+						     kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst,
+						     provider,
+						     NULL,
+						     NO,
+						     kCGRenderingIntentDefault);
+		CGColorSpaceRelease(colorSpace);
+		CGDataProviderRelease(provider);
+
+		if (!imageRef)
+			return @"Failed to create screenshot image";
+
+		NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithCGImage:imageRef];
+		CGImageRelease(imageRef);
+		NSData *pngData = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
+		if (!pngData)
+			return @"Failed to encode screenshot PNG";
+
+		NSError *writeError = nil;
+		if (![pngData writeToFile:path options:NSDataWritingAtomic error:&writeError])
+			return [NSString stringWithFormat:@"Failed to write file: %@",
+				writeError.localizedDescription ?: path];
+
+		return nil;
 	}
 }
 

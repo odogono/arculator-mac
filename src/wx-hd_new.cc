@@ -52,7 +52,7 @@ HDNewDialog::HDNewDialog(wxWindow *parent)
 	{
 		((wxTextCtrl *)this->FindWindow(XRCID("IDC_EDIT_SECTORS")))->SetValue("63");
 		((wxTextCtrl *)this->FindWindow(XRCID("IDC_EDIT_HEADS")))->SetValue("16");
-		((wxTextCtrl *)this->FindWindow(XRCID("IDC_EDIT_CYLINDERS")))->SetValue("100");
+		((wxTextCtrl *)this->FindWindow(XRCID("IDC_EDIT_CYLINDERS")))->SetValue("101");
 	}
 	else
 	{

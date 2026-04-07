@@ -365,7 +365,7 @@ int ShowNewHD(wxWindow *parent, int *new_sectors, int *new_heads, int *new_cylin
 						      creatingFile:YES
 							 sectors:sector_size == 512 ? 63 : 32
 							   heads:sector_size == 512 ? 16 : 8
-						       cylinders:sector_size == 512 ? 100 : 615
+						       cylinders:sector_size == 512 ? 101 : 615
 							    path:arc_nsstring(default_drive_path)
 							maxCylinders:max_cylinders
 							    maxHeads:max_heads

@@ -118,8 +118,11 @@ void fatal(const char *format, ...)
         va_start(ap, format);
         vsprintf(buf, format, ap);
         va_end(ap);
-        fputs(buf, rlog);
-        fflush(rlog);
+        if (rlog)
+        {
+                fputs(buf, rlog);
+                fflush(rlog);
+        }
 
         fprintf(stderr, "%s", buf);
 
@@ -137,8 +140,11 @@ void error(const char *format, ...)
         va_start(ap, format);
         vsprintf(buf, format, ap);
         va_end(ap);
-        fputs(buf, rlog);
-        fflush(rlog);
+        if (rlog)
+        {
+                fputs(buf, rlog);
+                fflush(rlog);
+        }
 
         fprintf(stderr, "%s", buf);
 

@@ -555,6 +555,13 @@ NSString *const ARCSetting5thColumnROM    = @"5th_column_rom";
 {
 	NSString *kind = isST506 ? @"st506" : @"ide";
 	NSString *name = [NSString stringWithFormat:@"%@_%dx%dx%d", kind, cylinders, heads, sectors];
+	NSString *compressedName = [name stringByAppendingPathExtension:@"hdf"];
+	NSString *compressedPath = [[NSBundle mainBundle] pathForResource:compressedName
+		ofType:@"zlib"
+		inDirectory:@"templates"];
+	if (compressedPath.length)
+		return compressedPath;
+
 	return [[NSBundle mainBundle] pathForResource:name ofType:@"hdf" inDirectory:@"templates"];
 }
 
@@ -583,6 +590,31 @@ NSString *const ARCSetting5thColumnROM    = @"5th_column_rom";
 		return [NSString stringWithFormat:
 			@"No bundled template for %s geometry %dx%dx%d",
 			isST506 ? "ST-506" : "IDE", cylinders, heads, sectors];
+
+	if ([templatePath.pathExtension isEqualToString:@"zlib"])
+	{
+		NSError *readError = nil;
+		NSData *compressedData = [NSData dataWithContentsOfFile:templatePath
+								options:0
+								  error:&readError];
+		if (!compressedData)
+			return [NSString stringWithFormat:@"Failed to read compressed template: %@",
+				readError.localizedDescription ?: @"unknown error"];
+
+		NSError *decompressError = nil;
+		NSData *templateData = [compressedData decompressedDataUsingAlgorithm:NSDataCompressionAlgorithmZlib
+									 error:&decompressError];
+		if (!templateData)
+			return [NSString stringWithFormat:@"Failed to decompress template: %@",
+				decompressError.localizedDescription ?: @"unknown error"];
+
+		NSError *writeError = nil;
+		if (![templateData writeToFile:path options:NSDataWritingAtomic error:&writeError])
+			return [NSString stringWithFormat:@"Failed to write decompressed template: %@",
+				writeError.localizedDescription ?: @"unknown error"];
+
+		return nil;
+	}
 
 	NSError *copyError = nil;
 	if (![[NSFileManager defaultManager] copyItemAtPath:templatePath toPath:path error:&copyError])

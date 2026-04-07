@@ -60,6 +60,7 @@
 		6D6679BBAB0F4A3378A54475 /* KeyboardMappingTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 30D35754244B2CC7B5CF212A /* KeyboardMappingTests.m */; };
 		6F2A6DAA3345438D37E2DDAD /* VideoRendererShutdownTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 01A5524A77FB4B132CA2B312 /* VideoRendererShutdownTests.m */; };
 		6F2D467A84A17BC4C25E76CC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E3E1FF53A761770C3630386E /* Assets.xcassets */; };
+		6F40B00084A17BC4C25E76CC /* templates in Resources */ = {isa = PBXBuildFile; fileRef = 6F40B00184A17BC4C25E76CC /* templates */; };
 		6F6B444A210C18CE77B475EC /* MachinePresetBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A278397D3D8BEB8FEFE987C1 /* MachinePresetBridge.mm */; };
 		6F93CAC2487D3D8811B75146 /* InternalDriveScriptingCommands.mm in Sources */ = {isa = PBXBuildFile; fileRef = 49C887ABAA78806AE1750ABA /* InternalDriveScriptingCommands.mm */; };
 		70BEF4783012D1FDDFAF44D4 /* 82c711.c in Sources */ = {isa = PBXBuildFile; fileRef = 574F837A351A8600A645A176 /* 82c711.c */; };
@@ -237,6 +238,7 @@
 		8964BC82D1EA81597992B327 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		8CB84A8C5CBD6B78C16722D3 /* MachineConfigModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MachineConfigModel.swift; path = src/macos/MachineConfigModel.swift; sourceTree = "<group>"; };
 		8E3ED51FE0A99C4E39873532 /* Arculator.sdef */ = {isa = PBXFileReference; includeInIndex = 1; name = Arculator.sdef; path = macos/Arculator.sdef; sourceTree = "<group>"; };
+		6F40B00184A17BC4C25E76CC /* templates */ = {isa = PBXFileReference; lastKnownFileType = folder; name = templates; path = macos/templates; sourceTree = "<group>"; };
 		8FA6FCA002C0F48A2831AB1D /* EmulationLifecycleUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmulationLifecycleUITests.swift; path = tests/ArculatorUITests/EmulationLifecycleUITests.swift; sourceTree = "<group>"; };
 		90508E3E943CD7DBFDC67151 /* memc.c */ = {isa = PBXFileReference; includeInIndex = 1; name = memc.c; path = src/memc.c; sourceTree = "<group>"; };
 		912430D51E0903CCBA3EC0BE /* st506.c */ = {isa = PBXFileReference; includeInIndex = 1; name = st506.c; path = src/st506.c; sourceTree = "<group>"; };
@@ -372,6 +374,7 @@
 				7237A5419B5BCF2A93F6B313 /* Info.plist */,
 				E3E1FF53A761770C3630386E /* Assets.xcassets */,
 				8E3ED51FE0A99C4E39873532 /* Arculator.sdef */,
+				6F40B00184A17BC4C25E76CC /* templates */,
 			);
 			name = macos;
 			sourceTree = "<group>";
@@ -673,6 +676,7 @@
 			files = (
 				6F2D467A84A17BC4C25E76CC /* Assets.xcassets in Resources */,
 				9251D741B86BAD0150785A81 /* Arculator.sdef in Resources */,
+				6F40B00084A17BC4C25E76CC /* templates in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -733,7 +737,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nfixtures_src=\"$SRCROOT/tests/fixtures\"\nresources_dir=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nfixtures_dst=\"$resources_dir/fixtures\"\nmkdir -p \"$resources_dir\"\nrm -rf \"$fixtures_dst\"\ncp -R \"$fixtures_src\" \"$fixtures_dst\"\n";
+			shellScript = "set -euo pipefail\nfixtures_src=\"$SRCROOT/tests/fixtures\"\ntemplates_src=\"$SRCROOT/macos/templates\"\nresources_dir=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nfixtures_dst=\"$resources_dir/fixtures\"\ntemplates_dst=\"$resources_dir/templates\"\nmkdir -p \"$resources_dir\"\nrm -rf \"$fixtures_dst\"\nrm -rf \"$templates_dst\"\ncp -R \"$fixtures_src\" \"$fixtures_dst\"\ncp -R \"$templates_src\" \"$templates_dst\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

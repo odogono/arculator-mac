@@ -105,6 +105,7 @@
 		CFEE468218346B0FB455A00D /* LaunchIdleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29459266B89BB47CCC358A84 /* LaunchIdleUITests.swift */; };
 		D4415006AB60116CAF11C54F /* ioc.c in Sources */ = {isa = PBXBuildFile; fileRef = 911950BF3DD941BE5C94FDC6 /* ioc.c */; };
 		D62A2691DB69B8DF9944E7BD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F54E79655D95AC6A5D2F8853 /* Assets.xcassets */; };
+		D62A2692DB69B8DF9944E7BD /* templates in Resources */ = {isa = PBXBuildFile; fileRef = D62A2693DB69B8DF9944E7BD /* templates */; };
 		D6EB32352819156A2657E359 /* StorageSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 693B53F56B5DFA6777EEAAB7 /* StorageSettingsView.swift */; };
 		D6F7007C2A15C81A52B5F732 /* ContentHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F165997C9DF15189F7F225B /* ContentHostingController.swift */; };
 		E39F56CC0C29E696EC990CD7 /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 12A44BC16B58E4925627D20C /* GameController.framework */; };
@@ -251,6 +252,7 @@
 		F2607D2633698C4E5BAF239E /* ToolbarManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ToolbarManager.swift; path = src/macos/ToolbarManager.swift; sourceTree = "<group>"; };
 		F2780FEAB29AE52D222B43FB /* ide_zidefs.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ide_zidefs.c; path = src/ide_zidefs.c; sourceTree = "<group>"; };
 		F54E79655D95AC6A5D2F8853 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = macos/Assets.xcassets; sourceTree = "<group>"; };
+		D62A2693DB69B8DF9944E7BD /* templates */ = {isa = PBXFileReference; lastKnownFileType = folder; name = templates; path = macos/templates; sourceTree = "<group>"; };
 		F8839F9416BCE592286ED534 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		F9D5A0855F7BD2CC22E7A997 /* colourcard.c */ = {isa = PBXFileReference; includeInIndex = 1; name = colourcard.c; path = src/colourcard.c; sourceTree = "<group>"; };
 		FA73A345B6FA154D53F89527 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -414,6 +416,7 @@
 				B8D4084A8DA60DBFD192DFB7 /* Info.plist */,
 				F54E79655D95AC6A5D2F8853 /* Assets.xcassets */,
 				5F20DD3A20DFA0B104558389 /* Arculator.sdef */,
+				D62A2693DB69B8DF9944E7BD /* templates */,
 			);
 			name = macos;
 			sourceTree = "<group>";
@@ -576,6 +579,7 @@
 			files = (
 				D62A2691DB69B8DF9944E7BD /* Assets.xcassets in Resources */,
 				05F9B6B116B657F5337E47FE /* Arculator.sdef in Resources */,
+				D62A2692DB69B8DF9944E7BD /* templates in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

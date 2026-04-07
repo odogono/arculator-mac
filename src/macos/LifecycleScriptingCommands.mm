@@ -23,6 +23,12 @@
         return ScriptingError(self, 1100, @"Cannot start: emulation is already running or paused");
 
     [EmulatorBridge startEmulation];
+    if ([EmulatorBridge sessionState] == ARCSessionStateIdle)
+    {
+        NSString *error = [EmulatorBridge lastStartError];
+        if (error.length > 0)
+            return ScriptingError(self, 1200, error);
+    }
     return nil;
 }
 
@@ -133,8 +139,13 @@
             [NSString stringWithFormat:@"Config not found: '%@'", configName]);
 
     if (![EmulatorBridge startEmulationForConfig:configName])
+    {
+        NSString *error = [EmulatorBridge lastStartError];
+        if (error.length > 0)
+            return ScriptingError(self, 1200, error);
         return ScriptingError(self, 1200,
             [NSString stringWithFormat:@"Failed to load config: '%@'", configName]);
+    }
 
     return nil;
 }

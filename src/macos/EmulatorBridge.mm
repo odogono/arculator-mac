@@ -7,6 +7,8 @@
 
 #import "EmulatorBridge.h"
 #import "ConfigBridge.h"
+#import "NewWindowBridge.h"
+#import "macos_util.h"
 
 extern "C" {
 #include "config.h"
@@ -18,10 +20,54 @@ extern "C" {
 // Defined in app_macos.mm
 extern void arc_set_video_view(MTKView *view);
 extern MTKView *arc_get_video_view(void);
+extern "C" NSString *video_renderer_capture_screenshot(NSString *path);
+
+static NSString *sLastStartError = nil;
 
 @implementation EmulatorBridge
 
++ (BOOL)ensureVideoViewInstalled
+{
+    if (arc_get_video_view() != nil)
+    {
+        sLastStartError = nil;
+        return YES;
+    }
+
+    __block BOOL installed = NO;
+    run_on_main_thread(^{
+        NSWindow *targetWindow = NSApp.mainWindow;
+        if (!targetWindow)
+        {
+            for (NSWindow *window in NSApp.orderedWindows)
+            {
+                if (window.contentViewController)
+                {
+                    targetWindow = window;
+                    break;
+                }
+            }
+        }
+
+        if (!targetWindow)
+            return;
+
+        installed = ([NewWindowBridge installEmulatorViewInWindow:targetWindow] != nil);
+    });
+
+    if (!(installed && arc_get_video_view() != nil))
+    {
+        sLastStartError = @"Cannot start emulation because no emulator window/view is available";
+        return NO;
+    }
+
+    sLastStartError = nil;
+    return YES;
+}
+
 + (void)startEmulation {
+    if (![self ensureVideoViewInstalled])
+        return;
     [ConfigBridge showStartupWarningsForLoadedConfigIfNeeded];
     arc_start_main_thread(NULL, NULL);
 }
@@ -44,10 +90,20 @@ extern MTKView *arc_get_video_view(void);
 
 + (BOOL)startEmulationForConfig:(NSString *)configName {
     if (![ConfigBridge loadConfigNamed:configName])
+    {
+        sLastStartError = [NSString stringWithFormat:@"Failed to load config: '%@'", configName];
+        return NO;
+    }
+    if (![self ensureVideoViewInstalled])
         return NO;
     [ConfigBridge showStartupWarningsForLoadedConfigIfNeeded];
     arc_start_main_thread(NULL, NULL);
     return YES;
+}
+
++ (NSString *)lastStartError
+{
+    return sLastStartError;
 }
 
 + (void)changeDisc:(int)drive path:(NSString *)path {
@@ -92,7 +148,7 @@ extern MTKView *arc_get_video_view(void);
 {
     __block NSString *error = nil;
 
-    void (^captureBlock)(void) = ^{
+    run_on_main_thread(^{
         MTKView *view = arc_get_video_view();
         if (!view)
         {
@@ -106,6 +162,27 @@ extern MTKView *arc_get_video_view(void);
             error = @"Emulation view has no window";
             return;
         }
+
+        NSTask *task = [[NSTask alloc] init];
+        task.launchPath = @"/usr/sbin/screencapture";
+        task.arguments = @[
+            @"-x",
+            @"-o",
+            @"-l", [NSString stringWithFormat:@"%ld", (long)window.windowNumber],
+            path
+        ];
+
+        @try
+        {
+            [task launch];
+            [task waitUntilExit];
+            if (task.terminationStatus == 0)
+                return;
+        }
+        @catch (NSException *exception) { }
+
+        if (!video_renderer_capture_screenshot(path))
+            return;
 
         NSRect rectInWindow = [view convertRect:view.bounds toView:nil];
         NSRect rectInScreen = [window convertRectToScreen:rectInWindow];
@@ -133,12 +210,7 @@ extern MTKView *arc_get_video_view(void);
 
         if (![pngData writeToFile:path atomically:YES])
             error = [NSString stringWithFormat:@"Failed to write file: %@", path];
-    };
-
-    if ([NSThread isMainThread])
-        captureBlock();
-    else
-        dispatch_sync(dispatch_get_main_queue(), captureBlock);
+    });
 
     return error;
 }
