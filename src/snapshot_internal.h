@@ -10,7 +10,9 @@
  * included by code outside the snapshot subsystem.
  */
 
+#include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include "snapshot.h"
 
@@ -31,13 +33,25 @@ struct snapshot_load_ctx_t {
 	 * Populated by snapshot_prepare_runtime() after it has consumed
 	 * the CFG, MEDA and optional PREV chunks. */
 	size_t             state_chunks_cursor;
-	int                runtime_prepared;
-
-	/* Populated once prepare_runtime has materialised the bundle. */
-	char               runtime_id[64];         /* "__snapshot_<16hex>" */
-	char               runtime_dir[4096];      /* absolute path */
-	char               runtime_config[4096];   /* absolute path to machine.cfg */
 };
+
+/* Shared error-buffer helpers used by snapshot.c and snapshot_load.c. */
+static inline void set_error(char *buf, size_t buf_size, const char *msg)
+{
+	if (!buf || !buf_size)
+		return;
+	snprintf(buf, buf_size, "%s", msg ? msg : "");
+}
+
+static inline void set_errorf(char *buf, size_t buf_size, const char *fmt, ...)
+{
+	va_list args;
+	if (!buf || !buf_size)
+		return;
+	va_start(args, fmt);
+	vsnprintf(buf, buf_size, fmt, args);
+	va_end(args);
+}
 
 #ifdef __cplusplus
 }

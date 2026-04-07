@@ -6,7 +6,7 @@
  *   - a small in-memory growable writer
  *   - a memory-resident reader with per-chunk CRC validation
  *   - manifest encode / decode
- *   - stubs for the high-level save() / load() entry points
+ *   - snapshot_open() / snapshot_close() and the scope-flag guard
  */
 
 #include "snapshot.h"
@@ -14,30 +14,10 @@
 #include "snapshot_internal.h"
 
 #include <errno.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* ----- helpers --------------------------------------------------------- */
-
-static void set_error(char *buf, size_t buf_size, const char *msg)
-{
-	if (!buf || !buf_size)
-		return;
-	snprintf(buf, buf_size, "%s", msg ? msg : "");
-}
-
-static void set_errorf(char *buf, size_t buf_size, const char *fmt, ...)
-{
-	va_list args;
-	if (!buf || !buf_size)
-		return;
-	va_start(args, fmt);
-	vsnprintf(buf, buf_size, fmt, args);
-	va_end(args);
-}
 
 /* ----- CRC32 (IEEE 802.3) --------------------------------------------- */
 
@@ -1043,10 +1023,10 @@ snapshot_load_ctx_t *snapshot_open(const char *path, char *err, size_t err_size)
 	return ctx;
 }
 
-/* snapshot_prepare_runtime() and snapshot_apply_machine_state() are
- * implemented in src/snapshot_load.c — they pull in config / platform /
- * per-subsystem load_state dependencies that the standalone format
- * tests can't (and don't need to) link against. */
+/* snapshot_prepare_runtime() and snapshot_apply_machine_state() live in
+ * snapshot_load.c so the standalone format tests can link against
+ * snapshot.c without pulling in config / platform / per-subsystem
+ * load_state dependencies. */
 
 const char *snapshot_original_config_name(const snapshot_load_ctx_t *ctx)
 {

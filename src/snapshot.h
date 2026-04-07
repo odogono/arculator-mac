@@ -13,10 +13,10 @@ extern "C" {
 /*
  * Public C API for the floppy-only snapshot feature (.arcsnap files).
  *
- * The format primitives, in-memory chunk writer/reader, and
- * header/manifest encode/decode helpers are implemented below. The
- * high-level save() flow and the loader's prepare_runtime() and
- * apply_machine_state() entry points are currently stubbed.
+ * Includes the format primitives, in-memory chunk writer/reader,
+ * header/manifest encode/decode helpers, and the loader entry points
+ * (snapshot_open, snapshot_prepare_runtime, snapshot_apply_machine_state,
+ * snapshot_close). The high-level save() flow is still stubbed.
  */
 
 /* ----- High level save/load API (callable by the shell). ------------- */
@@ -51,7 +51,7 @@ snapshot_load_ctx_t *snapshot_open(const char *path,
  *   - runtime_config_out: absolute path of the rebased machine config
  *   - runtime_name_out:   synthetic config name (`__snapshot_<id>`),
  *                         used to keep CMOS isolated
- * Currently stubbed; returns 0 with "not implemented". */
+ * Returns 1 on success, 0 on failure with `error_buf` populated. */
 int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
                              char *runtime_dir_out, size_t runtime_dir_out_len,
                              char *runtime_config_out, size_t runtime_config_out_len,
@@ -60,7 +60,9 @@ int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
 
 /* Applies the captured machine state on top of an already-initialised
  * emulation (i.e. immediately after `arc_init()` has been called against
- * the rebased runtime config). Currently stubbed; returns 1. */
+ * the rebased runtime config). The per-subsystem `*_load_state` functions
+ * handle their own derived-state rebuild. Returns 1 on success, 0 on
+ * failure with `error_buf` populated. */
 int snapshot_apply_machine_state(snapshot_load_ctx_t *ctx,
                                  char *error_buf, size_t error_buf_len);
 
