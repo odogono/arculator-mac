@@ -141,6 +141,19 @@ static int shell_stop_pending = 0;
 static int shell_release_shortcut_down = 0;
 static int shell_fullscreen_shortcut_down = 0;
 
+// Configurable mouse-release shortcut. Loaded from CFPreferences keys
+// "ArculatorReleaseShortcutKeyCode" and "ArculatorReleaseShortcutModFlags"
+// (written by AppSettings.swift via UserDefaults.standard).
+// shell_release_main_keycode is biased by KEYCODE_MACOS() so it can be
+// passed straight to input_get_host_key_state. Defaults match the
+// historical hardcoded behaviour: CMD-Backspace.
+static NSEventModifierFlags shell_release_modifier_flags = NSEventModifierFlagCommand;
+static int  shell_release_main_keycode  = KEYCODE_MACOS(kVK_Delete);
+static char shell_release_subtitle[64]  = "CMD-BACKSPACE";
+// Start at the polling threshold so the first main-loop tick triggers an
+// immediate load from CFPreferences before the defaults above are used.
+static int  shell_release_combo_refresh_counter = 1000;
+
 /* Snapshot session state. Populated by arc_start_snapshot_session()
  * before the emulation thread is spawned, consumed by
  * arc_emulation_thread() when it calls arc_init_from_snapshot(). The
@@ -514,6 +527,117 @@ static void shell_prepare_ui(void)
 		shell_create_menus();
 }
 
+// Build a plain-ASCII display string for the configured release combo
+// (e.g. "CMD-BACKSPACE", "CTRL-CMD-R", "F12"). Used in the window subtitle.
+static void shell_format_release_subtitle(char *dest, size_t size, NSEventModifierFlags flags, int biased_keycode)
+{
+	const char *parts[6];
+	int n = 0;
+
+	if (flags & NSEventModifierFlagControl) parts[n++] = "CTRL";
+	if (flags & NSEventModifierFlagOption)  parts[n++] = "OPT";
+	if (flags & NSEventModifierFlagShift)   parts[n++] = "SHIFT";
+	if (flags & NSEventModifierFlagCommand) parts[n++] = "CMD";
+
+	int raw = KEYCODE_MACOS_TO_RAW(biased_keycode);
+	const char *key_name = NULL;
+	char key_buf[16];
+	switch (raw)
+	{
+	case kVK_Delete:        key_name = "BACKSPACE"; break;
+	case kVK_ForwardDelete: key_name = "DELETE";    break;
+	case kVK_Return:        key_name = "RETURN";    break;
+	case kVK_Escape:        key_name = "ESC";       break;
+	case kVK_Tab:           key_name = "TAB";       break;
+	case kVK_Space:         key_name = "SPACE";     break;
+	case kVK_LeftArrow:     key_name = "LEFT";      break;
+	case kVK_RightArrow:    key_name = "RIGHT";     break;
+	case kVK_UpArrow:       key_name = "UP";        break;
+	case kVK_DownArrow:     key_name = "DOWN";      break;
+	case kVK_F1:  key_name = "F1";  break;
+	case kVK_F2:  key_name = "F2";  break;
+	case kVK_F3:  key_name = "F3";  break;
+	case kVK_F4:  key_name = "F4";  break;
+	case kVK_F5:  key_name = "F5";  break;
+	case kVK_F6:  key_name = "F6";  break;
+	case kVK_F7:  key_name = "F7";  break;
+	case kVK_F8:  key_name = "F8";  break;
+	case kVK_F9:  key_name = "F9";  break;
+	case kVK_F10: key_name = "F10"; break;
+	case kVK_F11: key_name = "F11"; break;
+	case kVK_F12: key_name = "F12"; break;
+	default:
+		snprintf(key_buf, sizeof(key_buf), "KEY%d", raw);
+		key_name = key_buf;
+		break;
+	}
+	parts[n++] = key_name;
+
+	dest[0] = 0;
+	for (int i = 0; i < n; i++)
+	{
+		if (i > 0)
+			strlcat(dest, "-", size);
+		strlcat(dest, parts[i], size);
+	}
+}
+
+// Read configured mouse-release combo from CFPreferences. Called from the
+// main-loop polling path so changes from the Settings UI propagate without
+// requiring a restart. Falls back to CMD-BACKSPACE if preferences are
+// absent or malformed.
+static void shell_load_release_combo(void)
+{
+	NSEventModifierFlags new_flags = NSEventModifierFlagCommand;
+	int new_keycode = kVK_Delete;
+	CFTypeRef value;
+
+	value = CFPreferencesCopyAppValue(
+		CFSTR("ArculatorReleaseShortcutKeyCode"),
+		kCFPreferencesCurrentApplication);
+	if (value && CFGetTypeID(value) == CFNumberGetTypeID())
+		CFNumberGetValue((CFNumberRef)value, kCFNumberIntType, &new_keycode);
+	if (value)
+		CFRelease(value);
+
+	value = CFPreferencesCopyAppValue(
+		CFSTR("ArculatorReleaseShortcutModFlags"),
+		kCFPreferencesCurrentApplication);
+	if (value && CFGetTypeID(value) == CFNumberGetTypeID())
+	{
+		long long raw_flags = 0;
+		CFNumberGetValue((CFNumberRef)value, kCFNumberLongLongType, &raw_flags);
+		new_flags = (NSEventModifierFlags)raw_flags;
+	}
+	if (value)
+		CFRelease(value);
+
+	int new_biased = KEYCODE_MACOS(new_keycode);
+	if (new_flags != shell_release_modifier_flags
+	 || new_biased != shell_release_main_keycode)
+	{
+		shell_release_modifier_flags = new_flags;
+		shell_release_main_keycode   = new_biased;
+		shell_format_release_subtitle(shell_release_subtitle, sizeof(shell_release_subtitle),
+		                              new_flags, new_biased);
+		updatemips = 1; // refresh window subtitle
+	}
+}
+
+// Returns non-zero if every modifier required by `flags` is currently held.
+static int shell_release_modifier_held(NSEventModifierFlags flags)
+{
+	if ((flags & NSEventModifierFlagCommand) && !(input_get_host_key_state(KEY_LWIN) || input_get_host_key_state(KEY_RWIN)))
+		return 0;
+	if ((flags & NSEventModifierFlagControl) && !(input_get_host_key_state(KEY_LCONTROL) || input_get_host_key_state(KEY_RCONTROL)))
+		return 0;
+	if ((flags & NSEventModifierFlagOption) && !(input_get_host_key_state(KEY_ALT) || input_get_host_key_state(KEY_ALTGR)))
+		return 0;
+	if ((flags & NSEventModifierFlagShift) && !(input_get_host_key_state(KEY_LSHIFT) || input_get_host_key_state(KEY_RSHIFT)))
+		return 0;
+	return 1;
+}
+
 static void shell_set_window_title(void)
 {
 	if (!shell_window || fullscreen)
@@ -523,9 +647,13 @@ static void shell_set_window_title(void)
 	if (!display_name || !display_name[0])
 		display_name = machine_config_name;
 
-	char subtitle[120];
+	char release_hint[96];
+	snprintf(release_hint, sizeof(release_hint),
+	         "Press %s to release mouse", shell_release_subtitle);
+
+	char subtitle[200];
 	snprintf(subtitle, sizeof(subtitle), "%s - %i%% - %s", display_name, inssec,
-		 mousecapture ? "Press CMD-BACKSPACE to release mouse" : "Click to capture mouse");
+		 mousecapture ? release_hint : "Click to capture mouse");
 	[shell_window setSubtitle:[NSString stringWithUTF8String:subtitle]];
 }
 
@@ -1274,8 +1402,19 @@ static void shell_apply_pending_renderer_reset(void)
 
 static void shell_handle_shortcuts(void)
 {
+	// Periodically pick up settings changes from the Settings UI without
+	// requiring a relaunch. ~once per second at the 1ms shell timer. The
+	// counter is seeded at the threshold so the first tick does an
+	// immediate load in place of a separate startup call.
+	if (++shell_release_combo_refresh_counter >= 1000)
+	{
+		shell_release_combo_refresh_counter = 0;
+		shell_load_release_combo();
+	}
+
 	int command_down = input_get_host_key_state(KEY_LWIN) || input_get_host_key_state(KEY_RWIN);
-	int release_down = command_down && input_get_host_key_state(KEY_BACKSPACE);
+	int release_down = shell_release_modifier_held(shell_release_modifier_flags)
+	                && input_get_host_key_state(shell_release_main_keycode);
 	int fullscreen_down = command_down && input_get_host_key_state(KEY_ENTER);
 
 	if (!release_down)
@@ -1634,6 +1773,26 @@ int main(int argc, char **argv)
 			}
 		}
 #endif
+
+		// Apply persisted user-data location override from app preferences.
+		// Swift writes "ArculatorSupportPath" via UserDefaults.standard;
+		// CFPreferences for the current app reads from the same plist.
+		// Skipped if ARCULATOR_SUPPORT_PATH is already set (env var or
+		// debug -ArculatorTestSupportPath flag wins).
+		if (!getenv("ARCULATOR_SUPPORT_PATH"))
+		{
+			CFTypeRef value = CFPreferencesCopyAppValue(
+				CFSTR("ArculatorSupportPath"),
+				kCFPreferencesCurrentApplication);
+			if (value && CFGetTypeID(value) == CFStringGetTypeID())
+			{
+				char buf[PATH_MAX];
+				if (CFStringGetFileSystemRepresentation((CFStringRef)value, buf, sizeof(buf)) && buf[0])
+					setenv("ARCULATOR_SUPPORT_PATH", buf, 1);
+			}
+			if (value)
+				CFRelease(value);
+		}
 
 		platform_paths_init(argv[0]);
 

@@ -99,6 +99,9 @@ SOURCE_FILES = %w[
   src/macos/StorageSettingsView.swift
   src/macos/PeripheralsSettingsView.swift
   src/macos/DisplaySettingsView.swift
+  src/macos/AppSettings.swift
+  src/macos/AppSettingsView.swift
+  src/macos/ShortcutRecorderView.swift
   src/macos/SidebarView.swift
   src/macos/ConfigListView.swift
   src/macos/RunningControlsView.swift

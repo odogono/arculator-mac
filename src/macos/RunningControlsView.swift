@@ -12,6 +12,7 @@ struct RunningControlsView: View {
 
     @ObservedObject var configModel: MachineConfigModel
     @ObservedObject var emulatorState: EmulatorState
+    var onOpenAppSettings: () -> Void = {}
 
     private var visibleDriveIndices: [Int] {
         let driveCount = (configModel.ioType == .new_) ? 2 : 4
@@ -19,51 +20,73 @@ struct RunningControlsView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
 
-            // Active config name
-            Text(emulatorState.activeConfigName)
-                .font(.headline)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .accessibilityIdentifier("activeConfigName")
+                // Active config name
+                Text(emulatorState.activeConfigName)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .accessibilityIdentifier("activeConfigName")
 
-            // Status row
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(emulatorState.isRunning ? .green : .orange)
-                    .frame(width: 8, height: 8)
+                // Status row
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(emulatorState.isRunning ? .green : .orange)
+                        .frame(width: 8, height: 8)
 
-                Text(emulatorState.isRunning ? "Running" : "Paused")
-                    .font(.subheadline)
+                    Text(emulatorState.isRunning ? "Running" : "Paused")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("emulatorStatus")
+
+                    Spacer()
+
+                    Text("\(emulatorState.speedPercent)%")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("emulatorSpeed")
+                }
+
+                Divider()
+
+                // Floppy drives
+                Text("Floppy Drives")
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("emulatorStatus")
+
+                ForEach(visibleDriveIndices, id: \.self) { index in
+                    DiscSlotView(
+                        driveIndex: index,
+                        discName: emulatorState.discNames[index]
+                    )
+                }
 
                 Spacer()
-
-                Text("\(emulatorState.speedPercent)%")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("emulatorSpeed")
             }
+            .padding()
 
             Divider()
+            bottomBar
+        }
+        .accessibilityIdentifier("runningControls")
+    }
 
-            // Floppy drives
-            Text("Floppy Drives")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-
-            ForEach(visibleDriveIndices, id: \.self) { index in
-                DiscSlotView(
-                    driveIndex: index,
-                    discName: emulatorState.discNames[index]
-                )
+    private var bottomBar: some View {
+        HStack {
+            Button {
+                onOpenAppSettings()
+            } label: {
+                Image(systemName: "gearshape")
             }
+            .buttonStyle(.borderless)
+            .help("Settings")
+            .accessibilityIdentifier("runningControlsAppSettingsButton")
 
             Spacer()
         }
-        .padding()
-        .accessibilityIdentifier("runningControls")
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 }

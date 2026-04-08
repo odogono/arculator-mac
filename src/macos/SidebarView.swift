@@ -14,13 +14,21 @@ struct SidebarView: View {
     @ObservedObject var configList: ConfigListModel
     @ObservedObject var configModel: MachineConfigModel
     @ObservedObject var emulatorState: EmulatorState
+    var onOpenAppSettings: () -> Void = {}
 
     var body: some View {
         Group {
             if emulatorState.isIdle {
-                ConfigListView(configList: configList)
+                ConfigListView(
+                    configList: configList,
+                    onOpenAppSettings: onOpenAppSettings
+                )
             } else {
-                RunningControlsView(configModel: configModel, emulatorState: emulatorState)
+                RunningControlsView(
+                    configModel: configModel,
+                    emulatorState: emulatorState,
+                    onOpenAppSettings: onOpenAppSettings
+                )
             }
         }
         // Note: no accessibilityIdentifier here — child views

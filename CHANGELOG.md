@@ -1,6 +1,10 @@
 # Changelog
 
-## v2.3-mac (unreleased)
+## (unreleased)
+
+- macOS: Add App Settings panel with configurable keyboard shortcuts for pause/reset
+- macOS: Add ShortcutRecorderView for recording custom keyboard shortcuts
+- macOS: Add sidebar item for App Settings in preferences
 
 - core: Add snapshot save/load system with per-subsystem serialization
 - core: Add arc_init_from_snapshot() API for loading saved machine state
@@ -16,8 +20,6 @@
 - macOS: Improve screenshot capture to use `screencapture` fallback and Metal texture capture when window-based capture fails
 - macOS: Add `ensureVideoViewInstalled` check before starting emulation to provide clearer error messages
 - macOS: Change default IDE disk cylinders from 100 to 101 for proper legacy header compatibility
-
-## v2.3-mac (unreleased)
 
 - AppleScript: Add full AppleScript support with .sdef dictionary definition
 - AppleScript: Add lifecycle commands (start/stop/pause/resume/reset/start config)
@@ -47,8 +49,6 @@
 - testing: Add accessibility identifiers throughout SwiftUI views for UI test automation
 - testing: Remove legacy AppleScript-based GUI smoke tests (`run_macos_gui_smoke_test.sh`, `macos_gui_smoke_test.applescript`, `run_macos_session1_check.sh`, `macos_session1_check.applescript`)
 
-## v2.3-mac (unreleased)
-
 - macOS: Replace wxWidgets-based config dialog with native SwiftUI UI (MainSplitViewController, SidebarView, ConfigEditorView, etc.)
 - macOS: Add machine preset system with Swift bridge (MachinePresets.swift, MachinePresetBridge.mm)
 - macOS: Add macOS keycode bias mechanism for virtual key code handling
@@ -58,8 +58,6 @@
 - macOS: Add subtitle support in window title bar
 - macOS: Generate Xcode project with Swift support, bridging header, and SwiftUI framework
 - macOS: Remove legacy config_macos.mm in favor of SwiftUI implementation
-
-## v2.3-mac (unreleased)
 
 - core: Add emulation control command queue for thread-safe command handling
 - core: Add input snapshot functionality

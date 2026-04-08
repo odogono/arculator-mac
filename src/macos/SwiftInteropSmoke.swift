@@ -100,7 +100,11 @@ enum SwiftInteropSmoke {
     }
 
     static func verifySidebarHostingController() -> Bool {
-        let vc = SidebarHostingController(configList: ConfigListModel(), configModel: MachineConfigModel())
+        let vc = SidebarHostingController(
+            configList: ConfigListModel(),
+            configModel: MachineConfigModel(),
+            onOpenAppSettings: {}
+        )
         _ = vc.view
         return true
     }

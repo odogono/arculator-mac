@@ -1,0 +1,940 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		018007E6D0CA5AF9715E5CB1 /* ConfigListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B902844F15248C328B4FDA68 /* ConfigListView.swift */; };
+		0439ACABB64EC545D1100F05 /* MachineConfigModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 529B2205230FF37D31362D48 /* MachineConfigModel.swift */; };
+		055EE5CFA20FED6BD9CE1AAB /* printer.c in Sources */ = {isa = PBXBuildFile; fileRef = 5BE1E21FA1890D0489A7BD15 /* printer.c */; };
+		072A6C00A58A571CA9BF99C8 /* debugger_swis.c in Sources */ = {isa = PBXBuildFile; fileRef = 3598644E0FA9F65000124CFA /* debugger_swis.c */; };
+		077DE921D3EA79CA21383AB1 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B42F1DD0A0F912B8D6B8B58 /* Metal.framework */; };
+		0C4591DFA469DDB0EBA5F56E /* PeripheralsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE14E4A6CD2143E6438352A /* PeripheralsSettingsView.swift */; };
+		139BE9F7EDFA3DEC05230C86 /* MutabilityGating.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44403EE1D50AB1B23DE4C576 /* MutabilityGating.swift */; };
+		15AA9B2BC63E49C26CF24896 /* RunningControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CC4484E4619BF2D0B0ED01 /* RunningControlsView.swift */; };
+		17EC1F4E1E3290DC30ED1309 /* hostfs-unix.c in Sources */ = {isa = PBXBuildFile; fileRef = 38E222A1675E0A983C5CA5DC /* hostfs-unix.c */; };
+		1835B7BD9AA2976AEA12A378 /* templates in Resources */ = {isa = PBXBuildFile; fileRef = 185BD5C29FE2DEDDCFCA9AA1 /* templates */; };
+		1C4D3E7E660645530F233EEE /* disc_fdi.c in Sources */ = {isa = PBXBuildFile; fileRef = 13A842F7188908D6C346DE45 /* disc_fdi.c */; };
+		1FF168473B540F3BCC9C43F3 /* wd1770.c in Sources */ = {isa = PBXBuildFile; fileRef = DA9AE06246CE29418FC66ED7 /* wd1770.c */; };
+		271BADB857110F8D722928F7 /* keyboard.c in Sources */ = {isa = PBXBuildFile; fileRef = C8555E547CBCC368E789732A /* keyboard.c */; };
+		2ABE62C8E4CF04C09E5A23FB /* debugger.c in Sources */ = {isa = PBXBuildFile; fileRef = 979EE53CF0BE4A3A2E84DC8A /* debugger.c */; };
+		2C6CD93E06A82F5F208B2FC9 /* ConfigListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41084115E4688AA6D4A6CE70 /* ConfigListModel.swift */; };
+		33D22523085D68884FDC58A6 /* ioeb.c in Sources */ = {isa = PBXBuildFile; fileRef = 2E3F335A95F9F2AD93EC0EB7 /* ioeb.c */; };
+		343EE38B8066D26854A015B0 /* sound.c in Sources */ = {isa = PBXBuildFile; fileRef = 2744F8B95865914735D24F0C /* sound.c */; };
+		35789E779432A2E97A58CA47 /* snapshot_load.c in Sources */ = {isa = PBXBuildFile; fileRef = EC5044E1F06D11C86A71DDC5 /* snapshot_load.c */; };
+		377558D14CA691927D79E780 /* ds2401.c in Sources */ = {isa = PBXBuildFile; fileRef = 6862989ED163EE00C5FA9CA4 /* ds2401.c */; };
+		38009C005463375282E6770A /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B7D7E7046CBBC1692585FDA /* QuartzCore.framework */; };
+		381C1D5F8597AB9E299A0B53 /* romload.c in Sources */ = {isa = PBXBuildFile; fileRef = BD2343BBF1FD2428460534B1 /* romload.c */; };
+		383A09C9E5C00F8B9867CE25 /* InputScriptingCommands.mm in Sources */ = {isa = PBXBuildFile; fileRef = D0680CB868C9B83CDB60294E /* InputScriptingCommands.mm */; };
+		3C7FFF379152863C841F17DA /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADDCF48FAC485179D60F5A76 /* Cocoa.framework */; };
+		3DF87DEA44AF9137253576C2 /* AppSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85A1693E716A1271601C1588 /* AppSettingsView.swift */; };
+		40384351DD3D4E2629F07FDA /* bmu.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D1A19DC0D33E6B30B3C7893 /* bmu.c */; };
+		4250FDBCB2FB9F53A70DC0DD /* video_metal.m in Sources */ = {isa = PBXBuildFile; fileRef = 243A888C48792114B21963C2 /* video_metal.m */; };
+		45C416293842FACFD0DBDF20 /* fdi2raw.c in Sources */ = {isa = PBXBuildFile; fileRef = 73ADAB60BCAE317533941D9D /* fdi2raw.c */; };
+		4612B868BC545B8F1B1D22C3 /* podules.c in Sources */ = {isa = PBXBuildFile; fileRef = EA1A947FD0809A3561F4C4C4 /* podules.c */; };
+		48FCDDD829509DEF94731AD4 /* 82c711.c in Sources */ = {isa = PBXBuildFile; fileRef = 321849CC8FA9DBA576E03FAF /* 82c711.c */; };
+		4CC4F5C84DEC4F3F12925B4A /* SwiftInteropSmoke.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ED83A038E1A0D7D3A3269F9 /* SwiftInteropSmoke.swift */; };
+		4D31C8F1C95E4F4EA6DBD6DD /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C95F654C0F97E4B3D9314E13 /* IOKit.framework */; };
+		4E1757B182E69E50DBB3F1E4 /* input_macos.m in Sources */ = {isa = PBXBuildFile; fileRef = 659A4FD766E2CC1617D19027 /* input_macos.m */; };
+		4EC3982C371B1FCD5F6A0E3A /* ddnoise.c in Sources */ = {isa = PBXBuildFile; fileRef = AEDAF1EFF11F77FDF50B9782 /* ddnoise.c */; };
+		4F6C13E2777AD3E33240C862 /* HardwareEnumeration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51B61FB389E88F65C5DCBE6 /* HardwareEnumeration.swift */; };
+		5057FF57C313A3B7980F4093 /* InternalDriveScriptingCommands.mm in Sources */ = {isa = PBXBuildFile; fileRef = CE3EB49B2D33296F4961E21F /* InternalDriveScriptingCommands.mm */; };
+		50D3C78F4385A3B42D506C93 /* EmulatorBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = 97D6265D71214974EF7C0DB8 /* EmulatorBridge.mm */; };
+		54EBADE948C855F3C430C5B2 /* MachinePresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EA9794D0E5DCBFC17AABCA6 /* MachinePresets.swift */; };
+		557B910E587359802CEF4D84 /* podule_config_macos.mm in Sources */ = {isa = PBXBuildFile; fileRef = 36C8C71641480A525E9DB6B3 /* podule_config_macos.mm */; };
+		55F433843F4958FA7FB5CDD9 /* g16.c in Sources */ = {isa = PBXBuildFile; fileRef = 2B560B9AF38D6645101F356C /* g16.c */; };
+		5D5F0983F1C8625DDBAED711 /* eterna.c in Sources */ = {isa = PBXBuildFile; fileRef = 29B47B063EE7E35F45A7D61D /* eterna.c */; };
+		5F306A01C6D818A2E6C4F4E0 /* config.c in Sources */ = {isa = PBXBuildFile; fileRef = 941127B2CD9B14B754EBDF6E /* config.c */; };
+		62D25B1519492384FC3D3767 /* ide_config.c in Sources */ = {isa = PBXBuildFile; fileRef = 95FCE097673DC41B4952F5B3 /* ide_config.c */; };
+		6860B7C89BF51035C36F7D7B /* hd_macos.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0DA14439B335A28E5BFCF721 /* hd_macos.mm */; };
+		6A0D06C908ED016BE3BD70C6 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0402CF05A2D91C45D714A42D /* SidebarView.swift */; };
+		6A345DBB6E94021939A6F149 /* ide_idea.c in Sources */ = {isa = PBXBuildFile; fileRef = C2C9E1450E8236FEC133BBA4 /* ide_idea.c */; };
+		6EB2A3CC136C7E8575481F9B /* disc_adf.c in Sources */ = {isa = PBXBuildFile; fileRef = 53A428986342EA1FEAAE3CD5 /* disc_adf.c */; };
+		770E3912D9977BE898ABE5E6 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08C9D4D47FE12585D9BEFBEA /* Carbon.framework */; };
+		798BDF5232BDC7C90C32160D /* colourcard.c in Sources */ = {isa = PBXBuildFile; fileRef = B2B2B134EDC9260D081D0D3D /* colourcard.c */; };
+		7BA0496802ACAE431A32F5F7 /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A500BCEA62D7512ADB53C845 /* GameController.framework */; };
+		7CCD7E227179DB98F8C8D869 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 084AAFCFDE9E1B92EC320986 /* OpenGL.framework */; };
+		7CEC816739B60F1D5DDAB460 /* MachinePresetBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = BF1698007325BD740CB98734 /* MachinePresetBridge.mm */; };
+		7D3F9C600D8FF00AD3332A24 /* disc_apd.c in Sources */ = {isa = PBXBuildFile; fileRef = 0B1CE3E43632EBEAB8A998AE /* disc_apd.c */; };
+		7D402CB4E3908E65F045FBD0 /* EmulatorMetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D83BAB22580555A703045A38 /* EmulatorMetalView.swift */; };
+		7F639F51514A02E175AC5760 /* StorageSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8CC92E1A08FC24E5D183315 /* StorageSettingsView.swift */; };
+		80517B14E6EF0AE3A24B85F0 /* MainSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D7DC8A6E756330EDABF92B5 /* MainSplitViewController.swift */; };
+		842C5E26462615BD6BF6170B /* ide_zidefs_a3k.c in Sources */ = {isa = PBXBuildFile; fileRef = B1B4E06C176D40BCB68E0ADB /* ide_zidefs_a3k.c */; };
+		8496EDD063769EDFB6E6F654 /* joystick.c in Sources */ = {isa = PBXBuildFile; fileRef = 3844691C2D0F27658F8C8D31 /* joystick.c */; };
+		856EEB3511DDCC69A4C2FC28 /* lc.c in Sources */ = {isa = PBXBuildFile; fileRef = DF4CF359127B508523DF477A /* lc.c */; };
+		89F8102B62F0278A3432EA5C /* DiscSlotView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D12FA82BF4E961A6241E80A /* DiscSlotView.swift */; };
+		8CF0177681E713F0AB4306F0 /* ContentHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C324EE242C77F34E62A78ADE /* ContentHostingController.swift */; };
+		8E16DF2532357B8AA2FCCCBA /* input_snapshot.c in Sources */ = {isa = PBXBuildFile; fileRef = 88AB820C39EDB0BB6D70EA14 /* input_snapshot.c */; };
+		8FAAF0540FB642216948C95A /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A25B77D8A055C56A0D10EFE8 /* Cocoa.framework */; };
+		91289936817FE293A8D04264 /* timer.c in Sources */ = {isa = PBXBuildFile; fileRef = 7E7375F6D4220704D80B1458 /* timer.c */; };
+		91E8EBA23574B4DACDA7CCAA /* disc_scp.c in Sources */ = {isa = PBXBuildFile; fileRef = A86915806309E223CB035D83 /* disc_scp.c */; };
+		9544BB315A84E524AD97951C /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD5DA19663C6C567A63DDCE7 /* GeneralSettingsView.swift */; };
+		98B6F90856067A6D1F7C1C09 /* ide_a3in.c in Sources */ = {isa = PBXBuildFile; fileRef = 26AE9E7D897E4517915F2F06 /* ide_a3in.c */; };
+		9A41C80D86AD51785F47BDB8 /* joystick_gc.m in Sources */ = {isa = PBXBuildFile; fileRef = ACCA70078517DA4C7856F959 /* joystick_gc.m */; };
+		9A83229D8762F53ABD0C7B75 /* NSApplication+Scripting.mm in Sources */ = {isa = PBXBuildFile; fileRef = F130B4E17454D21BBF006F08 /* NSApplication+Scripting.mm */; };
+		9B37106968488C26D350759C /* sound_coreaudio.m in Sources */ = {isa = PBXBuildFile; fileRef = 82857789EA8BBB22D89887C4 /* sound_coreaudio.m */; };
+		9BD514D1BDF901CDFFB66B83 /* ConfigEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0F0A3DFAF2BE57716EE78B /* ConfigEditorView.swift */; };
+		9DF3B34AF0BE8B3C8D4395BE /* ide.c in Sources */ = {isa = PBXBuildFile; fileRef = ACC28FF53CFEAF693334CCF2 /* ide.c */; };
+		9F1AE04773470E5495CD1AB7 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD0376F4169B0A131F7D122 /* AppSettings.swift */; };
+		A4B0A9ED9DA5F760B2D7FC24 /* g332.c in Sources */ = {isa = PBXBuildFile; fileRef = B5B86A4BFA9C02EDE5096D6C /* g332.c */; };
+		A52879D0C9B51B6A17AB1DC6 /* disc_jfd.c in Sources */ = {isa = PBXBuildFile; fileRef = 555B135C6C9547C23D67ACBA /* disc_jfd.c */; };
+		A71DB9992E4DFF7BDDA6DBD3 /* hostfs.c in Sources */ = {isa = PBXBuildFile; fileRef = A356F8BE3B210F79B99561EA /* hostfs.c */; };
+		A74E64911E315B9DB25F877D /* 82c711_fdc.c in Sources */ = {isa = PBXBuildFile; fileRef = D4EED7DB93EC3D2DBAB25274 /* 82c711_fdc.c */; };
+		A7603AF4681398019769FA0B /* ConfigScriptingCommands.mm in Sources */ = {isa = PBXBuildFile; fileRef = 04B488D15A04780FE97ED273 /* ConfigScriptingCommands.mm */; };
+		A80C814AB948B4C190EAE8DE /* app_macos.mm in Sources */ = {isa = PBXBuildFile; fileRef = AC05ECD6FA7E03905C41FB79 /* app_macos.mm */; };
+		A9CBB275656FEF5F5A47E39C /* memc.c in Sources */ = {isa = PBXBuildFile; fileRef = CA806937995EF365C1056949 /* memc.c */; };
+		ABA5D6988525BC24D236E53F /* cp15.c in Sources */ = {isa = PBXBuildFile; fileRef = 6B7817196101371DE64C3EFD /* cp15.c */; };
+		AD3945873293AB40104F5BF3 /* st506.c in Sources */ = {isa = PBXBuildFile; fileRef = B013915B3C8D99A817F75577 /* st506.c */; };
+		AD7EF03D8C09813B5B5D9EEE /* riscdev_hdfc.c in Sources */ = {isa = PBXBuildFile; fileRef = F03EB7B2BC8AAD2D10B55008 /* riscdev_hdfc.c */; };
+		B0BF962236C478C95B637F8D /* ToolbarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D012C83B4059A027810F6167 /* ToolbarManager.swift */; };
+		B1905AF6D4A6B1052937D060 /* disc.c in Sources */ = {isa = PBXBuildFile; fileRef = 60F75276EA903EC6DA231CE6 /* disc.c */; };
+		B3449792773537F14CFA7FFB /* joystick_config_macos.mm in Sources */ = {isa = PBXBuildFile; fileRef = C9459BD8869FDB62771818AA /* joystick_config_macos.mm */; };
+		B6985A0611556AA2C95F6705 /* disc_hfe.c in Sources */ = {isa = PBXBuildFile; fileRef = B7B915B2AB778BE369E7B520 /* disc_hfe.c */; };
+		B81D3F5448690F6DBD078F64 /* arm.c in Sources */ = {isa = PBXBuildFile; fileRef = 3B50A4EE74019580F6FFA989 /* arm.c */; };
+		BBF511C5958A4D01B45DA4B4 /* disc_mfm_common.c in Sources */ = {isa = PBXBuildFile; fileRef = EBD95D5FB83838A6C6513AD6 /* disc_mfm_common.c */; };
+		BE19096753171F0B945A5584 /* AutomationScriptingCommands.mm in Sources */ = {isa = PBXBuildFile; fileRef = A5AFE0F12D1698F364CB3209 /* AutomationScriptingCommands.mm */; };
+		BE95520B001AD27FA805D489 /* emulation_control.c in Sources */ = {isa = PBXBuildFile; fileRef = 79E7AE86690F945CCF39B8EB /* emulation_control.c */; };
+		BEFF04CA4A9BDDB6013801BA /* ScriptingCommandSupport.mm in Sources */ = {isa = PBXBuildFile; fileRef = D2653D7EE53B14CBFD316EDE /* ScriptingCommandSupport.mm */; };
+		C048866D746BDE6A94F56F26 /* snapshot.c in Sources */ = {isa = PBXBuildFile; fileRef = 71A082B8B63EA349541AA0CD /* snapshot.c */; };
+		C14F41E7193FE9CF9EAE1713 /* InputInjectionBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = 0307E90CF7798170B04347FE /* InputInjectionBridge.mm */; };
+		C49A09387876B08D3814BD3B /* ioc.c in Sources */ = {isa = PBXBuildFile; fileRef = 2E9D50ACC892D443F2A29C17 /* ioc.c */; };
+		C50AC62836CB84609473D91C /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27468AEBAD2ABC860CB1F295 /* AudioToolbox.framework */; };
+		C5CA81774A4FE50D457645B9 /* vidc.c in Sources */ = {isa = PBXBuildFile; fileRef = 472AB030D7BFB02748376A0C /* vidc.c */; };
+		CFF4AC0FAB51FCC134E39BF5 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = BF81F42AF20356470C587EB5 /* main.c */; };
+		D0DC01EF3AD1FF25D3412338 /* fpa.c in Sources */ = {isa = PBXBuildFile; fileRef = D8B8E347209E9A3111505EC7 /* fpa.c */; };
+		D2C540A96E4945E8C0E6D094 /* SidebarHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148CB42B7C1E36F74BFB312A /* SidebarHostingController.swift */; };
+		D34B41908CC990B33CF1C80D /* EmulatorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBCAAB37EB2CB4FA944018EE /* EmulatorState.swift */; };
+		D38C0DF54F7AEF30332B8A6D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6B769377BD5E9E21E52A55C1 /* Assets.xcassets */; };
+		D3BB44F5F5062FA5D174AA91 /* NewWindowBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = 336061C8902BDA3634E11421 /* NewWindowBridge.mm */; };
+		D6B3115785DED63C120A629B /* mem.c in Sources */ = {isa = PBXBuildFile; fileRef = 1CF5F8D9B3832EDF12399DCC /* mem.c */; };
+		D6DCFB7ACFA80DE6D8484DCC /* ide_riscdev.c in Sources */ = {isa = PBXBuildFile; fileRef = D6A8407F12C1F9C8C9866003 /* ide_riscdev.c */; };
+		D9E097A9A1B97DD9DBAB5F08 /* cmos.c in Sources */ = {isa = PBXBuildFile; fileRef = ABBBF3B61E7C7052EF9BDAF4 /* cmos.c */; };
+		DFDB0F6BA903E44619FE633B /* Arculator.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 63BB9AA199427B3D96809C6E /* Arculator.sdef */; };
+		E395DF68FFA990CF2F9613F4 /* ConfigEditorBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2B097C91D414F08C5F796872 /* ConfigEditorBridge.mm */; };
+		E5038D850C3FE1838E13562B /* st506_akd52.c in Sources */ = {isa = PBXBuildFile; fileRef = 1436DA4FE23F2023E23A285D /* st506_akd52.c */; };
+		EB6442DEEA28C763924E48D7 /* ShortcutRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F05AEE74EE93F06DF4310DA /* ShortcutRecorderView.swift */; };
+		F371F79767313EB4C8B6B41C /* DisplaySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E5BC6B794D622BFEA7F681 /* DisplaySettingsView.swift */; };
+		F3F2F2D6CC3F7035245B421D /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99E37E5C96CAD854AAA9B203 /* MetalKit.framework */; };
+		F4DDE8801EC0F04D616F3EAF /* LifecycleScriptingCommands.mm in Sources */ = {isa = PBXBuildFile; fileRef = 50634817347D2C68735F7EDC /* LifecycleScriptingCommands.mm */; };
+		F579AC73340CC3292437B532 /* ConfigBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = 88D978E9BE09A8F4F195AC17 /* ConfigBridge.mm */; };
+		F619A114F60944A5EA48BB52 /* platform_paths.c in Sources */ = {isa = PBXBuildFile; fileRef = BB70ED4694101E48BE19047C /* platform_paths.c */; };
+		F6BE78DE5204DC053C2F67D6 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DC4C14F1B1DD9A5B7402F23B /* CoreAudio.framework */; };
+		F723376F4CBA6D5C6AB1B0EA /* ide_zidefs.c in Sources */ = {isa = PBXBuildFile; fileRef = 9A514ECB7B6307EE28A3A5DC /* ide_zidefs.c */; };
+		FB1D4FCAE2A616F341D4E621 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 99B2881569865C2186D8EF50 /* SwiftUI.framework */; };
+		FC2AA9147507DF0459F78681 /* podules-macosx.c in Sources */ = {isa = PBXBuildFile; fileRef = 2C372965B39880792833DCD7 /* podules-macosx.c */; };
+		FE09CA2512759F4E8BA1B8B1 /* console_macos.mm in Sources */ = {isa = PBXBuildFile; fileRef = D4410742F4A41E4E7ABE1CD0 /* console_macos.mm */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0307E90CF7798170B04347FE /* InputInjectionBridge.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = InputInjectionBridge.mm; path = src/macos/InputInjectionBridge.mm; sourceTree = "<group>"; };
+		0402CF05A2D91C45D714A42D /* SidebarView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SidebarView.swift; path = src/macos/SidebarView.swift; sourceTree = "<group>"; };
+		04B488D15A04780FE97ED273 /* ConfigScriptingCommands.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = ConfigScriptingCommands.mm; path = src/macos/ConfigScriptingCommands.mm; sourceTree = "<group>"; };
+		06EE5A01A1A8392649B8ABAF /* Shaders.metal */ = {isa = PBXFileReference; includeInIndex = 1; name = Shaders.metal; path = src/macos/Shaders.metal; sourceTree = "<group>"; };
+		084AAFCFDE9E1B92EC320986 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
+		08C9D4D47FE12585D9BEFBEA /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
+		0B1CE3E43632EBEAB8A998AE /* disc_apd.c */ = {isa = PBXFileReference; includeInIndex = 1; name = disc_apd.c; path = src/disc_apd.c; sourceTree = "<group>"; };
+		0DA14439B335A28E5BFCF721 /* hd_macos.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = hd_macos.mm; path = src/macos/hd_macos.mm; sourceTree = "<group>"; };
+		0E9BAA835EDB0DF0E81AEF3C /* snapshot_chunks.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = snapshot_chunks.h; path = src/snapshot_chunks.h; sourceTree = "<group>"; };
+		0EA9794D0E5DCBFC17AABCA6 /* MachinePresets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MachinePresets.swift; path = src/macos/MachinePresets.swift; sourceTree = "<group>"; };
+		1265C4BC17BA414C675BECA0 /* Arculator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = Arculator.app; path = Arculator.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13A842F7188908D6C346DE45 /* disc_fdi.c */ = {isa = PBXFileReference; includeInIndex = 1; name = disc_fdi.c; path = src/disc_fdi.c; sourceTree = "<group>"; };
+		1436DA4FE23F2023E23A285D /* st506_akd52.c */ = {isa = PBXFileReference; includeInIndex = 1; name = st506_akd52.c; path = src/st506_akd52.c; sourceTree = "<group>"; };
+		148CB42B7C1E36F74BFB312A /* SidebarHostingController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SidebarHostingController.swift; path = src/macos/SidebarHostingController.swift; sourceTree = "<group>"; };
+		185BD5C29FE2DEDDCFCA9AA1 /* templates */ = {isa = PBXFileReference; includeInIndex = 1; name = templates; path = macos/templates; sourceTree = "<group>"; };
+		1CD86D103D4864787498B791 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = Info.plist; path = macos/Info.plist; sourceTree = "<group>"; };
+		1CF5F8D9B3832EDF12399DCC /* mem.c */ = {isa = PBXFileReference; includeInIndex = 1; name = mem.c; path = src/mem.c; sourceTree = "<group>"; };
+		243A888C48792114B21963C2 /* video_metal.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = video_metal.m; path = src/macos/video_metal.m; sourceTree = "<group>"; };
+		25DEAE2DCBE1A9A917444D4A /* snapshot.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = snapshot.h; path = src/snapshot.h; sourceTree = "<group>"; };
+		26AE9E7D897E4517915F2F06 /* ide_a3in.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ide_a3in.c; path = src/ide_a3in.c; sourceTree = "<group>"; };
+		2744F8B95865914735D24F0C /* sound.c */ = {isa = PBXFileReference; includeInIndex = 1; name = sound.c; path = src/sound.c; sourceTree = "<group>"; };
+		27468AEBAD2ABC860CB1F295 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
+		299681E5F7665BA053197BD1 /* ConfigEditorBridge.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ConfigEditorBridge.h; path = src/macos/ConfigEditorBridge.h; sourceTree = "<group>"; };
+		29B47B063EE7E35F45A7D61D /* eterna.c */ = {isa = PBXFileReference; includeInIndex = 1; name = eterna.c; path = src/eterna.c; sourceTree = "<group>"; };
+		2B097C91D414F08C5F796872 /* ConfigEditorBridge.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = ConfigEditorBridge.mm; path = src/macos/ConfigEditorBridge.mm; sourceTree = "<group>"; };
+		2B560B9AF38D6645101F356C /* g16.c */ = {isa = PBXFileReference; includeInIndex = 1; name = g16.c; path = src/g16.c; sourceTree = "<group>"; };
+		2C372965B39880792833DCD7 /* podules-macosx.c */ = {isa = PBXFileReference; includeInIndex = 1; name = "podules-macosx.c"; path = "src/podules-macosx.c"; sourceTree = "<group>"; };
+		2D1A19DC0D33E6B30B3C7893 /* bmu.c */ = {isa = PBXFileReference; includeInIndex = 1; name = bmu.c; path = src/bmu.c; sourceTree = "<group>"; };
+		2E3F335A95F9F2AD93EC0EB7 /* ioeb.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ioeb.c; path = src/ioeb.c; sourceTree = "<group>"; };
+		2E9D50ACC892D443F2A29C17 /* ioc.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ioc.c; path = src/ioc.c; sourceTree = "<group>"; };
+		2F05AEE74EE93F06DF4310DA /* ShortcutRecorderView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ShortcutRecorderView.swift; path = src/macos/ShortcutRecorderView.swift; sourceTree = "<group>"; };
+		2FC56D0F39868DBBB28DB561 /* InputInjectionBridge.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = InputInjectionBridge.h; path = src/macos/InputInjectionBridge.h; sourceTree = "<group>"; };
+		321849CC8FA9DBA576E03FAF /* 82c711.c */ = {isa = PBXFileReference; includeInIndex = 1; name = 82c711.c; path = src/82c711.c; sourceTree = "<group>"; };
+		336061C8902BDA3634E11421 /* NewWindowBridge.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = NewWindowBridge.mm; path = src/macos/NewWindowBridge.mm; sourceTree = "<group>"; };
+		3598644E0FA9F65000124CFA /* debugger_swis.c */ = {isa = PBXFileReference; includeInIndex = 1; name = debugger_swis.c; path = src/debugger_swis.c; sourceTree = "<group>"; };
+		36C8C71641480A525E9DB6B3 /* podule_config_macos.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = podule_config_macos.mm; path = src/macos/podule_config_macos.mm; sourceTree = "<group>"; };
+		3844691C2D0F27658F8C8D31 /* joystick.c */ = {isa = PBXFileReference; includeInIndex = 1; name = joystick.c; path = src/joystick.c; sourceTree = "<group>"; };
+		38E222A1675E0A983C5CA5DC /* hostfs-unix.c */ = {isa = PBXFileReference; includeInIndex = 1; name = "hostfs-unix.c"; path = "src/hostfs-unix.c"; sourceTree = "<group>"; };
+		3B50A4EE74019580F6FFA989 /* arm.c */ = {isa = PBXFileReference; includeInIndex = 1; name = arm.c; path = src/arm.c; sourceTree = "<group>"; };
+		41084115E4688AA6D4A6CE70 /* ConfigListModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConfigListModel.swift; path = src/macos/ConfigListModel.swift; sourceTree = "<group>"; };
+		44403EE1D50AB1B23DE4C576 /* MutabilityGating.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MutabilityGating.swift; path = src/macos/MutabilityGating.swift; sourceTree = "<group>"; };
+		472AB030D7BFB02748376A0C /* vidc.c */ = {isa = PBXFileReference; includeInIndex = 1; name = vidc.c; path = src/vidc.c; sourceTree = "<group>"; };
+		48CC4484E4619BF2D0B0ED01 /* RunningControlsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RunningControlsView.swift; path = src/macos/RunningControlsView.swift; sourceTree = "<group>"; };
+		4AEBD8EB3167F283B8D859BB /* NewWindowBridge.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = NewWindowBridge.h; path = src/macos/NewWindowBridge.h; sourceTree = "<group>"; };
+		4D7DC8A6E756330EDABF92B5 /* MainSplitViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MainSplitViewController.swift; path = src/macos/MainSplitViewController.swift; sourceTree = "<group>"; };
+		50634817347D2C68735F7EDC /* LifecycleScriptingCommands.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = LifecycleScriptingCommands.mm; path = src/macos/LifecycleScriptingCommands.mm; sourceTree = "<group>"; };
+		529B2205230FF37D31362D48 /* MachineConfigModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MachineConfigModel.swift; path = src/macos/MachineConfigModel.swift; sourceTree = "<group>"; };
+		53A428986342EA1FEAAE3CD5 /* disc_adf.c */ = {isa = PBXFileReference; includeInIndex = 1; name = disc_adf.c; path = src/disc_adf.c; sourceTree = "<group>"; };
+		555B135C6C9547C23D67ACBA /* disc_jfd.c */ = {isa = PBXFileReference; includeInIndex = 1; name = disc_jfd.c; path = src/disc_jfd.c; sourceTree = "<group>"; };
+		567DE87AA3BFE342F6A1C154 /* ArcMetalView.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ArcMetalView.h; path = src/macos/ArcMetalView.h; sourceTree = "<group>"; };
+		5AE14E4A6CD2143E6438352A /* PeripheralsSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PeripheralsSettingsView.swift; path = src/macos/PeripheralsSettingsView.swift; sourceTree = "<group>"; };
+		5B7D7E7046CBBC1692585FDA /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		5BE1E21FA1890D0489A7BD15 /* printer.c */ = {isa = PBXFileReference; includeInIndex = 1; name = printer.c; path = src/printer.c; sourceTree = "<group>"; };
+		60F75276EA903EC6DA231CE6 /* disc.c */ = {isa = PBXFileReference; includeInIndex = 1; name = disc.c; path = src/disc.c; sourceTree = "<group>"; };
+		63BB9AA199427B3D96809C6E /* Arculator.sdef */ = {isa = PBXFileReference; includeInIndex = 1; name = Arculator.sdef; path = macos/Arculator.sdef; sourceTree = "<group>"; };
+		659A4FD766E2CC1617D19027 /* input_macos.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = input_macos.m; path = src/macos/input_macos.m; sourceTree = "<group>"; };
+		6862989ED163EE00C5FA9CA4 /* ds2401.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ds2401.c; path = src/ds2401.c; sourceTree = "<group>"; };
+		6B769377BD5E9E21E52A55C1 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = macos/Assets.xcassets; sourceTree = "<group>"; };
+		6B7817196101371DE64C3EFD /* cp15.c */ = {isa = PBXFileReference; includeInIndex = 1; name = cp15.c; path = src/cp15.c; sourceTree = "<group>"; };
+		6D12FA82BF4E961A6241E80A /* DiscSlotView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DiscSlotView.swift; path = src/macos/DiscSlotView.swift; sourceTree = "<group>"; };
+		71A082B8B63EA349541AA0CD /* snapshot.c */ = {isa = PBXFileReference; includeInIndex = 1; name = snapshot.c; path = src/snapshot.c; sourceTree = "<group>"; };
+		73ADAB60BCAE317533941D9D /* fdi2raw.c */ = {isa = PBXFileReference; includeInIndex = 1; name = fdi2raw.c; path = src/fdi2raw.c; sourceTree = "<group>"; };
+		79E7AE86690F945CCF39B8EB /* emulation_control.c */ = {isa = PBXFileReference; includeInIndex = 1; name = emulation_control.c; path = src/emulation_control.c; sourceTree = "<group>"; };
+		7B42F1DD0A0F912B8D6B8B58 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		7E7375F6D4220704D80B1458 /* timer.c */ = {isa = PBXFileReference; includeInIndex = 1; name = timer.c; path = src/timer.c; sourceTree = "<group>"; };
+		82857789EA8BBB22D89887C4 /* sound_coreaudio.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = sound_coreaudio.m; path = src/macos/sound_coreaudio.m; sourceTree = "<group>"; };
+		85A1693E716A1271601C1588 /* AppSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppSettingsView.swift; path = src/macos/AppSettingsView.swift; sourceTree = "<group>"; };
+		8655FE2E4938BF2407135C86 /* snapshot_internal.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = snapshot_internal.h; path = src/snapshot_internal.h; sourceTree = "<group>"; };
+		88AB820C39EDB0BB6D70EA14 /* input_snapshot.c */ = {isa = PBXFileReference; includeInIndex = 1; name = input_snapshot.c; path = src/input_snapshot.c; sourceTree = "<group>"; };
+		88D978E9BE09A8F4F195AC17 /* ConfigBridge.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = ConfigBridge.mm; path = src/macos/ConfigBridge.mm; sourceTree = "<group>"; };
+		8ED83A038E1A0D7D3A3269F9 /* SwiftInteropSmoke.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SwiftInteropSmoke.swift; path = src/macos/SwiftInteropSmoke.swift; sourceTree = "<group>"; };
+		92E5BC6B794D622BFEA7F681 /* DisplaySettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DisplaySettingsView.swift; path = src/macos/DisplaySettingsView.swift; sourceTree = "<group>"; };
+		941127B2CD9B14B754EBDF6E /* config.c */ = {isa = PBXFileReference; includeInIndex = 1; name = config.c; path = src/config.c; sourceTree = "<group>"; };
+		95FCE097673DC41B4952F5B3 /* ide_config.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ide_config.c; path = src/ide_config.c; sourceTree = "<group>"; };
+		979EE53CF0BE4A3A2E84DC8A /* debugger.c */ = {isa = PBXFileReference; includeInIndex = 1; name = debugger.c; path = src/debugger.c; sourceTree = "<group>"; };
+		97D6265D71214974EF7C0DB8 /* EmulatorBridge.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = EmulatorBridge.mm; path = src/macos/EmulatorBridge.mm; sourceTree = "<group>"; };
+		99B2881569865C2186D8EF50 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		99E37E5C96CAD854AAA9B203 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		9A514ECB7B6307EE28A3A5DC /* ide_zidefs.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ide_zidefs.c; path = src/ide_zidefs.c; sourceTree = "<group>"; };
+		A25B77D8A055C56A0D10EFE8 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		A356F8BE3B210F79B99561EA /* hostfs.c */ = {isa = PBXFileReference; includeInIndex = 1; name = hostfs.c; path = src/hostfs.c; sourceTree = "<group>"; };
+		A500BCEA62D7512ADB53C845 /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
+		A51B61FB389E88F65C5DCBE6 /* HardwareEnumeration.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HardwareEnumeration.swift; path = src/macos/HardwareEnumeration.swift; sourceTree = "<group>"; };
+		A5AFE0F12D1698F364CB3209 /* AutomationScriptingCommands.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = AutomationScriptingCommands.mm; path = src/macos/AutomationScriptingCommands.mm; sourceTree = "<group>"; };
+		A86915806309E223CB035D83 /* disc_scp.c */ = {isa = PBXFileReference; includeInIndex = 1; name = disc_scp.c; path = src/disc_scp.c; sourceTree = "<group>"; };
+		ABBBF3B61E7C7052EF9BDAF4 /* cmos.c */ = {isa = PBXFileReference; includeInIndex = 1; name = cmos.c; path = src/cmos.c; sourceTree = "<group>"; };
+		AC05ECD6FA7E03905C41FB79 /* app_macos.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = app_macos.mm; path = src/macos/app_macos.mm; sourceTree = "<group>"; };
+		ACC28FF53CFEAF693334CCF2 /* ide.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ide.c; path = src/ide.c; sourceTree = "<group>"; };
+		ACCA70078517DA4C7856F959 /* joystick_gc.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = joystick_gc.m; path = src/macos/joystick_gc.m; sourceTree = "<group>"; };
+		ADDCF48FAC485179D60F5A76 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
+		AEDAF1EFF11F77FDF50B9782 /* ddnoise.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ddnoise.c; path = src/ddnoise.c; sourceTree = "<group>"; };
+		AF0F0A3DFAF2BE57716EE78B /* ConfigEditorView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConfigEditorView.swift; path = src/macos/ConfigEditorView.swift; sourceTree = "<group>"; };
+		B013915B3C8D99A817F75577 /* st506.c */ = {isa = PBXFileReference; includeInIndex = 1; name = st506.c; path = src/st506.c; sourceTree = "<group>"; };
+		B1B4E06C176D40BCB68E0ADB /* ide_zidefs_a3k.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ide_zidefs_a3k.c; path = src/ide_zidefs_a3k.c; sourceTree = "<group>"; };
+		B2B2B134EDC9260D081D0D3D /* colourcard.c */ = {isa = PBXFileReference; includeInIndex = 1; name = colourcard.c; path = src/colourcard.c; sourceTree = "<group>"; };
+		B5B86A4BFA9C02EDE5096D6C /* g332.c */ = {isa = PBXFileReference; includeInIndex = 1; name = g332.c; path = src/g332.c; sourceTree = "<group>"; };
+		B7B915B2AB778BE369E7B520 /* disc_hfe.c */ = {isa = PBXFileReference; includeInIndex = 1; name = disc_hfe.c; path = src/disc_hfe.c; sourceTree = "<group>"; };
+		B902844F15248C328B4FDA68 /* ConfigListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConfigListView.swift; path = src/macos/ConfigListView.swift; sourceTree = "<group>"; };
+		B9CCA70C6195098B957818D1 /* ScriptingCommandSupport.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = ScriptingCommandSupport.h; path = src/macos/ScriptingCommandSupport.h; sourceTree = "<group>"; };
+		BB70ED4694101E48BE19047C /* platform_paths.c */ = {isa = PBXFileReference; includeInIndex = 1; name = platform_paths.c; path = src/platform_paths.c; sourceTree = "<group>"; };
+		BCD0376F4169B0A131F7D122 /* AppSettings.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppSettings.swift; path = src/macos/AppSettings.swift; sourceTree = "<group>"; };
+		BD2343BBF1FD2428460534B1 /* romload.c */ = {isa = PBXFileReference; includeInIndex = 1; name = romload.c; path = src/romload.c; sourceTree = "<group>"; };
+		BF1698007325BD740CB98734 /* MachinePresetBridge.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = MachinePresetBridge.mm; path = src/macos/MachinePresetBridge.mm; sourceTree = "<group>"; };
+		BF81F42AF20356470C587EB5 /* main.c */ = {isa = PBXFileReference; includeInIndex = 1; name = main.c; path = src/main.c; sourceTree = "<group>"; };
+		C2C9E1450E8236FEC133BBA4 /* ide_idea.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ide_idea.c; path = src/ide_idea.c; sourceTree = "<group>"; };
+		C324EE242C77F34E62A78ADE /* ContentHostingController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ContentHostingController.swift; path = src/macos/ContentHostingController.swift; sourceTree = "<group>"; };
+		C8555E547CBCC368E789732A /* keyboard.c */ = {isa = PBXFileReference; includeInIndex = 1; name = keyboard.c; path = src/keyboard.c; sourceTree = "<group>"; };
+		C9459BD8869FDB62771818AA /* joystick_config_macos.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = joystick_config_macos.mm; path = src/macos/joystick_config_macos.mm; sourceTree = "<group>"; };
+		C95F654C0F97E4B3D9314E13 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		CA806937995EF365C1056949 /* memc.c */ = {isa = PBXFileReference; includeInIndex = 1; name = memc.c; path = src/memc.c; sourceTree = "<group>"; };
+		CBCAAB37EB2CB4FA944018EE /* EmulatorState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmulatorState.swift; path = src/macos/EmulatorState.swift; sourceTree = "<group>"; };
+		CD5DA19663C6C567A63DDCE7 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GeneralSettingsView.swift; path = src/macos/GeneralSettingsView.swift; sourceTree = "<group>"; };
+		CE3EB49B2D33296F4961E21F /* InternalDriveScriptingCommands.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = InternalDriveScriptingCommands.mm; path = src/macos/InternalDriveScriptingCommands.mm; sourceTree = "<group>"; };
+		D012C83B4059A027810F6167 /* ToolbarManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ToolbarManager.swift; path = src/macos/ToolbarManager.swift; sourceTree = "<group>"; };
+		D0680CB868C9B83CDB60294E /* InputScriptingCommands.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = InputScriptingCommands.mm; path = src/macos/InputScriptingCommands.mm; sourceTree = "<group>"; };
+		D2653D7EE53B14CBFD316EDE /* ScriptingCommandSupport.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = ScriptingCommandSupport.mm; path = src/macos/ScriptingCommandSupport.mm; sourceTree = "<group>"; };
+		D4410742F4A41E4E7ABE1CD0 /* console_macos.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = console_macos.mm; path = src/macos/console_macos.mm; sourceTree = "<group>"; };
+		D4EED7DB93EC3D2DBAB25274 /* 82c711_fdc.c */ = {isa = PBXFileReference; includeInIndex = 1; name = 82c711_fdc.c; path = src/82c711_fdc.c; sourceTree = "<group>"; };
+		D6A8407F12C1F9C8C9866003 /* ide_riscdev.c */ = {isa = PBXFileReference; includeInIndex = 1; name = ide_riscdev.c; path = src/ide_riscdev.c; sourceTree = "<group>"; };
+		D83BAB22580555A703045A38 /* EmulatorMetalView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmulatorMetalView.swift; path = src/macos/EmulatorMetalView.swift; sourceTree = "<group>"; };
+		D8B8E347209E9A3111505EC7 /* fpa.c */ = {isa = PBXFileReference; includeInIndex = 1; name = fpa.c; path = src/fpa.c; sourceTree = "<group>"; };
+		DA9AE06246CE29418FC66ED7 /* wd1770.c */ = {isa = PBXFileReference; includeInIndex = 1; name = wd1770.c; path = src/wd1770.c; sourceTree = "<group>"; };
+		DC4C14F1B1DD9A5B7402F23B /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
+		DF4CF359127B508523DF477A /* lc.c */ = {isa = PBXFileReference; includeInIndex = 1; name = lc.c; path = src/lc.c; sourceTree = "<group>"; };
+		DFF03D19E580829792FBDD9F /* snapshot_subsystems.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = snapshot_subsystems.h; path = src/snapshot_subsystems.h; sourceTree = "<group>"; };
+		EA1A947FD0809A3561F4C4C4 /* podules.c */ = {isa = PBXFileReference; includeInIndex = 1; name = podules.c; path = src/podules.c; sourceTree = "<group>"; };
+		EBD95D5FB83838A6C6513AD6 /* disc_mfm_common.c */ = {isa = PBXFileReference; includeInIndex = 1; name = disc_mfm_common.c; path = src/disc_mfm_common.c; sourceTree = "<group>"; };
+		EC5044E1F06D11C86A71DDC5 /* snapshot_load.c */ = {isa = PBXFileReference; includeInIndex = 1; name = snapshot_load.c; path = src/snapshot_load.c; sourceTree = "<group>"; };
+		F03EB7B2BC8AAD2D10B55008 /* riscdev_hdfc.c */ = {isa = PBXFileReference; includeInIndex = 1; name = riscdev_hdfc.c; path = src/riscdev_hdfc.c; sourceTree = "<group>"; };
+		F130B4E17454D21BBF006F08 /* NSApplication+Scripting.mm */ = {isa = PBXFileReference; includeInIndex = 1; name = "NSApplication+Scripting.mm"; path = "src/macos/NSApplication+Scripting.mm"; sourceTree = "<group>"; };
+		F8CC92E1A08FC24E5D183315 /* StorageSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = StorageSettingsView.swift; path = src/macos/StorageSettingsView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3253564A95B9462CE5E5DD06 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3C7FFF379152863C841F17DA /* Cocoa.framework in Frameworks */,
+				C50AC62836CB84609473D91C /* AudioToolbox.framework in Frameworks */,
+				770E3912D9977BE898ABE5E6 /* Carbon.framework in Frameworks */,
+				8FAAF0540FB642216948C95A /* Cocoa.framework in Frameworks */,
+				F6BE78DE5204DC053C2F67D6 /* CoreAudio.framework in Frameworks */,
+				7BA0496802ACAE431A32F5F7 /* GameController.framework in Frameworks */,
+				4D31C8F1C95E4F4EA6DBD6DD /* IOKit.framework in Frameworks */,
+				077DE921D3EA79CA21383AB1 /* Metal.framework in Frameworks */,
+				F3F2F2D6CC3F7035245B421D /* MetalKit.framework in Frameworks */,
+				7CCD7E227179DB98F8C8D869 /* OpenGL.framework in Frameworks */,
+				38009C005463375282E6770A /* QuartzCore.framework in Frameworks */,
+				FB1D4FCAE2A616F341D4E621 /* SwiftUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		6D3A793486E3351B8E84ECAE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1265C4BC17BA414C675BECA0 /* Arculator.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7479BF5DF3041AF2C697F999 /* OS X */ = {
+			isa = PBXGroup;
+			children = (
+				ADDCF48FAC485179D60F5A76 /* Cocoa.framework */,
+			);
+			name = "OS X";
+			sourceTree = "<group>";
+		};
+		8113D0AD4BC20CECE5687CAF /* macos */ = {
+			isa = PBXGroup;
+			children = (
+				1CD86D103D4864787498B791 /* Info.plist */,
+				6B769377BD5E9E21E52A55C1 /* Assets.xcassets */,
+				63BB9AA199427B3D96809C6E /* Arculator.sdef */,
+				185BD5C29FE2DEDDCFCA9AA1 /* templates */,
+			);
+			name = macos;
+			sourceTree = "<group>";
+		};
+		8B30F7304D7FD5E2D7372006 = {
+			isa = PBXGroup;
+			children = (
+				6D3A793486E3351B8E84ECAE /* Products */,
+				FAD840B86EF4BB0819AA17BD /* Frameworks */,
+				B154B93A1A7838A34F4D3876 /* src */,
+				8113D0AD4BC20CECE5687CAF /* macos */,
+			);
+			sourceTree = "<group>";
+		};
+		B154B93A1A7838A34F4D3876 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				F68B61C173D2A8B8192C4667 /* macos */,
+				25DEAE2DCBE1A9A917444D4A /* snapshot.h */,
+				0E9BAA835EDB0DF0E81AEF3C /* snapshot_chunks.h */,
+				8655FE2E4938BF2407135C86 /* snapshot_internal.h */,
+				DFF03D19E580829792FBDD9F /* snapshot_subsystems.h */,
+				321849CC8FA9DBA576E03FAF /* 82c711.c */,
+				D4EED7DB93EC3D2DBAB25274 /* 82c711_fdc.c */,
+				3B50A4EE74019580F6FFA989 /* arm.c */,
+				2D1A19DC0D33E6B30B3C7893 /* bmu.c */,
+				ABBBF3B61E7C7052EF9BDAF4 /* cmos.c */,
+				B2B2B134EDC9260D081D0D3D /* colourcard.c */,
+				941127B2CD9B14B754EBDF6E /* config.c */,
+				6B7817196101371DE64C3EFD /* cp15.c */,
+				AEDAF1EFF11F77FDF50B9782 /* ddnoise.c */,
+				979EE53CF0BE4A3A2E84DC8A /* debugger.c */,
+				3598644E0FA9F65000124CFA /* debugger_swis.c */,
+				60F75276EA903EC6DA231CE6 /* disc.c */,
+				53A428986342EA1FEAAE3CD5 /* disc_adf.c */,
+				0B1CE3E43632EBEAB8A998AE /* disc_apd.c */,
+				13A842F7188908D6C346DE45 /* disc_fdi.c */,
+				B7B915B2AB778BE369E7B520 /* disc_hfe.c */,
+				555B135C6C9547C23D67ACBA /* disc_jfd.c */,
+				EBD95D5FB83838A6C6513AD6 /* disc_mfm_common.c */,
+				A86915806309E223CB035D83 /* disc_scp.c */,
+				6862989ED163EE00C5FA9CA4 /* ds2401.c */,
+				79E7AE86690F945CCF39B8EB /* emulation_control.c */,
+				29B47B063EE7E35F45A7D61D /* eterna.c */,
+				73ADAB60BCAE317533941D9D /* fdi2raw.c */,
+				D8B8E347209E9A3111505EC7 /* fpa.c */,
+				2B560B9AF38D6645101F356C /* g16.c */,
+				B5B86A4BFA9C02EDE5096D6C /* g332.c */,
+				A356F8BE3B210F79B99561EA /* hostfs.c */,
+				38E222A1675E0A983C5CA5DC /* hostfs-unix.c */,
+				ACC28FF53CFEAF693334CCF2 /* ide.c */,
+				26AE9E7D897E4517915F2F06 /* ide_a3in.c */,
+				95FCE097673DC41B4952F5B3 /* ide_config.c */,
+				C2C9E1450E8236FEC133BBA4 /* ide_idea.c */,
+				D6A8407F12C1F9C8C9866003 /* ide_riscdev.c */,
+				9A514ECB7B6307EE28A3A5DC /* ide_zidefs.c */,
+				B1B4E06C176D40BCB68E0ADB /* ide_zidefs_a3k.c */,
+				88AB820C39EDB0BB6D70EA14 /* input_snapshot.c */,
+				2E9D50ACC892D443F2A29C17 /* ioc.c */,
+				2E3F335A95F9F2AD93EC0EB7 /* ioeb.c */,
+				3844691C2D0F27658F8C8D31 /* joystick.c */,
+				C8555E547CBCC368E789732A /* keyboard.c */,
+				DF4CF359127B508523DF477A /* lc.c */,
+				BF81F42AF20356470C587EB5 /* main.c */,
+				1CF5F8D9B3832EDF12399DCC /* mem.c */,
+				CA806937995EF365C1056949 /* memc.c */,
+				2C372965B39880792833DCD7 /* podules-macosx.c */,
+				BB70ED4694101E48BE19047C /* platform_paths.c */,
+				EA1A947FD0809A3561F4C4C4 /* podules.c */,
+				5BE1E21FA1890D0489A7BD15 /* printer.c */,
+				F03EB7B2BC8AAD2D10B55008 /* riscdev_hdfc.c */,
+				BD2343BBF1FD2428460534B1 /* romload.c */,
+				71A082B8B63EA349541AA0CD /* snapshot.c */,
+				EC5044E1F06D11C86A71DDC5 /* snapshot_load.c */,
+				2744F8B95865914735D24F0C /* sound.c */,
+				B013915B3C8D99A817F75577 /* st506.c */,
+				1436DA4FE23F2023E23A285D /* st506_akd52.c */,
+				7E7375F6D4220704D80B1458 /* timer.c */,
+				472AB030D7BFB02748376A0C /* vidc.c */,
+				DA9AE06246CE29418FC66ED7 /* wd1770.c */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		F68B61C173D2A8B8192C4667 /* macos */ = {
+			isa = PBXGroup;
+			children = (
+				06EE5A01A1A8392649B8ABAF /* Shaders.metal */,
+				567DE87AA3BFE342F6A1C154 /* ArcMetalView.h */,
+				4AEBD8EB3167F283B8D859BB /* NewWindowBridge.h */,
+				299681E5F7665BA053197BD1 /* ConfigEditorBridge.h */,
+				B9CCA70C6195098B957818D1 /* ScriptingCommandSupport.h */,
+				2FC56D0F39868DBBB28DB561 /* InputInjectionBridge.h */,
+				659A4FD766E2CC1617D19027 /* input_macos.m */,
+				AC05ECD6FA7E03905C41FB79 /* app_macos.mm */,
+				243A888C48792114B21963C2 /* video_metal.m */,
+				D4410742F4A41E4E7ABE1CD0 /* console_macos.mm */,
+				0DA14439B335A28E5BFCF721 /* hd_macos.mm */,
+				C9459BD8869FDB62771818AA /* joystick_config_macos.mm */,
+				36C8C71641480A525E9DB6B3 /* podule_config_macos.mm */,
+				ACCA70078517DA4C7856F959 /* joystick_gc.m */,
+				82857789EA8BBB22D89887C4 /* sound_coreaudio.m */,
+				97D6265D71214974EF7C0DB8 /* EmulatorBridge.mm */,
+				88D978E9BE09A8F4F195AC17 /* ConfigBridge.mm */,
+				BF1698007325BD740CB98734 /* MachinePresetBridge.mm */,
+				8ED83A038E1A0D7D3A3269F9 /* SwiftInteropSmoke.swift */,
+				0EA9794D0E5DCBFC17AABCA6 /* MachinePresets.swift */,
+				529B2205230FF37D31362D48 /* MachineConfigModel.swift */,
+				41084115E4688AA6D4A6CE70 /* ConfigListModel.swift */,
+				CBCAAB37EB2CB4FA944018EE /* EmulatorState.swift */,
+				D83BAB22580555A703045A38 /* EmulatorMetalView.swift */,
+				4D7DC8A6E756330EDABF92B5 /* MainSplitViewController.swift */,
+				148CB42B7C1E36F74BFB312A /* SidebarHostingController.swift */,
+				C324EE242C77F34E62A78ADE /* ContentHostingController.swift */,
+				D012C83B4059A027810F6167 /* ToolbarManager.swift */,
+				336061C8902BDA3634E11421 /* NewWindowBridge.mm */,
+				2B097C91D414F08C5F796872 /* ConfigEditorBridge.mm */,
+				A51B61FB389E88F65C5DCBE6 /* HardwareEnumeration.swift */,
+				44403EE1D50AB1B23DE4C576 /* MutabilityGating.swift */,
+				AF0F0A3DFAF2BE57716EE78B /* ConfigEditorView.swift */,
+				CD5DA19663C6C567A63DDCE7 /* GeneralSettingsView.swift */,
+				F8CC92E1A08FC24E5D183315 /* StorageSettingsView.swift */,
+				5AE14E4A6CD2143E6438352A /* PeripheralsSettingsView.swift */,
+				92E5BC6B794D622BFEA7F681 /* DisplaySettingsView.swift */,
+				BCD0376F4169B0A131F7D122 /* AppSettings.swift */,
+				85A1693E716A1271601C1588 /* AppSettingsView.swift */,
+				2F05AEE74EE93F06DF4310DA /* ShortcutRecorderView.swift */,
+				0402CF05A2D91C45D714A42D /* SidebarView.swift */,
+				B902844F15248C328B4FDA68 /* ConfigListView.swift */,
+				48CC4484E4619BF2D0B0ED01 /* RunningControlsView.swift */,
+				6D12FA82BF4E961A6241E80A /* DiscSlotView.swift */,
+				D2653D7EE53B14CBFD316EDE /* ScriptingCommandSupport.mm */,
+				50634817347D2C68735F7EDC /* LifecycleScriptingCommands.mm */,
+				04B488D15A04780FE97ED273 /* ConfigScriptingCommands.mm */,
+				D0680CB868C9B83CDB60294E /* InputScriptingCommands.mm */,
+				F130B4E17454D21BBF006F08 /* NSApplication+Scripting.mm */,
+				0307E90CF7798170B04347FE /* InputInjectionBridge.mm */,
+				CE3EB49B2D33296F4961E21F /* InternalDriveScriptingCommands.mm */,
+				A5AFE0F12D1698F364CB3209 /* AutomationScriptingCommands.mm */,
+			);
+			name = macos;
+			sourceTree = "<group>";
+		};
+		FAD840B86EF4BB0819AA17BD /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7479BF5DF3041AF2C697F999 /* OS X */,
+				27468AEBAD2ABC860CB1F295 /* AudioToolbox.framework */,
+				08C9D4D47FE12585D9BEFBEA /* Carbon.framework */,
+				A25B77D8A055C56A0D10EFE8 /* Cocoa.framework */,
+				DC4C14F1B1DD9A5B7402F23B /* CoreAudio.framework */,
+				A500BCEA62D7512ADB53C845 /* GameController.framework */,
+				C95F654C0F97E4B3D9314E13 /* IOKit.framework */,
+				7B42F1DD0A0F912B8D6B8B58 /* Metal.framework */,
+				99E37E5C96CAD854AAA9B203 /* MetalKit.framework */,
+				084AAFCFDE9E1B92EC320986 /* OpenGL.framework */,
+				5B7D7E7046CBBC1692585FDA /* QuartzCore.framework */,
+				99B2881569865C2186D8EF50 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		50A7FDB952AF4066C854D7D3 /* Arculator */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FD9FBF0C9FB34CDB1DC9CFDB /* Build configuration list for PBXNativeTarget "Arculator" */;
+			buildPhases = (
+				3F80D883E561A472CBDEA99F /* Sources */,
+				3253564A95B9462CE5E5DD06 /* Frameworks */,
+				04534FB468A8BE33EB77552D /* Resources */,
+				638D9EC91559EA726D56ACDA /* Stage Legacy Runtime */,
+				08244C7F7F23246C1C829114 /* Compile Metal Bootstrap Shader */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Arculator;
+			productName = Arculator;
+			productReference = 1265C4BC17BA414C675BECA0 /* Arculator.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		EECCC9C44DB846B54B0F036B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1240;
+				LastUpgradeCheck = 2600;
+			};
+			buildConfigurationList = 79066E2E85B33A860C582D42 /* Build configuration list for PBXProject "Arculator" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 8B30F7304D7FD5E2D7372006;
+			productRefGroup = 6D3A793486E3351B8E84ECAE /* Products */;
+			projectDirPath = ..;
+			projectRoot = "";
+			targets = (
+				50A7FDB952AF4066C854D7D3 /* Arculator */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		04534FB468A8BE33EB77552D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D38C0DF54F7AEF30332B8A6D /* Assets.xcassets in Resources */,
+				DFDB0F6BA903E44619FE633B /* Arculator.sdef in Resources */,
+				1835B7BD9AA2976AEA12A378 /* templates in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		08244C7F7F23246C1C829114 /* Compile Metal Bootstrap Shader */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/src/macos/Shaders.metal",
+			);
+			name = "Compile Metal Bootstrap Shader";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/ArculatorBootstrap.metallib",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nshader_src=\"$SRCROOT/src/macos/Shaders.metal\"\nair_output=\"$TARGET_TEMP_DIR/ArculatorBootstrap.air\"\nmetallib_output=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/ArculatorBootstrap.metallib\"\n\nmkdir -p \"$(dirname \"$metallib_output\")\"\n\nif xcrun metal -help >/dev/null 2>&1 && xcrun metallib -help >/dev/null 2>&1; then\n  xcrun metal -c \"$shader_src\" -o \"$air_output\"\n  xcrun metallib \"$air_output\" -o \"$metallib_output\"\nelse\n  echo \"warning: Metal toolchain component is not installed; writing placeholder metallib\"\n  : > \"$metallib_output\"\nfi\n";
+		};
+		638D9EC91559EA726D56ACDA /* Stage Legacy Runtime */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Stage Legacy Runtime";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\napp_root=\"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH\"\nresources_root=\"$app_root/Resources\"\n\nmkdir -p \"$resources_root\"\n\ncopy_dir() {\n  local source_path=\"$SRCROOT/$1\"\n  local dest_path=\"$resources_root/$2\"\n  rm -rf \"$dest_path\"\n  mkdir -p \"$(dirname \"$dest_path\")\"\n  cp -R \"$source_path\" \"$dest_path\"\n}\n\ncopy_file() {\n  local source_path=\"$SRCROOT/$1\"\n  local dest_path=\"$resources_root/$2\"\n  mkdir -p \"$(dirname \"$dest_path\")\"\n  cp \"$source_path\" \"$dest_path\"\n}\n\ncopy_dir \"ddnoise\" \"ddnoise\"\ncopy_dir \"cmos\" \"cmos\"\ncopy_dir \"roms\" \"roms\"\ncopy_dir \"src/icons\" \"icons\"\ncopy_file \"src/arculator.xrc\" \"arculator.xrc\"\n/bin/sh \"$SRCROOT/macos/build_podules.sh\" \"$SRCROOT\" \"$resources_root\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3F80D883E561A472CBDEA99F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				48FCDDD829509DEF94731AD4 /* 82c711.c in Sources */,
+				A74E64911E315B9DB25F877D /* 82c711_fdc.c in Sources */,
+				B81D3F5448690F6DBD078F64 /* arm.c in Sources */,
+				40384351DD3D4E2629F07FDA /* bmu.c in Sources */,
+				D9E097A9A1B97DD9DBAB5F08 /* cmos.c in Sources */,
+				798BDF5232BDC7C90C32160D /* colourcard.c in Sources */,
+				5F306A01C6D818A2E6C4F4E0 /* config.c in Sources */,
+				ABA5D6988525BC24D236E53F /* cp15.c in Sources */,
+				4EC3982C371B1FCD5F6A0E3A /* ddnoise.c in Sources */,
+				2ABE62C8E4CF04C09E5A23FB /* debugger.c in Sources */,
+				072A6C00A58A571CA9BF99C8 /* debugger_swis.c in Sources */,
+				B1905AF6D4A6B1052937D060 /* disc.c in Sources */,
+				6EB2A3CC136C7E8575481F9B /* disc_adf.c in Sources */,
+				7D3F9C600D8FF00AD3332A24 /* disc_apd.c in Sources */,
+				1C4D3E7E660645530F233EEE /* disc_fdi.c in Sources */,
+				B6985A0611556AA2C95F6705 /* disc_hfe.c in Sources */,
+				A52879D0C9B51B6A17AB1DC6 /* disc_jfd.c in Sources */,
+				BBF511C5958A4D01B45DA4B4 /* disc_mfm_common.c in Sources */,
+				91E8EBA23574B4DACDA7CCAA /* disc_scp.c in Sources */,
+				377558D14CA691927D79E780 /* ds2401.c in Sources */,
+				BE95520B001AD27FA805D489 /* emulation_control.c in Sources */,
+				5D5F0983F1C8625DDBAED711 /* eterna.c in Sources */,
+				45C416293842FACFD0DBDF20 /* fdi2raw.c in Sources */,
+				D0DC01EF3AD1FF25D3412338 /* fpa.c in Sources */,
+				55F433843F4958FA7FB5CDD9 /* g16.c in Sources */,
+				A4B0A9ED9DA5F760B2D7FC24 /* g332.c in Sources */,
+				A71DB9992E4DFF7BDDA6DBD3 /* hostfs.c in Sources */,
+				17EC1F4E1E3290DC30ED1309 /* hostfs-unix.c in Sources */,
+				9DF3B34AF0BE8B3C8D4395BE /* ide.c in Sources */,
+				98B6F90856067A6D1F7C1C09 /* ide_a3in.c in Sources */,
+				62D25B1519492384FC3D3767 /* ide_config.c in Sources */,
+				6A345DBB6E94021939A6F149 /* ide_idea.c in Sources */,
+				D6DCFB7ACFA80DE6D8484DCC /* ide_riscdev.c in Sources */,
+				F723376F4CBA6D5C6AB1B0EA /* ide_zidefs.c in Sources */,
+				842C5E26462615BD6BF6170B /* ide_zidefs_a3k.c in Sources */,
+				4E1757B182E69E50DBB3F1E4 /* input_macos.m in Sources */,
+				8E16DF2532357B8AA2FCCCBA /* input_snapshot.c in Sources */,
+				C49A09387876B08D3814BD3B /* ioc.c in Sources */,
+				33D22523085D68884FDC58A6 /* ioeb.c in Sources */,
+				8496EDD063769EDFB6E6F654 /* joystick.c in Sources */,
+				271BADB857110F8D722928F7 /* keyboard.c in Sources */,
+				856EEB3511DDCC69A4C2FC28 /* lc.c in Sources */,
+				A80C814AB948B4C190EAE8DE /* app_macos.mm in Sources */,
+				CFF4AC0FAB51FCC134E39BF5 /* main.c in Sources */,
+				D6B3115785DED63C120A629B /* mem.c in Sources */,
+				A9CBB275656FEF5F5A47E39C /* memc.c in Sources */,
+				FC2AA9147507DF0459F78681 /* podules-macosx.c in Sources */,
+				F619A114F60944A5EA48BB52 /* platform_paths.c in Sources */,
+				4612B868BC545B8F1B1D22C3 /* podules.c in Sources */,
+				055EE5CFA20FED6BD9CE1AAB /* printer.c in Sources */,
+				AD7EF03D8C09813B5B5D9EEE /* riscdev_hdfc.c in Sources */,
+				381C1D5F8597AB9E299A0B53 /* romload.c in Sources */,
+				C048866D746BDE6A94F56F26 /* snapshot.c in Sources */,
+				35789E779432A2E97A58CA47 /* snapshot_load.c in Sources */,
+				343EE38B8066D26854A015B0 /* sound.c in Sources */,
+				AD3945873293AB40104F5BF3 /* st506.c in Sources */,
+				E5038D850C3FE1838E13562B /* st506_akd52.c in Sources */,
+				91289936817FE293A8D04264 /* timer.c in Sources */,
+				C5CA81774A4FE50D457645B9 /* vidc.c in Sources */,
+				4250FDBCB2FB9F53A70DC0DD /* video_metal.m in Sources */,
+				1FF168473B540F3BCC9C43F3 /* wd1770.c in Sources */,
+				FE09CA2512759F4E8BA1B8B1 /* console_macos.mm in Sources */,
+				6860B7C89BF51035C36F7D7B /* hd_macos.mm in Sources */,
+				B3449792773537F14CFA7FFB /* joystick_config_macos.mm in Sources */,
+				557B910E587359802CEF4D84 /* podule_config_macos.mm in Sources */,
+				9A41C80D86AD51785F47BDB8 /* joystick_gc.m in Sources */,
+				9B37106968488C26D350759C /* sound_coreaudio.m in Sources */,
+				50D3C78F4385A3B42D506C93 /* EmulatorBridge.mm in Sources */,
+				F579AC73340CC3292437B532 /* ConfigBridge.mm in Sources */,
+				7CEC816739B60F1D5DDAB460 /* MachinePresetBridge.mm in Sources */,
+				4CC4F5C84DEC4F3F12925B4A /* SwiftInteropSmoke.swift in Sources */,
+				54EBADE948C855F3C430C5B2 /* MachinePresets.swift in Sources */,
+				0439ACABB64EC545D1100F05 /* MachineConfigModel.swift in Sources */,
+				2C6CD93E06A82F5F208B2FC9 /* ConfigListModel.swift in Sources */,
+				D34B41908CC990B33CF1C80D /* EmulatorState.swift in Sources */,
+				7D402CB4E3908E65F045FBD0 /* EmulatorMetalView.swift in Sources */,
+				80517B14E6EF0AE3A24B85F0 /* MainSplitViewController.swift in Sources */,
+				D2C540A96E4945E8C0E6D094 /* SidebarHostingController.swift in Sources */,
+				8CF0177681E713F0AB4306F0 /* ContentHostingController.swift in Sources */,
+				B0BF962236C478C95B637F8D /* ToolbarManager.swift in Sources */,
+				D3BB44F5F5062FA5D174AA91 /* NewWindowBridge.mm in Sources */,
+				E395DF68FFA990CF2F9613F4 /* ConfigEditorBridge.mm in Sources */,
+				4F6C13E2777AD3E33240C862 /* HardwareEnumeration.swift in Sources */,
+				139BE9F7EDFA3DEC05230C86 /* MutabilityGating.swift in Sources */,
+				9BD514D1BDF901CDFFB66B83 /* ConfigEditorView.swift in Sources */,
+				9544BB315A84E524AD97951C /* GeneralSettingsView.swift in Sources */,
+				7F639F51514A02E175AC5760 /* StorageSettingsView.swift in Sources */,
+				0C4591DFA469DDB0EBA5F56E /* PeripheralsSettingsView.swift in Sources */,
+				F371F79767313EB4C8B6B41C /* DisplaySettingsView.swift in Sources */,
+				9F1AE04773470E5495CD1AB7 /* AppSettings.swift in Sources */,
+				3DF87DEA44AF9137253576C2 /* AppSettingsView.swift in Sources */,
+				EB6442DEEA28C763924E48D7 /* ShortcutRecorderView.swift in Sources */,
+				6A0D06C908ED016BE3BD70C6 /* SidebarView.swift in Sources */,
+				018007E6D0CA5AF9715E5CB1 /* ConfigListView.swift in Sources */,
+				15AA9B2BC63E49C26CF24896 /* RunningControlsView.swift in Sources */,
+				89F8102B62F0278A3432EA5C /* DiscSlotView.swift in Sources */,
+				BEFF04CA4A9BDDB6013801BA /* ScriptingCommandSupport.mm in Sources */,
+				F4DDE8801EC0F04D616F3EAF /* LifecycleScriptingCommands.mm in Sources */,
+				A7603AF4681398019769FA0B /* ConfigScriptingCommands.mm in Sources */,
+				383A09C9E5C00F8B9867CE25 /* InputScriptingCommands.mm in Sources */,
+				9A83229D8762F53ABD0C7B75 /* NSApplication+Scripting.mm in Sources */,
+				C14F41E7193FE9CF9EAE1713 /* InputInjectionBridge.mm in Sources */,
+				5057FF57C313A3B7980F4093 /* InternalDriveScriptingCommands.mm in Sources */,
+				BE19096753171F0B945A5584 /* AutomationScriptingCommands.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		6316055A4FB8C8526E78F30A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEFINES_MODULE = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/src",
+				);
+				INFOPLIST_FILE = macos/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/opt/homebrew/lib,
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-D_FILE_OFFSET_BITS=64",
+					"-Winvalid-offsetof",
+					"-fno-modules",
+				);
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(inherited)",
+					"-D_FILE_OFFSET_BITS=64",
+					"-Winvalid-offsetof",
+					"-fno-modules",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.arculator.mac;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "src/macos/Arculator-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B66673D5B60AFDE6CB30CE1A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEFINES_MODULE = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/src",
+				);
+				INFOPLIST_FILE = macos/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/opt/homebrew/lib,
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-D_FILE_OFFSET_BITS=64",
+					"-Winvalid-offsetof",
+					"-fno-modules",
+				);
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(inherited)",
+					"-D_FILE_OFFSET_BITS=64",
+					"-Winvalid-offsetof",
+					"-fno-modules",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.arculator.mac;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "src/macos/Arculator-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		B92855AC74C8953937EC8FDF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F96D6F326CD3D403D0771503 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		79066E2E85B33A860C582D42 /* Build configuration list for PBXProject "Arculator" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B92855AC74C8953937EC8FDF /* Debug */,
+				F96D6F326CD3D403D0771503 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FD9FBF0C9FB34CDB1DC9CFDB /* Build configuration list for PBXNativeTarget "Arculator" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B66673D5B60AFDE6CB30CE1A /* Release */,
+				6316055A4FB8C8526E78F30A /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = EECCC9C44DB846B54B0F036B /* Project object */;
+}

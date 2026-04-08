@@ -14,6 +14,7 @@ import SwiftUI
 struct ConfigListView: View {
 
     @ObservedObject var configList: ConfigListModel
+    var onOpenAppSettings: () -> Void = {}
 
     @State private var showingNewConfig = false
     @State private var renamingConfig: String?
@@ -137,6 +138,15 @@ struct ConfigListView: View {
 
     private var bottomBar: some View {
         HStack {
+            Button {
+                onOpenAppSettings()
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(.borderless)
+            .help("Settings")
+            .accessibilityIdentifier("configListAppSettingsButton")
+
             Button {
                 showingNewConfig = true
             } label: {

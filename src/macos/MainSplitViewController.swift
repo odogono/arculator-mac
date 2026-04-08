@@ -32,7 +32,13 @@ import Combine
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        sidebarController = SidebarHostingController(configList: configList, configModel: configModel)
+        sidebarController = SidebarHostingController(
+            configList: configList,
+            configModel: configModel,
+            onOpenAppSettings: { [weak self] in
+                self?.navigateToAppSettings()
+            }
+        )
         contentController = ContentHostingController(configList: configList)
 
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarController)
@@ -96,6 +102,22 @@ import Combine
         if let sidebarItem = splitViewItems.first, sidebarItem.isCollapsed {
             sidebarItem.isCollapsed = false
         }
+    }
+
+    @objc func navigateToAppSettings() {
+        if EmulatorState.shared.isActive {
+            EmulatorBridge.pauseEmulation()
+        }
+        contentController.showAppSettings(onClose: { [weak self] in
+            self?.dismissAppSettings()
+        })
+        if let sidebarItem = splitViewItems.first, sidebarItem.isCollapsed {
+            sidebarItem.isCollapsed = false
+        }
+    }
+
+    @objc func dismissAppSettings() {
+        contentController.clearAppSettings()
     }
 
     @objc func toggleSidebar() {

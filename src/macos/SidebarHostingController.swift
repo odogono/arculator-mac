@@ -11,11 +11,14 @@ import SwiftUI
 
 class SidebarHostingController: NSHostingController<SidebarView> {
 
-    init(configList: ConfigListModel, configModel: MachineConfigModel) {
+    init(configList: ConfigListModel,
+         configModel: MachineConfigModel,
+         onOpenAppSettings: @escaping () -> Void) {
         let rootView = SidebarView(
             configList: configList,
             configModel: configModel,
-            emulatorState: EmulatorState.shared
+            emulatorState: EmulatorState.shared,
+            onOpenAppSettings: onOpenAppSettings
         )
         super.init(rootView: rootView)
     }

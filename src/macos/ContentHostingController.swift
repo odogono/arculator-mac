@@ -81,6 +81,7 @@ private struct IdleContentView: View {
     private var emulatorView: ArcMetalView?
     private var idleContentHost: NSHostingView<IdleContentView>?
     private var configEditorHost: NSHostingView<ConfigEditorView>?
+    private var appSettingsHost: NSHostingView<AppSettingsView>?
     private var transitionSnapshotView: NSImageView?
     private var configModel: MachineConfigModel?
     private let emulatorState = EmulatorState.shared
@@ -123,8 +124,9 @@ private struct IdleContentView: View {
     @discardableResult
     @objc func installEmulatorView() -> MTKView {
         removeTransitionSnapshot()
-        removeIdleContent()
-        removeConfigEditor()
+        removeHostingView(&idleContentHost)
+        removeHostingView(&configEditorHost)
+        removeHostingView(&appSettingsHost)
 
         let arcView = ArcMetalView.configuredView(frame: view.bounds)
 
@@ -160,8 +162,9 @@ private struct IdleContentView: View {
     func showConfigEditor(model: MachineConfigModel) {
         configModel = model
         removeTransitionSnapshot()
-        removeIdleContent()
+        removeHostingView(&idleContentHost)
         removeEmulatorViewOnly()
+        removeHostingView(&appSettingsHost)
         showConfigEditorView(model: model)
     }
 
@@ -169,7 +172,7 @@ private struct IdleContentView: View {
     func clearConfigEditor() {
         configModel?.disableAutoSave()
         configModel = nil
-        removeConfigEditor()
+        removeHostingView(&configEditorHost)
         if emulatorView == nil {
             showIdleContent()
         }
@@ -185,15 +188,47 @@ private struct IdleContentView: View {
         configEditorHost = host
     }
 
-    private func removeConfigEditor() {
-        configEditorHost?.removeFromSuperview()
-        configEditorHost = nil
+    // MARK: - App Settings
+
+    /// Show the app-wide settings page, replacing whatever else is in the
+    /// content area. Pass a closure that should be invoked when the user
+    /// dismisses the page (Back button or Escape).
+    func showAppSettings(onClose: @escaping () -> Void) {
+        removeTransitionSnapshot()
+        removeHostingView(&idleContentHost)
+        removeHostingView(&configEditorHost)
+        removeEmulatorViewOnly()
+        guard appSettingsHost == nil else { return }
+
+        let view = AppSettingsView(settings: AppSettings.shared, onClose: onClose)
+        let host = NSHostingView(rootView: view)
+        host.frame = self.view.bounds
+        host.autoresizingMask = [.width, .height]
+        self.view.addSubview(host)
+        appSettingsHost = host
+    }
+
+    /// Dismiss the app settings page and restore the previous content
+    /// (config editor if a config is loaded, otherwise the idle placeholder).
+    func clearAppSettings() {
+        guard appSettingsHost != nil else { return }
+        removeHostingView(&appSettingsHost)
+        if let model = configModel {
+            showConfigEditorView(model: model)
+        } else {
+            showIdleContent()
+        }
     }
 
     /// Remove the Metal view without restoring any other view.
     private func removeEmulatorViewOnly() {
         emulatorView?.removeFromSuperview()
         emulatorView = nil
+    }
+
+    private func removeHostingView<V: View>(_ host: inout NSHostingView<V>?) {
+        host?.removeFromSuperview()
+        host = nil
     }
 
     // MARK: - Idle Placeholder
@@ -205,11 +240,6 @@ private struct IdleContentView: View {
         host.autoresizingMask = [.width, .height]
         view.addSubview(host)
         idleContentHost = host
-    }
-
-    private func removeIdleContent() {
-        idleContentHost?.removeFromSuperview()
-        idleContentHost = nil
     }
 
     private func captureSnapshot(from emulatorView: ArcMetalView?) -> NSImage? {
