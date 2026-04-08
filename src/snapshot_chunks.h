@@ -31,6 +31,7 @@ extern "C" {
 #define ARCSNAP_CHUNK_CFG  ARCSNAP_FOURCC('C','F','G',' ')
 #define ARCSNAP_CHUNK_MEDA ARCSNAP_FOURCC('M','E','D','A')
 #define ARCSNAP_CHUNK_PREV ARCSNAP_FOURCC('P','R','E','V')
+#define ARCSNAP_CHUNK_META ARCSNAP_FOURCC('M','E','T','A')
 #define ARCSNAP_CHUNK_CPU  ARCSNAP_FOURCC('C','P','U',' ')
 #define ARCSNAP_CHUNK_CP15 ARCSNAP_FOURCC('C','P','1','5')
 #define ARCSNAP_CHUNK_FPA  ARCSNAP_FOURCC('F','P','A',' ')
@@ -52,6 +53,8 @@ extern "C" {
 
 #define ARCSNAP_MNFT_VERSION 1u
 #define ARCSNAP_MNFT_MAX_FLOPPIES 4
+
+#define ARCSNAP_META_VERSION 1u
 
 /* Scope flag bitmap (declares which optional subsystems are present). */
 #define ARCSNAP_SCOPE_HAS_CP15        (1u << 0)

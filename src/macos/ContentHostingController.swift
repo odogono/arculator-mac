@@ -82,6 +82,8 @@ private struct IdleContentView: View {
     private var idleContentHost: NSHostingView<IdleContentView>?
     private var configEditorHost: NSHostingView<ConfigEditorView>?
     private var appSettingsHost: NSHostingView<AppSettingsView>?
+    private var snapshotBrowserHost: NSHostingView<SnapshotBrowserView>?
+    private let snapshotBrowserModel = SnapshotBrowserModel()
     private var transitionSnapshotView: NSImageView?
     private var configModel: MachineConfigModel?
     private let emulatorState = EmulatorState.shared
@@ -127,6 +129,7 @@ private struct IdleContentView: View {
         removeHostingView(&idleContentHost)
         removeHostingView(&configEditorHost)
         removeHostingView(&appSettingsHost)
+        removeHostingView(&snapshotBrowserHost)
 
         let arcView = ArcMetalView.configuredView(frame: view.bounds)
 
@@ -165,6 +168,7 @@ private struct IdleContentView: View {
         removeHostingView(&idleContentHost)
         removeEmulatorViewOnly()
         removeHostingView(&appSettingsHost)
+        removeHostingView(&snapshotBrowserHost)
         showConfigEditorView(model: model)
     }
 
@@ -197,6 +201,7 @@ private struct IdleContentView: View {
         removeTransitionSnapshot()
         removeHostingView(&idleContentHost)
         removeHostingView(&configEditorHost)
+        removeHostingView(&snapshotBrowserHost)
         removeEmulatorViewOnly()
         guard appSettingsHost == nil else { return }
 
@@ -213,6 +218,46 @@ private struct IdleContentView: View {
     func clearAppSettings() {
         guard appSettingsHost != nil else { return }
         removeHostingView(&appSettingsHost)
+        if let model = configModel {
+            showConfigEditorView(model: model)
+        } else {
+            showIdleContent()
+        }
+    }
+
+    // MARK: - Snapshot Browser
+
+    /// Show the snapshot browser page, replacing whatever else is in the
+    /// content area. `onOpenSnapshot` is invoked with the selected path
+    /// when the user picks a snapshot; `onClose` is invoked when the
+    /// user dismisses the browser via Back or Escape.
+    func showSnapshotBrowser(onClose: @escaping () -> Void,
+                             onOpenSnapshot: @escaping (String) -> Void) {
+        removeTransitionSnapshot()
+        removeHostingView(&idleContentHost)
+        removeHostingView(&configEditorHost)
+        removeHostingView(&appSettingsHost)
+        removeEmulatorViewOnly()
+        guard snapshotBrowserHost == nil else { return }
+
+        snapshotBrowserModel.refresh()
+        let browserView = SnapshotBrowserView(
+            model: snapshotBrowserModel,
+            onOpen: onOpenSnapshot,
+            onClose: onClose
+        )
+        let host = NSHostingView(rootView: browserView)
+        host.frame = self.view.bounds
+        host.autoresizingMask = [.width, .height]
+        self.view.addSubview(host)
+        snapshotBrowserHost = host
+    }
+
+    /// Dismiss the snapshot browser and restore the previous content
+    /// (config editor if a config is loaded, otherwise idle placeholder).
+    func clearSnapshotBrowser() {
+        guard snapshotBrowserHost != nil else { return }
+        removeHostingView(&snapshotBrowserHost)
         if let model = configModel {
             showConfigEditorView(model: model)
         } else {

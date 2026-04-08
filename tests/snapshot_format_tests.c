@@ -909,6 +909,146 @@ static void test_open_rejects_podule_scope(void)
 	                    ARCSNAP_SCOPE_HAS_PODULE, 0, "podule");
 }
 
+/* ----- META writer round-trip ----------------------------------------- */
+
+static void fill_test_meta(arcsnap_meta_t *m)
+{
+	memset(m, 0, sizeof(*m));
+	m->version = ARCSNAP_META_VERSION;
+	snprintf(m->name, sizeof(m->name), "Snapshot 42");
+	snprintf(m->description, sizeof(m->description),
+	         "A test snapshot with a multi-line\ndescription.");
+	m->created_at_unix_ms_utc = 1700000000000ull;
+	m->property_count = 3;
+	snprintf(m->properties[0].key,   sizeof(m->properties[0].key),   "host_os_name");
+	snprintf(m->properties[0].value, sizeof(m->properties[0].value), "macOS");
+	snprintf(m->properties[1].key,   sizeof(m->properties[1].key),   "host_os_version");
+	snprintf(m->properties[1].value, sizeof(m->properties[1].value), "15.4");
+	snprintf(m->properties[2].key,   sizeof(m->properties[2].key),   "emulator_version_string");
+	snprintf(m->properties[2].value, sizeof(m->properties[2].value), "2.2-dev");
+}
+
+static void test_meta_round_trip(void)
+{
+	snapshot_writer_t *w;
+	snapshot_reader_t *r;
+	arcsnap_meta_t in_meta, out_meta;
+	uint32_t id, version;
+	const uint8_t *payload;
+	uint64_t payload_size;
+	int rc;
+	char err[256] = {0};
+	uint32_t i;
+
+	g_current_test = "meta_round_trip";
+
+	fill_test_meta(&in_meta);
+	w = make_writer_with_header();
+	EXPECT_TRUE(snapshot_writer_write_meta(w, &in_meta), "write meta");
+
+	r = snapshot_reader_open_mem(snapshot_writer_data(w),
+	                             snapshot_writer_size(w),
+	                             err, sizeof(err));
+	EXPECT_TRUE(r != NULL, err);
+
+	rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+	                                err, sizeof(err));
+	EXPECT_EQ_INT(rc, 1, "next_chunk returns META chunk");
+	EXPECT_EQ_INT(id, ARCSNAP_CHUNK_META, "first chunk is META");
+	EXPECT_EQ_INT(version, ARCSNAP_META_VERSION, "META chunk version");
+
+	EXPECT_TRUE(snapshot_decode_meta(payload, payload_size, &out_meta, err, sizeof(err)),
+	            "decode meta");
+	EXPECT_EQ_INT(out_meta.version, in_meta.version, "meta version");
+	EXPECT_EQ_STR(out_meta.name, in_meta.name, "meta name");
+	EXPECT_EQ_STR(out_meta.description, in_meta.description, "meta description");
+	EXPECT_TRUE(out_meta.created_at_unix_ms_utc == in_meta.created_at_unix_ms_utc,
+	            "meta created_at");
+	EXPECT_EQ_INT(out_meta.property_count, in_meta.property_count, "meta property_count");
+	for (i = 0; i < in_meta.property_count; i++)
+	{
+		char where[64];
+		snprintf(where, sizeof(where), "meta.properties[%u].key", (unsigned)i);
+		EXPECT_EQ_STR(out_meta.properties[i].key, in_meta.properties[i].key, where);
+		snprintf(where, sizeof(where), "meta.properties[%u].value", (unsigned)i);
+		EXPECT_EQ_STR(out_meta.properties[i].value, in_meta.properties[i].value, where);
+	}
+
+	snapshot_reader_close(r);
+	snapshot_writer_destroy(w);
+}
+
+static void test_meta_rejects_unknown_version(void)
+{
+	/* Construct a META payload with version=2 and decode it. */
+	uint8_t payload[32];
+	arcsnap_meta_t out;
+	char err[256] = {0};
+	size_t p = 0;
+
+	g_current_test = "meta_rejects_unknown_version";
+
+	/* version */
+	payload[p++] = 0x02; payload[p++] = 0x00; payload[p++] = 0x00; payload[p++] = 0x00;
+	/* name length = 0 */
+	payload[p++] = 0x00; payload[p++] = 0x00; payload[p++] = 0x00; payload[p++] = 0x00;
+	/* description length = 0 */
+	payload[p++] = 0x00; payload[p++] = 0x00; payload[p++] = 0x00; payload[p++] = 0x00;
+	/* created_at = 0 */
+	memset(payload + p, 0, 8); p += 8;
+	/* property_count = 0 */
+	payload[p++] = 0x00; payload[p++] = 0x00; payload[p++] = 0x00; payload[p++] = 0x00;
+
+	EXPECT_TRUE(!snapshot_decode_meta(payload, p, &out, err, sizeof(err)),
+	            "decode should reject unknown META version");
+	EXPECT_TRUE(strstr(err, "version") != NULL, "error should mention version");
+}
+
+static void test_meta_rejects_trailing_bytes(void)
+{
+	snapshot_writer_t *w;
+	arcsnap_meta_t in_meta, out_meta;
+	size_t payload_size;
+	uint8_t *payload_copy;
+	char err[256] = {0};
+
+	g_current_test = "meta_rejects_trailing_bytes";
+
+	/* Write a valid META chunk, then extract just the payload bytes
+	 * (skip the 24-byte header) and append one trailing byte. */
+	fill_test_meta(&in_meta);
+	w = make_writer_with_header();
+	EXPECT_TRUE(snapshot_writer_write_meta(w, &in_meta), "write meta");
+
+	/* The writer buffer contains: [file header 24B][chunk header 24B][META payload][...]
+	 * The chunk header encodes payload size at offset +8. */
+	{
+		const uint8_t *buf = snapshot_writer_data(w);
+		const uint8_t *chunk_hdr = buf + ARCSNAP_HEADER_DISK_SIZE;
+		size_t orig_size = (size_t)(
+		     (uint64_t)chunk_hdr[ 8]        |
+		    ((uint64_t)chunk_hdr[ 9] <<  8) |
+		    ((uint64_t)chunk_hdr[10] << 16) |
+		    ((uint64_t)chunk_hdr[11] << 24) |
+		    ((uint64_t)chunk_hdr[12] << 32) |
+		    ((uint64_t)chunk_hdr[13] << 40) |
+		    ((uint64_t)chunk_hdr[14] << 48) |
+		    ((uint64_t)chunk_hdr[15] << 56));
+		payload_size = orig_size + 1;
+		payload_copy = (uint8_t *)malloc(payload_size);
+		EXPECT_TRUE(payload_copy != NULL, "malloc");
+		memcpy(payload_copy, chunk_hdr + ARCSNAP_CHUNK_HEADER_DISK_SIZE, orig_size);
+		payload_copy[orig_size] = 0xff;
+	}
+
+	EXPECT_TRUE(!snapshot_decode_meta(payload_copy, payload_size, &out_meta, err, sizeof(err)),
+	            "decode should reject trailing bytes");
+	EXPECT_TRUE(strstr(err, "trailing") != NULL, "error should mention trailing bytes");
+
+	free(payload_copy);
+	snapshot_writer_destroy(w);
+}
+
 /* ----- main ----------------------------------------------------------- */
 
 int main(void)
@@ -939,6 +1079,10 @@ int main(void)
 	test_open_accepts_clean_manifest();
 	test_open_rejects_hd_scope();
 	test_open_rejects_podule_scope();
+
+	test_meta_round_trip();
+	test_meta_rejects_unknown_version();
+	test_meta_rejects_trailing_bytes();
 
 	if (g_failures)
 	{

@@ -123,4 +123,42 @@ static NSString *const kMainWindowAutosaveName = @"ArculatorMainWindow";
     [splitVC navigateToConfigEditor];
 }
 
++ (void)navigateToSnapshotBrowserInWindow:(NSWindow *)window
+{
+    MainSplitViewController *splitVC = [self splitVCForWindow:window];
+    if (!splitVC)
+        return;
+
+    [splitVC navigateToSnapshotBrowser];
+}
+
++ (NSArray<NSString *> *)recentSnapshotPaths
+{
+    return [AppSettings shared].recentSnapshotPathsObjC ?: @[];
+}
+
++ (void)recordRecentSnapshot:(NSString *)path
+{
+    if (path.length == 0)
+        return;
+    [[AppSettings shared] recordRecentSnapshot:path];
+}
+
++ (void)removeRecentSnapshot:(NSString *)path
+{
+    if (path.length == 0)
+        return;
+    [[AppSettings shared] removeRecentSnapshot:path];
+}
+
++ (void)pruneMissingRecentSnapshots
+{
+    [[AppSettings shared] pruneMissingRecentSnapshots];
+}
+
++ (NSNotificationName)recentSnapshotsChangedNotificationName
+{
+    return AppSettings.recentSnapshotsChangedNotification;
+}
+
 @end

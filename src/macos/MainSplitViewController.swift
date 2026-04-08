@@ -120,6 +120,49 @@ import Combine
         contentController.clearAppSettings()
     }
 
+    @objc func navigateToSnapshotBrowser() {
+        // Only meaningful when idle. If a session is active the File
+        // menu gating should have prevented the call, but defend here
+        // in case the path is reached via some other route.
+        guard EmulatorState.shared.isIdle else { return }
+        contentController.showSnapshotBrowser(
+            onClose: { [weak self] in
+                self?.dismissSnapshotBrowser()
+            },
+            onOpenSnapshot: { [weak self] path in
+                self?.handleSnapshotBrowserSelection(path: path)
+            }
+        )
+        if let sidebarItem = splitViewItems.first, sidebarItem.isCollapsed {
+            sidebarItem.isCollapsed = false
+        }
+    }
+
+    @objc func dismissSnapshotBrowser() {
+        contentController.clearSnapshotBrowser()
+    }
+
+    private func handleSnapshotBrowserSelection(path: String) {
+        var startError: NSString?
+        let ok = EmulatorBridge.startSnapshotSession(fromPath: path, error: &startError)
+        if ok {
+            // A successful start swaps in the Metal view; clear the
+            // browser so we return to a clean content state.
+            contentController.clearSnapshotBrowser()
+            AppSettings.shared.recordRecentSnapshot(path)
+        } else {
+            let alert = NSAlert()
+            alert.messageText = "Cannot Load Snapshot"
+            alert.informativeText = (startError as String?)
+                ?? "Failed to start snapshot session."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            // Keep the browser open so the user can try another
+            // snapshot or dismiss.
+        }
+    }
+
     @objc func toggleSidebar() {
         guard let sidebarItem = splitViewItems.first else { return }
         NSAnimationContext.runAnimationGroup { context in

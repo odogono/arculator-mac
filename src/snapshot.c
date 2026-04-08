@@ -344,6 +344,38 @@ fail:
 	return 0;
 }
 
+int snapshot_writer_write_meta(snapshot_writer_t *w, const arcsnap_meta_t *meta)
+{
+	uint32_t prop_count;
+	uint32_t i;
+
+	if (!w || !meta)
+		return 0;
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_META, ARCSNAP_META_VERSION))
+		return 0;
+
+	prop_count = meta->property_count;
+	if (prop_count > ARCSNAP_META_MAX_PROPS)
+		prop_count = ARCSNAP_META_MAX_PROPS;
+
+	if (!snapshot_writer_append_u32(w, meta->version ? meta->version : ARCSNAP_META_VERSION)) goto fail;
+	if (!snapshot_writer_append_string(w, meta->name))                   goto fail;
+	if (!snapshot_writer_append_string(w, meta->description))            goto fail;
+	if (!snapshot_writer_append_u64   (w, meta->created_at_unix_ms_utc)) goto fail;
+	if (!snapshot_writer_append_u32   (w, prop_count))                   goto fail;
+	for (i = 0; i < prop_count; i++)
+	{
+		const arcsnap_meta_property_t *p = &meta->properties[i];
+		if (!snapshot_writer_append_string(w, p->key))   goto fail;
+		if (!snapshot_writer_append_string(w, p->value)) goto fail;
+	}
+	return snapshot_writer_end_chunk(w);
+
+fail:
+	w->in_chunk = 0;
+	return 0;
+}
+
 int snapshot_writer_save_to_file(snapshot_writer_t *w, const char *path)
 {
 	char tmp_path[4096];
@@ -870,6 +902,122 @@ truncated:
 	return 0;
 }
 
+/* ----- META decode ---------------------------------------------------- */
+
+/* Reads a length-prefixed string and writes it into `dest` with a
+ * guaranteed trailing NUL. Rejects strings whose declared length does
+ * not leave room for the NUL in `dest_cap`, so decoders stay strict
+ * about overflow rather than silently truncating. */
+static int meta_read_string(snapshot_payload_reader_t *r,
+                            char *dest, size_t dest_cap,
+                            const char *field_name,
+                            char *err, size_t err_size)
+{
+	uint32_t len;
+
+	if (!snapshot_payload_reader_read_u32(r, &len))
+	{
+		set_errorf(err, err_size,
+		           "meta decode: truncated '%s' length", field_name);
+		return 0;
+	}
+	if ((uint64_t)len >= (uint64_t)dest_cap)
+	{
+		set_errorf(err, err_size,
+		           "meta decode: '%s' too long (%u bytes, max %zu)",
+		           field_name, (unsigned)len, (size_t)(dest_cap - 1));
+		return 0;
+	}
+	if (!snapshot_payload_reader_read(r, dest, (size_t)len))
+	{
+		set_errorf(err, err_size,
+		           "meta decode: truncated '%s' payload", field_name);
+		return 0;
+	}
+	dest[len] = 0;
+	return 1;
+}
+
+int snapshot_decode_meta(const uint8_t *payload, uint64_t size,
+                         arcsnap_meta_t *out,
+                         char *err, size_t err_size)
+{
+	snapshot_payload_reader_t r;
+	uint32_t prop_count;
+	uint32_t i;
+
+	if (!payload || !out)
+	{
+		set_error(err, err_size, "meta decode: bad arguments");
+		return 0;
+	}
+	memset(out, 0, sizeof(*out));
+
+	if (size > (uint64_t)(size_t)-1)
+	{
+		set_error(err, err_size, "meta decode: payload too large");
+		return 0;
+	}
+	snapshot_payload_reader_init(&r, payload, (size_t)size);
+
+	if (!snapshot_payload_reader_read_u32(&r, &out->version))
+	{
+		set_error(err, err_size, "meta decode: truncated version");
+		return 0;
+	}
+	if (out->version != ARCSNAP_META_VERSION)
+	{
+		set_errorf(err, err_size,
+		           "unsupported meta version %u (expected %u)",
+		           out->version, (unsigned)ARCSNAP_META_VERSION);
+		return 0;
+	}
+	if (!meta_read_string(&r, out->name, sizeof(out->name),
+	                      "name", err, err_size))
+		return 0;
+	if (!meta_read_string(&r, out->description, sizeof(out->description),
+	                      "description", err, err_size))
+		return 0;
+	if (!snapshot_payload_reader_read_u64(&r, &out->created_at_unix_ms_utc))
+	{
+		set_error(err, err_size, "meta decode: truncated created_at");
+		return 0;
+	}
+	if (!snapshot_payload_reader_read_u32(&r, &prop_count))
+	{
+		set_error(err, err_size, "meta decode: truncated property_count");
+		return 0;
+	}
+	if (prop_count > ARCSNAP_META_MAX_PROPS)
+	{
+		set_errorf(err, err_size,
+		           "meta declares %u properties (max %u)",
+		           (unsigned)prop_count, (unsigned)ARCSNAP_META_MAX_PROPS);
+		return 0;
+	}
+	out->property_count = prop_count;
+	for (i = 0; i < prop_count; i++)
+	{
+		char key_field[32], val_field[32];
+		snprintf(key_field, sizeof(key_field), "properties[%u].key",   (unsigned)i);
+		snprintf(val_field, sizeof(val_field), "properties[%u].value", (unsigned)i);
+		if (!meta_read_string(&r, out->properties[i].key,
+		                      sizeof(out->properties[i].key),
+		                      key_field, err, err_size))
+			return 0;
+		if (!meta_read_string(&r, out->properties[i].value,
+		                      sizeof(out->properties[i].value),
+		                      val_field, err, err_size))
+			return 0;
+	}
+	if (r.cursor != r.size)
+	{
+		set_error(err, err_size, "meta has trailing bytes");
+		return 0;
+	}
+	return 1;
+}
+
 /* ----- high-level public API ------------------------------------------ */
 
 /* Externs from across the emulator that the scope guard inspects.
@@ -1029,4 +1177,150 @@ void snapshot_close(snapshot_load_ctx_t *ctx)
 		return;
 	snapshot_reader_close(ctx->reader);
 	free(ctx);
+}
+
+/* ----- snapshot_peek_summary ------------------------------------------ *
+ *
+ * Read-only inspector: opens a snapshot, parses MNFT plus any optional
+ * summary chunks (META, PREV), and closes the reader. Never touches
+ * emulation state, never calls into snapshot_load.c, and never enforces
+ * the scope flags — browsers should be able to list snapshots that the
+ * loader would refuse (e.g. future HD-scope snapshots) and surface the
+ * refusal later, at actual load time.
+ *
+ * Kept deliberately in snapshot.c so it links cleanly in standalone
+ * tooling that does not pull in config / platform / per-subsystem code.
+ */
+
+void snapshot_summary_dispose(arcsnap_summary_t *summary)
+{
+	if (!summary)
+		return;
+	free(summary->preview_png);
+	memset(summary, 0, sizeof(*summary));
+}
+
+int snapshot_peek_summary(const char *path,
+                          arcsnap_summary_t *out,
+                          char *err, size_t err_size)
+{
+	snapshot_reader_t *r = NULL;
+	uint32_t id, version;
+	const uint8_t *payload;
+	uint64_t payload_size;
+	int rc;
+
+	if (err && err_size)
+		err[0] = 0;
+	if (!out)
+	{
+		set_error(err, err_size, "snapshot_peek_summary: null output");
+		return 0;
+	}
+	memset(out, 0, sizeof(*out));
+
+	r = snapshot_reader_open(path, err, err_size);
+	if (!r)
+		return 0;
+
+	/* First chunk must be MNFT. */
+	rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+	                                err, err_size);
+	if (rc < 0)
+		goto fail;
+	if (rc == 0)
+	{
+		set_error(err, err_size, "snapshot is empty (no chunks)");
+		goto fail;
+	}
+	if (id != ARCSNAP_CHUNK_MNFT)
+	{
+		set_error(err, err_size, "snapshot is missing manifest chunk");
+		goto fail;
+	}
+	if (!snapshot_decode_manifest(payload, payload_size, &out->manifest,
+	                              err, err_size))
+		goto fail;
+
+	/* Walk remaining chunks, collecting optional summary data. Stop
+	 * at the first chunk that is not a known summary chunk; those
+	 * are either machine-state chunks or end-of-stream. Unknown
+	 * chunks between MNFT and the first state chunk are a decode
+	 * error in this strict peek path — if a future format adds a
+	 * new summary chunk, this function must learn about it before
+	 * it starts appearing in the wild. */
+	for (;;)
+	{
+		rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+		                                err, err_size);
+		if (rc < 0)
+			goto fail;
+		if (rc == 0)
+			break;
+		if (id == ARCSNAP_CHUNK_META)
+		{
+			if (out->has_meta)
+			{
+				set_error(err, err_size,
+				          "snapshot contains duplicate META chunk");
+				goto fail;
+			}
+			if (!snapshot_decode_meta(payload, payload_size, &out->meta,
+			                          err, err_size))
+				goto fail;
+			out->has_meta = 1;
+		}
+		else if (id == ARCSNAP_CHUNK_PREV)
+		{
+			if (out->has_preview)
+			{
+				set_error(err, err_size,
+				          "snapshot contains duplicate PREV chunk");
+				goto fail;
+			}
+			if (payload_size == 0)
+			{
+				set_error(err, err_size,
+				          "snapshot PREV chunk is empty");
+				goto fail;
+			}
+			if (payload_size > (uint64_t)(size_t)-1)
+			{
+				set_error(err, err_size,
+				          "snapshot PREV chunk too large");
+				goto fail;
+			}
+			out->preview_png = (uint8_t *)malloc((size_t)payload_size);
+			if (!out->preview_png)
+			{
+				set_error(err, err_size, "out of memory");
+				goto fail;
+			}
+			memcpy(out->preview_png, payload, (size_t)payload_size);
+			out->preview_png_size = (size_t)payload_size;
+			out->preview_width    = out->manifest.preview_width;
+			out->preview_height   = out->manifest.preview_height;
+			out->has_preview      = 1;
+		}
+		else if (id == ARCSNAP_CHUNK_CFG || id == ARCSNAP_CHUNK_MEDA)
+		{
+			/* Pre-state chunks that peek does not care about —
+			 * skipping them cleanly keeps peek tolerant of the
+			 * current writer order without needing to fully
+			 * parse the runtime bundle. */
+		}
+		else
+		{
+			/* First machine-state chunk (or END) — stop. */
+			break;
+		}
+	}
+
+	snapshot_reader_close(r);
+	return 1;
+
+fail:
+	snapshot_reader_close(r);
+	snapshot_summary_dispose(out);
+	return 0;
 }

@@ -250,6 +250,11 @@ int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
 		{
 			/* Screenshot preview: not needed by the loader. */
 		}
+		else if (id_cc == ARCSNAP_CHUNK_META)
+		{
+			/* Descriptive metadata: informational only, skipped
+			 * by the runtime-preparation pass. */
+		}
 		else
 		{
 			snapshot_reader_set_cursor(ctx->reader, cursor_before_chunk);
@@ -584,6 +589,7 @@ static void fill_manifest(arcsnap_manifest_t *m,
 int snapshot_save(const char *path,
                   const uint8_t *preview_png, size_t preview_png_size,
                   int preview_w, int preview_h,
+                  const arcsnap_meta_t *meta,
                   char *err, size_t err_size)
 {
 	snapshot_writer_t *w = NULL;
@@ -669,6 +675,15 @@ int snapshot_save(const char *path,
 		                      preview_png, preview_png_size,
 		                      "PREV", err, err_size))
 			goto out;
+	}
+
+	if (meta)
+	{
+		if (!snapshot_writer_write_meta(w, meta))
+		{
+			set_error(err, err_size, "writer failed (meta)");
+			goto out;
+		}
 	}
 
 	if (!save_subsystem_chunks(w))

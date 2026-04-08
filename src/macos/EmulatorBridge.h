@@ -10,6 +10,8 @@
 #import <Foundation/Foundation.h>
 #import <MetalKit/MetalKit.h>
 
+@class NSImage;
+
 NS_ASSUME_NONNULL_BEGIN
 
 typedef NS_ENUM(NSInteger, ARCSessionState) {
@@ -73,6 +75,36 @@ typedef NS_ENUM(NSInteger, ARCSessionState) {
 // right now, and drops any error message. Used for reactive Swift UI
 // gating.
 + (BOOL)canSaveSnapshot;
+
+@end
+
+// ----- Snapshot browser summary data ----------------------------------
+//
+// A Swift-visible snapshot summary for the browser UI. One per .arcsnap
+// file that peeked successfully. Built from the core `arcsnap_summary_t`
+// by +[EmulatorBridge peekSnapshotSummaryAtPath:error:].
+@interface SnapshotSummaryData : NSObject
+@property (nonatomic, copy)   NSString                *filePath;
+@property (nonatomic, copy)   NSString                *displayName;       // META.name or fallback
+@property (nonatomic, copy, nullable) NSString        *descriptionText;   // META.description, may be nil/empty
+@property (nonatomic, copy)   NSString                *machineConfigName; // manifest.original_config_name
+@property (nonatomic, copy)   NSString                *machine;           // manifest.machine (e.g. "a3000")
+@property (nonatomic, strong, nullable) NSDate        *createdAt;         // from META or file mtime
+@property (nonatomic, copy)   NSArray<NSString *>     *floppyPaths;
+@property (nonatomic, strong, nullable) NSImage       *preview;           // from PREV chunk
+@property (nonatomic, assign) unsigned long long       fileSize;
+@end
+
+@interface EmulatorBridge (SnapshotBrowser)
+
+// Opens a .arcsnap file in read-only mode, parses MNFT + optional META
+// and PREV, and returns a populated SnapshotSummaryData. Returns nil on
+// failure with `error` set to a human-readable message.
++ (nullable SnapshotSummaryData *)peekSnapshotSummaryAtPath:(NSString *)path
+                                                      error:(NSString * _Nullable * _Nullable)error;
+
+// Returns the absolute path of `<support>/snapshots/` as a string.
++ (NSString *)snapshotsDirectoryPath;
 
 @end
 

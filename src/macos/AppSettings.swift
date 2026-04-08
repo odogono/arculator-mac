@@ -92,15 +92,25 @@ struct KeyCombo: Equatable {
 // MARK: - App Settings
 
 @MainActor
-final class AppSettings: ObservableObject {
+@objc final class AppSettings: NSObject, ObservableObject {
 
-    static let shared = AppSettings()
+    @objc static let shared = AppSettings()
 
     private enum Key {
         static let supportPath              = "ArculatorSupportPath"
         static let releaseShortcutKeyCode   = "ArculatorReleaseShortcutKeyCode"
         static let releaseShortcutModFlags  = "ArculatorReleaseShortcutModFlags"
+        static let recentSnapshotPaths      = "ArculatorRecentSnapshotPaths"
     }
+
+    /// Notification name posted whenever `recentSnapshotPaths` changes,
+    /// so Objective-C code (File menu builder in app_macos.mm) can
+    /// rebuild the "Open Recent Snapshot" submenu without needing a
+    /// Combine subscription across the bridge.
+    @objc static let recentSnapshotsChangedNotification =
+        Notification.Name("ArculatorRecentSnapshotsChanged")
+
+    static let maxRecentSnapshots = 10
 
     @Published var supportPath: String? {
         didSet {
@@ -124,6 +134,26 @@ final class AppSettings: ObservableObject {
     /// "Restart Arculator to apply" notice.
     @Published var pendingRestart: Bool = false
 
+    /// Recently opened snapshot paths, newest first, deduplicated,
+    /// capped at `maxRecentSnapshots`. Persisted as a plain string
+    /// array in UserDefaults. Writes post
+    /// `recentSnapshotsChangedNotification` for AppKit listeners.
+    @Published private(set) var recentSnapshotPaths: [String] = [] {
+        didSet {
+            guard recentSnapshotPaths != oldValue else { return }
+            UserDefaults.standard.set(recentSnapshotPaths,
+                                      forKey: Key.recentSnapshotPaths)
+            NotificationCenter.default.post(
+                name: AppSettings.recentSnapshotsChangedNotification,
+                object: self)
+        }
+    }
+
+    /// Objective-C accessor for `recentSnapshotPaths`. `@Published`
+    /// properties can't themselves be exposed with `@objc`, so this
+    /// computed mirror lets NewWindowBridge.mm read the current list.
+    @objc var recentSnapshotPathsObjC: [String] { recentSnapshotPaths }
+
     var defaultSupportPath: String {
         "\(NSHomeDirectory())/Library/Application Support/Arculator"
     }
@@ -133,7 +163,7 @@ final class AppSettings: ObservableObject {
         return (path as NSString).expandingTildeInPath
     }
 
-    private init() {
+    private override init() {
         let defaults = UserDefaults.standard
         self.supportPath = defaults.string(forKey: Key.supportPath)
 
@@ -146,6 +176,45 @@ final class AppSettings: ObservableObject {
             )
         } else {
             self.releaseShortcut = .default
+        }
+
+        super.init()
+
+        // Load recent snapshots and prune entries for files that no
+        // longer exist on disk. Avoid publishing an empty change via
+        // the setter on first read.
+        let raw = defaults.stringArray(forKey: Key.recentSnapshotPaths) ?? []
+        let fm = FileManager.default
+        self.recentSnapshotPaths = raw.filter { fm.fileExists(atPath: $0) }
+    }
+
+    /// Inserts `path` at the front of `recentSnapshotPaths`, removing
+    /// any earlier occurrence and truncating to `maxRecentSnapshots`.
+    @objc func recordRecentSnapshot(_ path: String) {
+        var updated = recentSnapshotPaths.filter { $0 != path }
+        updated.insert(path, at: 0)
+        if updated.count > Self.maxRecentSnapshots {
+            updated = Array(updated.prefix(Self.maxRecentSnapshots))
+        }
+        recentSnapshotPaths = updated
+    }
+
+    /// Removes a specific path from the recents list (e.g. when the
+    /// file has been deleted on disk).
+    @objc func removeRecentSnapshot(_ path: String) {
+        let updated = recentSnapshotPaths.filter { $0 != path }
+        if updated.count != recentSnapshotPaths.count {
+            recentSnapshotPaths = updated
+        }
+    }
+
+    /// Drops entries whose files no longer exist. Call after an
+    /// external delete is suspected.
+    @objc func pruneMissingRecentSnapshots() {
+        let fm = FileManager.default
+        let updated = recentSnapshotPaths.filter { fm.fileExists(atPath: $0) }
+        if updated.count != recentSnapshotPaths.count {
+            recentSnapshotPaths = updated
         }
     }
 

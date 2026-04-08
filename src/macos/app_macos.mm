@@ -45,12 +45,15 @@ extern "C"
 #import "NewWindowBridge.h"
 #import "EmulatorBridge.h"
 
+#define MENU_FILE_LOAD_RECENT_SNAPSHOT_MAX 10
+
 enum
 {
 	MENU_FILE_RESET = 1000,
 	MENU_FILE_SAVE_SNAPSHOT,
 	MENU_FILE_LOAD_SNAPSHOT,
-	MENU_FILE_EXIT,
+	MENU_FILE_LOAD_RECENT_SNAPSHOT_BASE,
+	MENU_FILE_EXIT = MENU_FILE_LOAD_RECENT_SNAPSHOT_BASE + MENU_FILE_LOAD_RECENT_SNAPSHOT_MAX,
 	MENU_DISC_CHANGE_0,
 	MENU_DISC_CHANGE_1,
 	MENU_DISC_CHANGE_2,
@@ -236,6 +239,49 @@ static NSMenuItem *shell_add_item(NSMenu *menu, NSString *title, NSInteger comma
 	return item;
 }
 
+static NSMenuItem *shell_recent_snapshots_item = nil;
+static NSMenu     *shell_recent_snapshots_menu = nil;
+
+static void shell_rebuild_recent_snapshots_menu(void)
+{
+	if (!shell_recent_snapshots_menu)
+		return;
+
+	[shell_recent_snapshots_menu removeAllItems];
+
+	NSArray<NSString *> *paths = [NewWindowBridge recentSnapshotPaths];
+	if (paths.count == 0)
+	{
+		NSMenuItem *empty = [[NSMenuItem alloc] initWithTitle:@"No Recent Snapshots"
+		                                                action:nil
+		                                         keyEquivalent:@""];
+		empty.enabled = NO;
+		[shell_recent_snapshots_menu addItem:empty];
+		if (shell_recent_snapshots_item)
+			shell_recent_snapshots_item.enabled = !shell_session_active;
+		return;
+	}
+
+	NSUInteger idx = 0;
+	for (NSString *path in paths)
+	{
+		NSString *title = [path lastPathComponent];
+		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title
+		                                              action:@selector(handleMenuCommand:)
+		                                       keyEquivalent:@""];
+		item.target = shell_delegate;
+		item.tag = MENU_FILE_LOAD_RECENT_SNAPSHOT_BASE + (NSInteger)idx;
+		item.enabled = !shell_session_active;
+		item.toolTip = path;
+		[shell_recent_snapshots_menu addItem:item];
+		idx++;
+		if (idx >= MENU_FILE_LOAD_RECENT_SNAPSHOT_MAX) break;
+	}
+
+	if (shell_recent_snapshots_item)
+		shell_recent_snapshots_item.enabled = !shell_session_active;
+}
+
 static NSMenu *shell_create_file_menu(void)
 {
 	NSMenu *menu = [[NSMenu alloc] initWithTitle:@"File"];
@@ -244,6 +290,23 @@ static NSMenu *shell_create_file_menu(void)
 	[menu addItem:[NSMenuItem separatorItem]];
 	shell_add_item(menu, @"Save Snapshot\u2026", MENU_FILE_SAVE_SNAPSHOT, @selector(handleMenuCommand:));
 	shell_add_item(menu, @"Load Snapshot\u2026", MENU_FILE_LOAD_SNAPSHOT, @selector(handleMenuCommand:));
+
+	shell_recent_snapshots_menu = [[NSMenu alloc] initWithTitle:@"Open Recent Snapshot"];
+	shell_recent_snapshots_item = [[NSMenuItem alloc] initWithTitle:@"Open Recent Snapshot"
+	                                                         action:nil
+	                                                  keyEquivalent:@""];
+	shell_recent_snapshots_item.submenu = shell_recent_snapshots_menu;
+	[menu addItem:shell_recent_snapshots_item];
+	shell_rebuild_recent_snapshots_menu();
+	[[NSNotificationCenter defaultCenter]
+	    addObserverForName:[NewWindowBridge recentSnapshotsChangedNotificationName]
+	                object:nil
+	                 queue:[NSOperationQueue mainQueue]
+	            usingBlock:^(NSNotification *note) {
+	                (void)note;
+	                shell_rebuild_recent_snapshots_menu();
+	            }];
+
 	[menu addItem:[NSMenuItem separatorItem]];
 	shell_add_item(menu, @"Exit", MENU_FILE_EXIT, @selector(handleMenuCommand:));
 	return menu;
@@ -473,8 +536,16 @@ static void shell_update_menu_state(void)
 
 	{
 		BOOL can_save = (shell_session_active && arc_is_paused() && snapshot_can_save(NULL, 0));
+		BOOL can_load = !shell_session_active;
 		shell_set_menu_enabled(MENU_FILE_SAVE_SNAPSHOT, can_save);
-		shell_set_menu_enabled(MENU_FILE_LOAD_SNAPSHOT, !shell_session_active);
+		shell_set_menu_enabled(MENU_FILE_LOAD_SNAPSHOT, can_load);
+
+		/* Disabling the parent item is enough — Cocoa won't let the
+		 * user open the submenu, so the per-entry items don't need
+		 * to be touched here. They are enabled/disabled in
+		 * shell_rebuild_recent_snapshots_menu() at build time. */
+		if (shell_recent_snapshots_item)
+			shell_recent_snapshots_item.enabled = can_load;
 	}
 }
 
@@ -704,7 +775,7 @@ static int emulation_dequeue_command(emulation_command_t *command)
 	return has_command;
 }
 
-static void emulation_execute_command(const emulation_command_t *command)
+static void emulation_execute_command(emulation_command_t *command)
 {
 	switch (command->type)
 	{
@@ -745,11 +816,23 @@ static void emulation_execute_command(const emulation_command_t *command)
 			char err[256];
 			err[0] = 0;
 			rpclog("arc_save_snapshot: path=%s\n", command->path);
-			if (!snapshot_save(command->path, NULL, 0, 0, 0, err, sizeof(err)))
+			if (!snapshot_save(command->path,
+			                   command->preview_png,
+			                   command->preview_png_size,
+			                   command->preview_width,
+			                   command->preview_height,
+			                   (const arcsnap_meta_t *)command->meta,
+			                   err, sizeof(err)))
 			{
 				arc_print_error("Failed to save snapshot: %s",
 						err[0] ? err : "unknown error");
 			}
+			/* Always release the buffers the UI handed us, whether
+			 * the save succeeded or not. */
+			free(command->preview_png);
+			free(command->meta);
+			command->preview_png = NULL;
+			command->meta = NULL;
 		}
 		break;
 	}
@@ -1030,9 +1113,53 @@ static void shell_request_app_termination(void)
 
 @implementation ArcAppDelegate
 
+- (void)handleRecentSnapshotCommand:(NSInteger)command_id
+{
+	NSInteger index = command_id - MENU_FILE_LOAD_RECENT_SNAPSHOT_BASE;
+	if (index < 0)
+		return;
+
+	NSArray<NSString *> *paths = [NewWindowBridge recentSnapshotPaths];
+	if ((NSUInteger)index >= paths.count)
+		return;
+
+	NSString *path = paths[index];
+	if (!path.length)
+		return;
+
+	if (shell_session_active)
+		return;
+
+	if (![[NSFileManager defaultManager] fileExistsAtPath:path])
+	{
+		[NewWindowBridge removeRecentSnapshot:path];
+		shell_show_alert(@"Snapshot Not Found",
+		                 [NSString stringWithFormat:@"The snapshot file '%@' no longer exists and has been removed from the Recent list.", [path lastPathComponent]]);
+		return;
+	}
+
+	NSString *start_error = nil;
+	if (![EmulatorBridge startSnapshotSessionFromPath:path error:&start_error])
+	{
+		shell_show_alert(@"Cannot Load Snapshot",
+		                 start_error ?: @"Failed to start snapshot session.");
+		return;
+	}
+
+	/* Move the entry to the top of the recents on successful open. */
+	[NewWindowBridge recordRecentSnapshot:path];
+}
+
 - (void)handleMenuCommand:(id)sender
 {
 	NSInteger command_id = [sender tag];
+
+	if (command_id >= MENU_FILE_LOAD_RECENT_SNAPSHOT_BASE &&
+	    command_id <  MENU_FILE_LOAD_RECENT_SNAPSHOT_BASE + MENU_FILE_LOAD_RECENT_SNAPSHOT_MAX)
+	{
+		[self handleRecentSnapshotCommand:command_id];
+		return;
+	}
 
 	switch (command_id)
 	{
@@ -1077,25 +1204,10 @@ static void shell_request_app_termination(void)
 		{
 			if (shell_session_active)
 				break;
-
-			NSOpenPanel *panel = [NSOpenPanel openPanel];
-			panel.canChooseDirectories = NO;
-			panel.canChooseFiles = YES;
-			panel.allowsMultipleSelection = NO;
-			shell_apply_snapshot_panel_defaults(panel);
-
-			if ([panel runModal] != NSModalResponseOK)
-				break;
-			NSString *path = panel.URL.path;
-			if (!path.length)
-				break;
-
-			NSString *start_error = nil;
-			if (![EmulatorBridge startSnapshotSessionFromPath:path error:&start_error])
-			{
-				shell_show_alert(@"Cannot Load Snapshot",
-						 start_error ?: @"Failed to start snapshot session.");
-			}
+			/* Browser handles the file selection + load; alert
+			 * handling for failed loads happens inside the
+			 * MainSplitViewController selection callback. */
+			[NewWindowBridge navigateToSnapshotBrowserInWindow:shell_window];
 		}
 		break;
 
@@ -1602,17 +1714,36 @@ int arc_is_paused(void)
 	return pause_main_thread;
 }
 
-void arc_save_snapshot(const char *path)
+void arc_save_snapshot(const char *path,
+                       uint8_t *preview_png, size_t preview_png_size,
+                       int preview_width, int preview_height,
+                       void *meta)
 {
 	emulation_command_t command;
 
 	if (!path || !path[0])
+	{
+		/* Caller transferred ownership; free on rejection. */
+		free(preview_png);
+		free(meta);
 		return;
+	}
 
 	memset(&command, 0, sizeof(command));
 	command.type = EMU_COMMAND_SAVE_SNAPSHOT;
 	strncpy(command.path, path, sizeof(command.path) - 1);
-	emulation_queue_command(&command);
+	command.preview_png      = preview_png;
+	command.preview_png_size = preview_png_size;
+	command.preview_width    = preview_width;
+	command.preview_height   = preview_height;
+	command.meta             = meta;
+	if (!emulation_queue_command(&command))
+	{
+		/* Queue was full; free the buffers the caller handed us. */
+		free(preview_png);
+		free(meta);
+		rpclog("arc_save_snapshot: command queue full, dropping save\n");
+	}
 }
 
 int arc_start_snapshot_session(const char *path, char *err_out, size_t n)

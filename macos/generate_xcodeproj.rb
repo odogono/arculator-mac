@@ -101,6 +101,8 @@ SOURCE_FILES = %w[
   src/macos/DisplaySettingsView.swift
   src/macos/AppSettings.swift
   src/macos/AppSettingsView.swift
+  src/macos/SnapshotBrowserModel.swift
+  src/macos/SnapshotBrowserView.swift
   src/macos/ShortcutRecorderView.swift
   src/macos/SidebarView.swift
   src/macos/ConfigListView.swift

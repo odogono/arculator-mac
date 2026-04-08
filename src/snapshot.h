@@ -16,25 +16,120 @@ extern "C" {
  * Includes the format primitives, in-memory chunk writer/reader,
  * header/manifest encode/decode helpers, and the loader entry points
  * (snapshot_open, snapshot_prepare_runtime, snapshot_apply_machine_state,
- * snapshot_close). The high-level save() flow is still stubbed.
+ * snapshot_close).
  */
+
+/* ----- Manifest data type --------------------------------------------- */
+
+typedef struct {
+	int      drive_index;
+	char     original_path[512];
+	uint64_t file_size;
+	int      write_protect;
+	char     extension[16];
+} arcsnap_manifest_floppy_t;
+
+typedef struct {
+	uint32_t                 version;            /* ARCSNAP_MNFT_VERSION */
+	char                     original_config_name[256];
+	char                     machine[16];
+	int                      fdctype;
+	int                      romset;
+	int                      memsize;
+	int                      machine_type;
+	uint32_t                 scope_flags;
+	int                      preview_width;
+	int                      preview_height;
+	int                      floppy_count;
+	arcsnap_manifest_floppy_t floppies[4];
+} arcsnap_manifest_t;
+
+/* ----- META (optional descriptive metadata) -------------------------- *
+ *
+ * The META chunk is informational and load-optional: absence is never a
+ * load failure and no emulator state depends on its contents. It exists
+ * so snapshot browsers and catalog tools can display a title, description,
+ * creation timestamp, and arbitrary host properties (OS name/version,
+ * emulator version, etc.) without destabilising the strict MNFT schema.
+ */
+
+#define ARCSNAP_META_MAX_NAME        256
+#define ARCSNAP_META_MAX_DESCRIPTION 1024
+#define ARCSNAP_META_MAX_PROPS       16
+#define ARCSNAP_META_MAX_PROP_KEY    64
+#define ARCSNAP_META_MAX_PROP_VALUE  256
+
+typedef struct {
+	char key  [ARCSNAP_META_MAX_PROP_KEY];
+	char value[ARCSNAP_META_MAX_PROP_VALUE];
+} arcsnap_meta_property_t;
+
+typedef struct {
+	uint32_t version;                  /* ARCSNAP_META_VERSION */
+	char     name[ARCSNAP_META_MAX_NAME];
+	char     description[ARCSNAP_META_MAX_DESCRIPTION];
+	uint64_t created_at_unix_ms_utc;
+	uint32_t property_count;
+	arcsnap_meta_property_t properties[ARCSNAP_META_MAX_PROPS];
+} arcsnap_meta_t;
+
+/* ----- Summary (read-only snapshot peek result) ---------------------- *
+ *
+ * Populated by `snapshot_peek_summary()`. Holds the manifest by value,
+ * plus optional META and PREV data. `preview_png` is heap-allocated and
+ * owned by the summary; callers must release it via
+ * `snapshot_summary_dispose()`. Safe to leave the struct zero-initialised
+ * before calling peek — dispose is idempotent and tolerates zeroed input.
+ */
+typedef struct {
+	arcsnap_manifest_t manifest;
+
+	int                has_meta;
+	arcsnap_meta_t     meta;
+
+	int                has_preview;
+	uint8_t           *preview_png;        /* heap-owned, may be NULL */
+	size_t             preview_png_size;
+	int                preview_width;
+	int                preview_height;
+} arcsnap_summary_t;
 
 /* ----- High level save/load API (callable by the shell). ------------- */
 
 /* Captures a complete snapshot of the currently paused emulation to
  * `path`. `preview_png` may be NULL; otherwise it points at a fully
  * encoded PNG of size `preview_png_size` along with its display
- * dimensions. On failure, returns 0 and writes a human-readable
- * message into `error_buf`; on success, returns 1. */
+ * dimensions. `meta` may be NULL; otherwise it points at a descriptive
+ * metadata record to embed in the snapshot as an optional META chunk.
+ * On failure, returns 0 and writes a human-readable message into
+ * `error_buf`; on success, returns 1. */
 int snapshot_save(const char *path,
                   const uint8_t *preview_png, size_t preview_png_size,
                   int preview_w, int preview_h,
+                  const arcsnap_meta_t *meta,
                   char *error_buf, size_t error_buf_len);
 
 /* Returns 1 if a snapshot can be saved right now, 0 otherwise.
  * On failure, writes a precise rejection reason to `error_buf`.
  * Currently stubbed; always returns 1. */
 int snapshot_can_save(char *error_buf, size_t error_buf_len);
+
+/* Reads only the summary chunks (manifest + optional META + optional
+ * PREV) from a .arcsnap file and returns them via `out`. Does NOT
+ * touch emulation state and does NOT require the emulator to be paused
+ * or idle — it is a pure read-only inspection. On success returns 1;
+ * on failure returns 0 and writes a message into `error_buf`. The
+ * caller must release `out` via `snapshot_summary_dispose()` whether
+ * this function returns success or failure (it is safe on zeroed or
+ * partially populated summaries). */
+int  snapshot_peek_summary(const char *path,
+                           arcsnap_summary_t *out,
+                           char *error_buf, size_t error_buf_len);
+
+/* Releases heap-allocated fields in a summary (currently `preview_png`)
+ * and zeros the struct. Safe to call with NULL or with an already-
+ * zeroed summary. Idempotent. */
+void snapshot_summary_dispose(arcsnap_summary_t *summary);
 
 /* Opaque load context, lifecycle owned by snapshot_open / snapshot_close. */
 typedef struct snapshot_load_ctx_t snapshot_load_ctx_t;
@@ -75,31 +170,6 @@ const char *snapshot_original_config_name(const snapshot_load_ctx_t *ctx);
 /* Releases all resources held by a load context. Safe with NULL. */
 void snapshot_close(snapshot_load_ctx_t *ctx);
 
-/* ----- Manifest data type --------------------------------------------- */
-
-typedef struct {
-	int      drive_index;
-	char     original_path[512];
-	uint64_t file_size;
-	int      write_protect;
-	char     extension[16];
-} arcsnap_manifest_floppy_t;
-
-typedef struct {
-	uint32_t                 version;            /* ARCSNAP_MNFT_VERSION */
-	char                     original_config_name[256];
-	char                     machine[16];
-	int                      fdctype;
-	int                      romset;
-	int                      memsize;
-	int                      machine_type;
-	uint32_t                 scope_flags;
-	int                      preview_width;
-	int                      preview_height;
-	int                      floppy_count;
-	arcsnap_manifest_floppy_t floppies[4];
-} arcsnap_manifest_t;
-
 /* ----- Framework primitives ------------------------------------------- *
  *
  * The writer/reader are exposed in the public header so the
@@ -139,6 +209,9 @@ int snapshot_writer_append_string(snapshot_writer_t *w, const char *s);
 
 /* Writes the manifest as a single MNFT chunk. Convenience wrapper. */
 int snapshot_writer_write_manifest(snapshot_writer_t *w, const arcsnap_manifest_t *manifest);
+
+/* Writes the metadata as a single META chunk. Convenience wrapper. */
+int snapshot_writer_write_meta(snapshot_writer_t *w, const arcsnap_meta_t *meta);
 
 /* Persist the in-memory buffer to disk atomically (write to a tmp
  * sibling, then rename). Returns 1 on success, 0 on failure. */
@@ -187,6 +260,12 @@ void   snapshot_reader_set_cursor(snapshot_reader_t *r, size_t cursor);
 int snapshot_decode_manifest(const uint8_t *payload, uint64_t size,
                              arcsnap_manifest_t *out,
                              char *error_buf, size_t error_buf_len);
+
+/* META helpers (operate on a payload buffer that came from
+ * snapshot_reader_next_chunk for a META chunk). */
+int snapshot_decode_meta(const uint8_t *payload, uint64_t size,
+                         arcsnap_meta_t *out,
+                         char *error_buf, size_t error_buf_len);
 
 /* CRC32 (IEEE 802.3, init 0xFFFFFFFF, final XOR 0xFFFFFFFF). */
 uint32_t snapshot_crc32(const void *data, size_t size);

@@ -3,8 +3,9 @@
 # Umbrella runner for every standalone C snapshot test binary.
 #
 # Compiles and runs:
-#   - tests/snapshot_format_tests  (file format + scope guards)
-#   - tests/floppy_is_idle_tests   (floppy_is_idle() truth table)
+#   - tests/snapshot_format_tests   (file format + scope guards)
+#   - tests/snapshot_summary_tests  (snapshot_peek_summary + META)
+#   - tests/floppy_is_idle_tests    (floppy_is_idle() truth table)
 #
 # XCTest-based snapshot tests (SnapshotScopeTests.m,
 # SnapshotMenuUITests.swift) run under `xcodebuild test` and are not
@@ -15,6 +16,7 @@ set -eu
 cd "$(dirname "$0")/.."
 
 ./tests/run_snapshot_format_tests.sh
+./tests/run_snapshot_summary_tests.sh
 
 clang -std=c99 -I src \
 	tests/floppy_is_idle_tests.c \

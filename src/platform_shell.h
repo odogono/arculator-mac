@@ -31,13 +31,23 @@ void *wx_getnativemenu(void *menu);
 void arc_main_loop(void);
 
 #ifdef __APPLE__
+#include <stdint.h>
+
 int arc_is_session_active(void);
 int arc_is_paused(void);
 
 /* Queue a save-snapshot command for the running (paused) emulation
  * thread. Executes on the next tick of the command queue. Errors are
- * reported asynchronously via arc_print_error(). */
-void arc_save_snapshot(const char *path);
+ * reported asynchronously via arc_print_error().
+ *
+ * Ownership transfer: `preview_png` and `meta` (if non-NULL) must be
+ * heap-allocated. On success (queue push accepted the command) the
+ * emulation thread takes ownership and frees them after the save runs.
+ * On failure (queue full) the caller is responsible for freeing. */
+void arc_save_snapshot(const char *path,
+                       uint8_t *preview_png, size_t preview_png_size,
+                       int preview_width, int preview_height,
+                       void *meta);
 
 /* Start a fresh emulation session from a .arcsnap file. Session must
  * be idle (no running emulation thread). Synchronous: on success

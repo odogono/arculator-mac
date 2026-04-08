@@ -2,6 +2,13 @@
 
 ## (unreleased)
 
+- core: Add snapshot chunk management with version tracking
+- core: Add snapshot summary generation for save file metadata
+- macOS: Add snapshot browser UI with model and view controllers
+- macOS: Add EmulatorBridge snapshot state synchronization
+- macOS: Add NewWindowBridge for window management
+- testing: Add snapshot summary tests for metadata generation
+
 - macOS: Add App Settings panel with configurable keyboard shortcuts for pause/reset
 - macOS: Add ShortcutRecorderView for recording custom keyboard shortcuts
 - macOS: Add sidebar item for App Settings in preferences
