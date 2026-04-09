@@ -11,6 +11,7 @@
 #import "macos_util.h"
 
 extern "C" {
+#include "cmos.h"
 #include "config.h"
 #include "platform_paths.h"
 #include "platform_shell.h"
@@ -137,6 +138,10 @@ static NSString *sLastStartError = nil;
     if (machine_config_name[0] == '\0')
         return @"";
     return [NSString stringWithUTF8String:machine_config_name] ?: @"";
+}
+
++ (int)floppyDriveCount {
+    return cmos_get_floppy_count();
 }
 
 + (void)setVideoView:(MTKView *)view {

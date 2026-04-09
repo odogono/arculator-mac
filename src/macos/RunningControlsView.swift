@@ -15,8 +15,8 @@ struct RunningControlsView: View {
     var onOpenAppSettings: () -> Void = {}
 
     private var visibleDriveIndices: [Int] {
-        let driveCount = (configModel.ioType == .new_) ? 2 : 4
-        return Array(emulatorState.discNames.indices.prefix(driveCount))
+        let count = emulatorState.floppyDriveCount
+        return Array(emulatorState.discNames.indices.prefix(count))
     }
 
     var body: some View {

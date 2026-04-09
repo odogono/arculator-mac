@@ -2,6 +2,8 @@
 
 ## (unreleased)
 
+- macOS: Show configured floppy drive count in sidebar instead of hardware default
+
 - macOS: Add `Copy Screenshot` menu item to capture the current emulator frame to the system clipboard
 - macOS: Refactor Metal screenshot capture for shared file and clipboard export paths
 - macOS: Fix clipboard screenshots appearing blank by writing bitmap data with correct alpha handling

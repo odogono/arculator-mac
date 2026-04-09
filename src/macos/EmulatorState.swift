@@ -18,6 +18,7 @@ class EmulatorState: ObservableObject {
     @Published private(set) var activeConfigName: String = ""
     @Published private(set) var speedPercent: Int = 0
     @Published private(set) var discNames: [String] = Array(repeating: "", count: discSlotCount)
+    @Published private(set) var floppyDriveCount: Int = 0
     @Published private(set) var canSaveSnapshot: Bool = false
 
     // MARK: - Computed Properties
@@ -78,6 +79,11 @@ class EmulatorState: ObservableObject {
             if name != discNames[i] {
                 discNames[i] = name
             }
+        }
+
+        let newFloppyCount = Int(EmulatorBridge.floppyDriveCount())
+        if newFloppyCount != floppyDriveCount {
+            floppyDriveCount = newFloppyCount
         }
 
         let newCanSave = (sessionState == .paused) && EmulatorBridge.canSaveSnapshot()

@@ -194,6 +194,23 @@ const uint8_t *cmos_get_ram_ptr(void)
 	return cmos.ram;
 }
 
+/*
+ * Return the number of floppy drives to show in the sidebar.
+ *
+ * ADFS stores the configured floppy count in CMOS RAM byte 199
+ * (0xC7).  A value of 0 means "not yet configured", so we fall back
+ * to the hardware default (2 for 82C711, 4 for WD1770/WD1793).
+ */
+int cmos_get_floppy_count(void)
+{
+	int hw_default = (fdctype == FDC_82C711) ? 2 : 4;
+	int count      = cmos.ram[199];
+
+	if (count == 0)
+		count = hw_default;
+	return (count > 4) ? 4 : count;
+}
+
 void cmos_save()
 {
 	char fn[512];

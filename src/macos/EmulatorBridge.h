@@ -42,6 +42,7 @@ typedef NS_ENUM(NSInteger, ARCSessionState) {
 + (BOOL)isPaused;
 + (ARCSessionState)sessionState;
 + (NSString *)activeConfigName;
++ (int)floppyDriveCount;
 
 // Video view
 + (void)setVideoView:(MTKView *)view;

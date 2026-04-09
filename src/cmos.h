@@ -3,6 +3,7 @@ void cmos_load();
 void cmos_save();
 
 const uint8_t *cmos_get_ram_ptr(void);
+int cmos_get_floppy_count(void);
 
 void i2c_change(int new_clock, int new_data);
 
