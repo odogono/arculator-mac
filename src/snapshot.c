@@ -12,6 +12,7 @@
 #include "snapshot.h"
 #include "snapshot_chunks.h"
 #include "snapshot_internal.h"
+#include "config.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -1027,12 +1028,30 @@ int snapshot_decode_meta(const uint8_t *payload, uint64_t size,
  * tests can compile snapshot.c against simple stub definitions
  * without dragging in the full machine-config / hardware headers. */
 extern int  st506_present;
+extern int  fdctype;
 extern char hd_fn[2][512];
 extern char podule_names[4][16];
 extern char joystick_if[16];
 extern char _5th_column_fn[512];
 extern int  arc_is_paused(void);
 extern int  floppy_is_idle(void);
+
+static int snapshot_internal_hd_is_configured(void)
+{
+	int has_internal_controller = (fdctype == FDC_82C711) || st506_present;
+	int has_internal_image = hd_fn[0][0] || hd_fn[1][0];
+
+	return has_internal_controller && has_internal_image;
+}
+
+static int snapshot_joystick_is_configured(void)
+{
+	if (!joystick_if[0])
+		return 0;
+	if (!strcmp(joystick_if, "none"))
+		return 0;
+	return 1;
+}
 
 int snapshot_can_save(char *err, size_t err_size)
 {
@@ -1046,7 +1065,7 @@ int snapshot_can_save(char *err, size_t err_size)
 		set_errorf(err, err_size, "save snapshot only while paused");
 		return 0;
 	}
-	if (st506_present || hd_fn[0][0] || hd_fn[1][0])
+	if (snapshot_internal_hd_is_configured())
 	{
 		set_errorf(err, err_size,
 		           "internal hard disc configured (snapshots are floppy-only in v1)");
@@ -1070,7 +1089,7 @@ int snapshot_can_save(char *err, size_t err_size)
 		set_errorf(err, err_size, "5th-column ROM not supported in v1");
 		return 0;
 	}
-	if (joystick_if[0])
+	if (snapshot_joystick_is_configured())
 	{
 		set_errorf(err, err_size, "joystick interface not supported in v1");
 		return 0;

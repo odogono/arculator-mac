@@ -17,9 +17,9 @@ final class EmulationLifecycleUITests: ArculatorUITestCase {
         waitForRunning(timeout: 10)
         waitForStatus("Running", timeout: 5)
 
-        let configName = app.staticTexts["activeConfigName"]
+        let configName = identifiedElement("activeConfigName")
         XCTAssertTrue(configName.exists)
-        XCTAssertEqual(configName.label, fixtureConfigName)
+        XCTAssertEqual(textValue(of: configName), fixtureConfigName)
     }
 
     func testPauseTransition() throws {
@@ -31,7 +31,7 @@ final class EmulationLifecycleUITests: ArculatorUITestCase {
         clickToolbarButton("Pause")
         waitForStatus("Paused", timeout: 5)
 
-        let runningControls = app.otherElements["runningControls"]
+        let runningControls = identifiedElement("runningControls")
         XCTAssertTrue(runningControls.exists, "Running controls should remain visible when paused")
     }
 

@@ -70,6 +70,7 @@ struct RunningControlsView: View {
             Divider()
             bottomBar
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("runningControls")
     }
 

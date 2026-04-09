@@ -169,6 +169,61 @@ int timer_load_restore(snapshot_payload_reader_t *r, emu_timer_t *timer)
 	return 1;
 }
 
+/* Prepare the timer list for a snapshot load: detach all timers from the
+ * linked list without destroying their callback/p fields. Each timer
+ * that is restored by a snapshot chunk will be re-added via
+ * timer_restore → timer_enable. Timers not covered by the snapshot
+ * (e.g. podule timers) are re-armed afterwards by
+ * timer_rearm_orphans_after_snapshot(). */
+emu_timer_t *timer_walk_head(void)
+{
+	return timer_head;
+}
+
+void timer_detach_all_for_snapshot(void)
+{
+	emu_timer_t *t = timer_head;
+
+	while (t)
+	{
+		emu_timer_t *next = t->next;
+		t->enabled = 0;
+		t->next = t->prev = NULL;
+		t = next;
+	}
+	timer_head = NULL;
+	timer_target = 0;
+}
+
+/* After snapshot_apply_machine_state has restored per-subsystem timers
+ * and the global tsc, re-arm any timer that was registered during
+ * arc_init() but wasn't restored by a snapshot chunk (it will still
+ * have a valid callback but enabled=0 and not be in the list). We set
+ * it to fire immediately so its callback can run and re-arm with its
+ * natural period. `timers` / `count` is a flat array of pointers to
+ * every emu_timer_t that arc_init() registered. */
+void timer_rearm_orphans_after_snapshot(emu_timer_t **timers, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+	{
+		emu_timer_t *t = timers[i];
+		if (!t || !t->callback)
+			continue;
+		if (t->enabled)
+			continue;  /* already restored by a snapshot chunk */
+
+		/* Set to fire on the next timer_process sweep */
+		t->ts_integer = (uint32_t)(tsc >> 32);
+		t->ts_frac = 0;
+		timer_enable(t);
+	}
+
+	if (timer_head)
+		timer_target = timer_head->ts_integer;
+}
+
 int timer_save_global(snapshot_writer_t *w)
 {
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_TIMR, TIMR_STATE_VERSION))

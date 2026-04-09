@@ -873,15 +873,28 @@ data_abort:
  * entries are the static ROM area, which initmem() has already
  * populated before snapshot_apply_machine_state runs.
  *
- * mempoint[] is written as a table of int64 byte offsets relative to
- * the live ram[] base, with a sentinel (INT64_MIN) marking entries
- * that aren't RAM (NULL or ROM-pointing). On load the offsets are
- * range-checked and re-added to the fresh ram[] base.
+ * mempoint[] is a "biased" pointer table: each entry is
+ *   `&ram[ram_byte_offset_for_page] - (page_index << 12)`
+ * so that `mempoint[c][addr]` resolves directly for any virtual `addr`
+ * inside page `c`. We can't snapshot the raw biased pointer (it depends
+ * on the host allocation address of `ram` at save time), so for each
+ * RAM-backed page we record the resolved RAM byte offset
+ *   `mempoint[c] + (c << 12) - ram`
+ * and a sentinel (INT64_MIN) for entries that are NULL or pointing
+ * outside the live RAM buffer (e.g. the page-0 ROM mapping that
+ * resetarm() / initmem() install). On load the offsets are
+ * range-checked and re-biased against the fresh ram[] base.
  */
 
 #include <limits.h>
 
-#define MEM_STATE_VERSION 1u
+/* Version 2 fixes a bug in v1 where mempoint[] offsets were saved as
+ * raw `mempoint[i] - ram` instead of the resolved RAM byte offset.
+ * The biased pointer convention used by mempoint[] meant v1 offsets
+ * were almost always negative and got rejected by the loader's range
+ * check, so v1 snapshots never round-tripped. v1 is intentionally not
+ * accepted by the loader. */
+#define MEM_STATE_VERSION 2u
 #define MEM_STATE_PAGE_COUNT 0x3800
 #define MEM_MEMPOINT_NULL_SENTINEL ((int64_t)INT64_MIN)
 
@@ -906,17 +919,29 @@ int mem_save_state(snapshot_writer_t *w)
 
 	/* Page tables (RAM area only — ROM area is rebuilt by initmem()) */
 	snapshot_writer_append(w, memstat, MEM_STATE_PAGE_COUNT);
-	for (i = 0; i < MEM_STATE_PAGE_COUNT; i++)
 	{
-		int64_t offset;
-		uint8_t access = memstat[i];
+		const uintptr_t ram_base = (uintptr_t)ram;
+		const uintptr_t ram_end  = ram_base + (uintptr_t)realmemsize * 1024u;
 
-		if (access >= 1 && access <= 4 && mempoint[i] != NULL)
-			offset = (int64_t)((intptr_t)mempoint[i] - (intptr_t)ram);
-		else
-			offset = MEM_MEMPOINT_NULL_SENTINEL;
+		for (i = 0; i < MEM_STATE_PAGE_COUNT; i++)
+		{
+			int64_t offset = MEM_MEMPOINT_NULL_SENTINEL;
+			uint8_t access = memstat[i];
 
-		snapshot_writer_append_u64(w, (uint64_t)offset);
+			if (access >= 1 && access <= 4 && mempoint[i] != NULL)
+			{
+				uintptr_t resolved =
+					(uintptr_t)mempoint[i] + ((uintptr_t)i << 12);
+
+				if (resolved >= ram_base &&
+				    resolved + 4096u <= ram_end)
+				{
+					offset = (int64_t)(resolved - ram_base);
+				}
+			}
+
+			snapshot_writer_append_u64(w, (uint64_t)offset);
+		}
 	}
 
 	return snapshot_writer_end_chunk(w);
@@ -929,7 +954,8 @@ int mem_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	int32_t  saved_romspeed_n, saved_romspeed_s;
 	uint64_t saved_spd_multi;
 
-	(void)version;
+	if (version != MEM_STATE_VERSION)
+		return 0;
 
 	if (!snapshot_payload_reader_read_i32(r, &saved_memsize))    return 0;
 	if (!snapshot_payload_reader_read_i32(r, &saved_memmode))    return 0;
@@ -946,7 +972,9 @@ int mem_load_state(snapshot_payload_reader_t *r, uint32_t version)
 		return 0;
 
 	/* Read memstat and mempoint offsets for the RAM area (MEM_STATE_PAGE_COUNT
-	 * entries). The ROM area is untouched — initmem() has already set it up. */
+	 * entries). Pages whose mempoint is the sentinel are left as initmem() /
+	 * resetarm() set them up — that covers NULL entries and the page-0 ROM
+	 * mapping that doesn't fit a RAM-relative offset. */
 	{
 		const uint64_t ram_bytes = (uint64_t)realmemsize * 1024;
 		uint8_t loaded_memstat[MEM_STATE_PAGE_COUNT];
@@ -965,7 +993,13 @@ int mem_load_state(snapshot_payload_reader_t *r, uint32_t version)
 			memstat[i] = loaded_memstat[i];
 			if (off == MEM_MEMPOINT_NULL_SENTINEL)
 			{
-				mempoint[i] = NULL;
+				/* Either a true NULL mapping or a non-RAM page
+				 * (e.g. resetarm()'s page-0 ROM mapping). Leave
+				 * mempoint[i] alone unless the saved access bits
+				 * say "no mapping at all", in which case clear it
+				 * for safety. */
+				if (loaded_memstat[i] == 0)
+					mempoint[i] = NULL;
 				continue;
 			}
 			/* Reject out-of-range offsets so a malformed file can't
@@ -974,7 +1008,7 @@ int mem_load_state(snapshot_payload_reader_t *r, uint32_t version)
 			 * the computed address. */
 			if (off < 0 || (uint64_t)off + 4096u > ram_bytes)
 				return 0;
-			mempoint[i] = ram + (size_t)off;
+			mempoint[i] = (uint8_t *)ram + (size_t)off - ((size_t)i << 12);
 		}
 	}
 

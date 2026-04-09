@@ -343,60 +343,13 @@ static arcsnap_meta_t *build_save_meta(void)
             return;
         }
 
-        NSWindow *window = view.window;
-        if (!window)
+        if (view.window == nil)
         {
             error = @"Emulation view has no window";
             return;
         }
 
-        NSTask *task = [[NSTask alloc] init];
-        task.launchPath = @"/usr/sbin/screencapture";
-        task.arguments = @[
-            @"-x",
-            @"-o",
-            @"-l", [NSString stringWithFormat:@"%ld", (long)window.windowNumber],
-            path
-        ];
-
-        @try
-        {
-            [task launch];
-            [task waitUntilExit];
-            if (task.terminationStatus == 0)
-                return;
-        }
-        @catch (NSException *exception) { }
-
-        if (!video_renderer_capture_screenshot(path))
-            return;
-
-        NSRect rectInWindow = [view convertRect:view.bounds toView:nil];
-        NSRect rectInScreen = [window convertRectToScreen:rectInWindow];
-        CGImageRef imageRef = CGWindowListCreateImage(
-            rectInScreen,
-            kCGWindowListOptionIncludingWindow,
-            (CGWindowID)window.windowNumber,
-            kCGWindowImageBoundsIgnoreFraming | kCGWindowImageNominalResolution);
-
-        if (!imageRef)
-        {
-            error = @"Failed to capture window image";
-            return;
-        }
-
-        NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithCGImage:imageRef];
-        CGImageRelease(imageRef);
-
-        NSData *pngData = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-        if (!pngData)
-        {
-            error = @"Failed to encode PNG";
-            return;
-        }
-
-        if (![pngData writeToFile:path atomically:YES])
-            error = [NSString stringWithFormat:@"Failed to write file: %@", path];
+        error = video_renderer_capture_screenshot(path);
     });
 
     return error;

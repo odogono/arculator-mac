@@ -235,6 +235,9 @@ void arc_close();
  * machine_config_name at the rebased runtime config produced by
  * snapshot_prepare_runtime(). On success, takes ownership of the
  * snapshot context and closes it before returning. Returns 0 on
- * success, non-zero on failure. */
+ * success, non-zero on failure. On failure, if `err_out` is non-NULL,
+ * a human-readable diagnostic is written into the buffer (truncated
+ * to `err_out_size - 1` chars and NUL-terminated). */
 struct snapshot_load_ctx_t;
-int arc_init_from_snapshot(struct snapshot_load_ctx_t *ctx);
+int arc_init_from_snapshot(struct snapshot_load_ctx_t *ctx,
+                           char *err_out, size_t err_out_size);

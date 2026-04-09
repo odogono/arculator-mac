@@ -63,14 +63,14 @@ This builds the native macOS app with AppKit, Metal, and Core Audio.
 
 2. **Open in Xcode**:
    
-   Open `Arculator.xcodeproj` (or `macos/Arculator.xcodeproj`) in Xcode:
+   Open `macos/Arculator.xcodeproj` in Xcode:
    ```bash
-   open Arculator.xcodeproj
+   open macos/Arculator.xcodeproj
    ```
    
    Or build from the command line:
    ```bash
-   xcodebuild -project Arculator.xcodeproj -scheme Arculator -configuration Debug build
+   xcodebuild -project macos/Arculator.xcodeproj -scheme Arculator -configuration Debug build
    ```
 
 3. **Run the app**:
@@ -98,7 +98,7 @@ The Xcode project targets macOS 13.0+ and builds for arm64 (Apple Silicon). It i
 
 For local development without Apple Developer membership:
 ```bash
-xcodebuild -project Arculator.xcodeproj -scheme Arculator -configuration Debug CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project macos/Arculator.xcodeproj -scheme Arculator -configuration Debug CODE_SIGNING_ALLOWED=NO build
 ```
 
 The built app will be in `build/Debug/Arculator.app`.

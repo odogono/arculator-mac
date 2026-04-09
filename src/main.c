@@ -238,24 +238,61 @@ int arc_init()
         return 0;
 }
 
-int arc_init_from_snapshot(struct snapshot_load_ctx_t *ctx)
+int arc_init_from_snapshot(struct snapshot_load_ctx_t *ctx,
+                           char *err_out, size_t err_out_size)
 {
         char err[256] = {0};
         int rc = -1;
 
+        if (err_out && err_out_size)
+                err_out[0] = 0;
+
         if (!ctx)
+        {
+                if (err_out && err_out_size)
+                        snprintf(err_out, err_out_size,
+                                 "internal error: null snapshot context");
                 return -1;
+        }
 
         rc = arc_init();
         if (rc)
-                goto out;
-
-        if (!snapshot_apply_machine_state(ctx, err, sizeof(err)))
         {
-                rpclog("arc_init_from_snapshot: apply failed: %s\n",
-                       err[0] ? err : "(unknown error)");
-                rc = -1;
+                if (err_out && err_out_size)
+                        snprintf(err_out, err_out_size,
+                                 "emulator initialisation failed (configured ROM set may be unavailable)");
                 goto out;
+        }
+
+        /* Collect all timers registered by arc_init() so we can
+         * re-arm any that the snapshot doesn't cover (e.g. podule
+         * timers). Then detach them all from the linked list so
+         * snapshot_apply_machine_state can rebuild it cleanly. */
+        {
+                emu_timer_t *all_timers[64];
+                int timer_count = 0;
+                extern emu_timer_t *timer_walk_head(void);
+
+                emu_timer_t *t = timer_walk_head();
+                while (t && timer_count < 64)
+                {
+                        all_timers[timer_count++] = t;
+                        t = t->next;
+                }
+                timer_detach_all_for_snapshot();
+
+                if (!snapshot_apply_machine_state(ctx, err, sizeof(err)))
+                {
+                        rpclog("arc_init_from_snapshot: apply failed: %s\n",
+                               err[0] ? err : "(unknown error)");
+                        if (err_out && err_out_size)
+                                snprintf(err_out, err_out_size, "%s",
+                                         err[0] ? err : "unknown snapshot decode error");
+                        rc = -1;
+                        goto out;
+                }
+
+                timer_rearm_orphans_after_snapshot(all_timers, timer_count);
         }
 
 out:

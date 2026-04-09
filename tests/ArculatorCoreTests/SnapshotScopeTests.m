@@ -86,13 +86,13 @@ extern int g_test_floppy_is_idle;
 	st506_present = 1;
 
 	char err[256] = {0};
-	XCTAssertEqual(snapshot_can_save(err, sizeof(err)), 0);
-	XCTAssertTrue(strstr(err, "hard disc") != NULL,
-		@"expected a 'hard disc' rejection, got '%s'", err);
+	XCTAssertEqual(snapshot_can_save(err, sizeof(err)), 1,
+		@"empty ST506 controller should still be savable, got err='%s'", err);
 }
 
 - (void)testRejectsInternalHardDiscViaHDFn
 {
+	fdctype = FDC_82C711;
 	snprintf(hd_fn[0], sizeof(hd_fn[0]), "/tmp/drive0.hdf");
 
 	char err[256] = {0};
@@ -131,6 +131,15 @@ extern int g_test_floppy_is_idle;
 	XCTAssertEqual(snapshot_can_save(err, sizeof(err)), 0);
 	XCTAssertTrue(strstr(err, "joystick") != NULL,
 		@"expected a 'joystick' rejection, got '%s'", err);
+}
+
+- (void)testAllowsJoystickInterfaceNoneLiteral
+{
+	snprintf(joystick_if, sizeof(joystick_if), "none");
+
+	char err[256] = {0};
+	XCTAssertEqual(snapshot_can_save(err, sizeof(err)), 1,
+		@"'none' joystick interface should be allowed, got err='%s'", err);
 }
 
 - (void)testRejectsBusyFloppy

@@ -148,11 +148,18 @@ static inline void timer_set_p(emu_timer_t *timer, void *p)
   state. The timer must already have been initialised with timer_add().
   This routine cleanly removes it from the linked list (if currently
   enabled), updates the timestamp fields, and re-inserts it (if the saved
-  state was enabled), so the linked list ordering remains correct.*/
+  state was enabled), so the linked list ordering remains correct.
+
+  Note: timer_disable() is a no-op when timer->enabled is already 0, but
+  a timer can end up with enabled=0 and stale next/prev pointers if the
+  linked list was rebuilt (e.g. timer_reset + fresh timer_add calls in
+  arc_init before snapshot_apply_machine_state). Force-clear the list
+  pointers after disable so timer_enable's precondition is always met.*/
 static inline void timer_restore(emu_timer_t *timer, uint32_t ts_int,
                                  uint32_t ts_frac, int enabled)
 {
 	timer_disable(timer);
+	timer->next = timer->prev = NULL;
 	timer->ts_integer = ts_int;
 	timer->ts_frac = ts_frac;
 	if (enabled)
@@ -171,5 +178,7 @@ int  timer_save(struct snapshot_writer_t *w, const emu_timer_t *timer);
 int  timer_load_restore(struct snapshot_payload_reader_t *r, emu_timer_t *timer);
 int  timer_save_global(struct snapshot_writer_t *w);
 int  timer_load_global(struct snapshot_payload_reader_t *r, uint32_t version);
+void timer_detach_all_for_snapshot(void);
+void timer_rearm_orphans_after_snapshot(emu_timer_t **timers, int count);
 
 #endif /*_TIMER_H_*/

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config.h"
 #include "snapshot.h"
 #include "snapshot_chunks.h"
 
@@ -59,6 +60,7 @@ static const char *g_current_test = "(none)";
  */
 
 int  st506_present       = 0;
+int  fdctype             = FDC_WD1770;
 char hd_fn[2][512]       = {{0}, {0}};
 char podule_names[4][16] = {{0}, {0}, {0}, {0}};
 char joystick_if[16]     = {0};
@@ -76,6 +78,7 @@ static void scope_reset_fixture(void)
 	g_test_paused      = 1;
 	g_test_floppy_idle = 1;
 	st506_present      = 0;
+	fdctype            = FDC_WD1770;
 	hd_fn[0][0]        = 0;
 	hd_fn[1][0]        = 0;
 	for (i = 0; i < 4; i++)
@@ -761,28 +764,41 @@ static void test_can_save_rejects_unpaused(void)
 	EXPECT_TRUE(strstr(err, "paused") != NULL, "error should mention paused");
 }
 
-static void test_can_save_rejects_st506(void)
+static void test_can_save_allows_st506_without_drive_image(void)
 {
 	char err[256] = {0};
 
-	g_current_test = "can_save_rejects_st506";
+	g_current_test = "can_save_allows_st506_without_drive_image";
 	scope_reset_fixture();
 	st506_present = 1;
 
-	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "st506 should be rejected");
-	EXPECT_TRUE(strstr(err, "hard disc") != NULL, "error should mention hard disc");
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 1, "empty ST506 controller should be allowed");
+	EXPECT_EQ_INT(err[0], 0, "no error message on success");
 }
 
-static void test_can_save_rejects_hd_fn(void)
+static void test_can_save_rejects_hd_fn_on_new_io(void)
 {
 	char err[256] = {0};
 
-	g_current_test = "can_save_rejects_hd_fn";
+	g_current_test = "can_save_rejects_hd_fn_on_new_io";
 	scope_reset_fixture();
+	fdctype = FDC_82C711;
 	snprintf(hd_fn[0], sizeof(hd_fn[0]), "/tmp/foo.hdf");
 
-	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "hd_fn[0] set should be rejected");
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "new-IO internal drive should be rejected");
 	EXPECT_TRUE(strstr(err, "hard disc") != NULL, "error should mention hard disc");
+}
+
+static void test_can_save_allows_joystick_none_literal(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_allows_joystick_none_literal";
+	scope_reset_fixture();
+	snprintf(joystick_if, sizeof(joystick_if), "none");
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 1, "'none' joystick interface should be allowed");
+	EXPECT_EQ_INT(err[0], 0, "no error message on success");
 }
 
 static void test_can_save_rejects_unknown_podule(void)
@@ -1069,10 +1085,11 @@ int main(void)
 	test_can_save_clean_floppy_only();
 	test_can_save_allows_arculator_rom();
 	test_can_save_rejects_unpaused();
-	test_can_save_rejects_st506();
-	test_can_save_rejects_hd_fn();
+	test_can_save_allows_st506_without_drive_image();
+	test_can_save_rejects_hd_fn_on_new_io();
 	test_can_save_rejects_unknown_podule();
 	test_can_save_rejects_5th_column();
+	test_can_save_allows_joystick_none_literal();
 	test_can_save_rejects_joystick();
 	test_can_save_rejects_busy_floppy();
 

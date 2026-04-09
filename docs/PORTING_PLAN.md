@@ -530,7 +530,7 @@ Completed in this repo:
 
 - Run date: 2026-04-04
 - Tester: Codex
-- Build: `xcodebuild -project Arculator.xcodeproj -target Arculator -configuration Debug CODE_SIGNING_ALLOWED=NO build`
+- Build: `xcodebuild -project macos/Arculator.xcodeproj -target Arculator -configuration Debug CODE_SIGNING_ALLOWED=NO build`
 - Machine:
 - Notes:
   - Prefilled only with checks completed during implementation and build validation in this workspace.

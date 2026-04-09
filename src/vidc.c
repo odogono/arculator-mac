@@ -1704,6 +1704,15 @@ int vidc_load_state(snapshot_payload_reader_t *r, uint32_t version)
 	vidc.display_was_disabled = (int)loaded_display_was_disabled;
 	vidc.output_enable        = (int)loaded_output_enable;
 
+	/* Reset per-frame tracking values — they rebuild naturally during
+	 * the first complete frame after load. Restoring stale mid-frame
+	 * values from the snapshot leads to zero-sized or negative display
+	 * rects that cause video_renderer_present to drop every frame. */
+	vidc.y_min = 9999;
+	vidc.y_max = 0;
+	vidc.disp_y_min = 9999;
+	vidc.disp_y_max = -1;
+
 	/* Rebuild derived state from the freshly-restored vidcr[] */
 	vidc_redopalette();
 	redolookup();

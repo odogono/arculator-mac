@@ -167,6 +167,11 @@ static char shell_snapshot_runtime_dir[512];
 static char shell_snapshot_runtime_name[64];
 static char shell_snapshot_display_name[256];
 static int  shell_snapshot_session = 0;
+#ifndef NDEBUG
+/* Debug-only UI-test seam: when set, Save Snapshot skips NSSavePanel
+ * and writes straight to this path. */
+static char shell_test_snapshot_save_path[PATH_MAX];
+#endif
 
 static uint64_t monotonic_millis(void)
 {
@@ -195,6 +200,37 @@ static void shell_apply_snapshot_panel_defaults(NSSavePanel *panel)
 	NSString *default_dir = [NSString stringWithUTF8String:support_snapshots];
 	if (default_dir.length)
 		panel.directoryURL = [NSURL fileURLWithPath:default_dir isDirectory:YES];
+}
+
+static NSString *shell_choose_snapshot_save_path(void)
+{
+#ifndef NDEBUG
+	if (shell_test_snapshot_save_path[0])
+	{
+		NSString *path = [NSString stringWithUTF8String:shell_test_snapshot_save_path];
+		if (path.length)
+		{
+			NSString *dir = [path stringByDeletingLastPathComponent];
+			if (dir.length)
+			{
+				[[NSFileManager defaultManager] createDirectoryAtPath:dir
+				                          withIntermediateDirectories:YES
+				                                           attributes:nil
+				                                                error:nil];
+			}
+			return path;
+		}
+	}
+#endif
+
+	NSSavePanel *panel = [NSSavePanel savePanel];
+	panel.nameFieldStringValue = @"snapshot.arcsnap";
+	shell_apply_snapshot_panel_defaults(panel);
+
+	if ([panel runModal] != NSModalResponseOK)
+		return nil;
+
+	return panel.URL.path;
 }
 
 static void shell_register_menu_item(NSInteger command_id, NSMenuItem *item)
@@ -827,6 +863,18 @@ static void emulation_execute_command(emulation_command_t *command)
 				arc_print_error("Failed to save snapshot: %s",
 						err[0] ? err : "unknown error");
 			}
+			else
+			{
+				/* A successfully written snapshot should be loadable from
+				 * recents without requiring a separate open first. */
+				NSString *saved_path = [NSString stringWithUTF8String:command->path];
+				if (saved_path.length)
+				{
+					dispatch_async(dispatch_get_main_queue(), ^{
+						[NewWindowBridge recordRecentSnapshot:saved_path];
+					});
+				}
+			}
 			/* Always release the buffers the UI handed us, whether
 			 * the save succeeded or not. */
 			free(command->preview_png);
@@ -847,6 +895,7 @@ static void *arc_emulation_thread(void *context)
 	uint64_t last_timer_ticks = 0;
 	int timer_offset = 0;
 	snapshot_load_ctx_t *snapshot_ctx = NULL;
+	char snapshot_err[256] = {0};
 
 	(void)context;
 	rpclog("Arculator startup\n");
@@ -857,14 +906,17 @@ static void *arc_emulation_thread(void *context)
 	pthread_mutex_unlock(&shell_mutex);
 
 	if (snapshot_ctx)
-		init_rc = arc_init_from_snapshot(snapshot_ctx);
+		init_rc = arc_init_from_snapshot(snapshot_ctx,
+		                                 snapshot_err, sizeof(snapshot_err));
 	else
 		init_rc = arc_init();
 
 	if (init_rc)
 	{
 		if (snapshot_ctx)
-			arc_print_error("Failed to restore snapshot.\nThe session could not be started.");
+			arc_print_error("Failed to restore snapshot.\n%s",
+			                snapshot_err[0] ? snapshot_err
+			                               : "The session could not be started.");
 		else
 			arc_print_error("Configured ROM set is not available.\nConfiguration could not be run.");
 		arc_stop_emulation();
@@ -1181,13 +1233,7 @@ static void shell_request_app_termination(void)
 				break;
 			}
 
-			NSSavePanel *panel = [NSSavePanel savePanel];
-			panel.nameFieldStringValue = @"snapshot.arcsnap";
-			shell_apply_snapshot_panel_defaults(panel);
-
-			if ([panel runModal] != NSModalResponseOK)
-				break;
-			NSString *path = panel.URL.path;
+			NSString *path = shell_choose_snapshot_save_path();
 			if (!path.length)
 				break;
 
@@ -1897,6 +1943,11 @@ int main(int argc, char **argv)
 				setenv("ARCULATOR_SUPPORT_PATH", argv[i + 1], 1);
 				i++;
 			}
+			else if (!strcmp(argv[i], "-ArculatorTestSaveSnapshotPath") && i + 1 < argc)
+			{
+				strlcpy(shell_test_snapshot_save_path, argv[i + 1], sizeof(shell_test_snapshot_save_path));
+				i++;
+			}
 			else if (!strcmp(argv[i], "-ArculatorTestConfig") && i + 1 < argc)
 			{
 				strlcpy(machine_config_name, argv[i + 1], sizeof(machine_config_name));
@@ -1937,7 +1988,9 @@ int main(int argc, char **argv)
 				break;
 			}
 #ifndef NDEBUG
-			else if ((!strcmp(argv[i], "-ArculatorTestSupportPath") || !strcmp(argv[i], "-ArculatorTestConfig")) && i + 1 < argc)
+			else if ((!strcmp(argv[i], "-ArculatorTestSupportPath") ||
+			          !strcmp(argv[i], "-ArculatorTestSaveSnapshotPath") ||
+			          !strcmp(argv[i], "-ArculatorTestConfig")) && i + 1 < argc)
 				i++;
 #endif
 			else if (!strcmp(argv[i], "-NSDocumentRevisionsDebugMode") && i + 1 < argc)

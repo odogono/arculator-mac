@@ -355,6 +355,7 @@ CORE_TEST_C_SOURCES = %w[
   src/config.c
   src/cmos.c
   src/platform_paths.c
+  src/snapshot.c
   src/timer.c
   tests/ArculatorCoreTests/core_test_stubs.c
 ].freeze
@@ -445,7 +446,7 @@ end
 
 scheme.save_as(project.path, PROJECT_NAME, true)
 
-# Disambiguate the nested project from any stale root-level Arculator.xcodeproj.
+# Keep the shared scheme pointed at the canonical project path.
 scheme_path = File.join(PROJECT_PATH, "xcshareddata", "xcschemes", "#{PROJECT_NAME}.xcscheme")
 scheme_xml = File.read(scheme_path)
 scheme_xml.gsub!("container:#{File.basename(PROJECT_PATH)}", "container:#{PROJECT_PATH}")

@@ -50,7 +50,7 @@ final class MenuToolbarSyncUITests: ArculatorUITestCase {
         clickMenuItem(menu: "File", item: "Hard Reset")
 
         // Verify still running after reset
-        let runningControls = app.otherElements["runningControls"]
+        let runningControls = identifiedElement("runningControls")
         XCTAssertTrue(
             runningControls.waitForExistence(timeout: 5),
             "Should remain in running state after Hard Reset"

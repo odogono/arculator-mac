@@ -56,9 +56,7 @@ Current files:
 
 ### Still missing now
 
-- The checked-in [`Arculator.xcodeproj/project.pbxproj`](/Users/alex/work/arculator-mac/Arculator.xcodeproj/project.pbxproj) does not currently expose an `ArculatorUITests` target or scheme, even though the generator script knows how to create one.
-- `xcodebuild -list -project Arculator.xcodeproj` currently shows only target/scheme `Arculator`.
-- `xcodebuild test -project Arculator.xcodeproj -scheme ArculatorUITests ...` currently fails because that scheme does not exist in the checked-in project.
+- UI tests are exposed only through the shared `Arculator` scheme in [`macos/Arculator.xcodeproj`](/Users/alex/work/arculator-mac-github/macos/Arculator.xcodeproj), not a separate shared `ArculatorUITests` scheme.
 - VIDC inspection seams (`vidc_get_palette(...)`, `vidc_get_control_register()`) are deferred to later core-test priorities.
 - No test-only capture backends exist under `src/test/`.
 - Frame/audio golden tests and deeper boot-state checkpoints remain as later core-test priorities.
@@ -132,7 +130,7 @@ This is the immediate blocker.
 
 ### Required work
 
-- Regenerate or update [`Arculator.xcodeproj/project.pbxproj`](/Users/alex/work/arculator-mac/Arculator.xcodeproj/project.pbxproj) so it actually contains the UI test target described in [`macos/generate_xcodeproj.rb`](/Users/alex/work/arculator-mac/macos/generate_xcodeproj.rb).
+- Regenerate or update [`macos/Arculator.xcodeproj/project.pbxproj`](/Users/alex/work/arculator-mac-github/macos/Arculator.xcodeproj/project.pbxproj) so it stays in sync with [`macos/generate_xcodeproj.rb`](/Users/alex/work/arculator-mac-github/macos/generate_xcodeproj.rb).
 - Ensure at least one shared scheme runs the UI tests:
   - either a dedicated `ArculatorUITests` scheme
   - or the main `Arculator` scheme with UI tests in its test action
@@ -140,7 +138,7 @@ This is the immediate blocker.
 
 ### Exit criteria
 
-- `xcodebuild -list -project Arculator.xcodeproj` shows a runnable UI test path
+- `xcodebuild -list -project macos/Arculator.xcodeproj` shows a runnable UI test path
 - UI tests can be run without opening Xcode manually
 
 ## Phase 2: Finish Redesign UI Coverage ✅
@@ -228,9 +226,9 @@ The first core-test priorities are implemented as a host-less XCTest unit bundle
 
 ### Current reality
 
-As of 2026-04-05:
+As of 2026-04-08:
 
-- `xcodebuild -list -project Arculator.xcodeproj` exposes `Arculator`, `ArculatorUITests`, and `ArculatorCoreTests`
+- `xcodebuild -list -project macos/Arculator.xcodeproj` exposes `Arculator`, `ArculatorUITests`, and `ArculatorCoreTests`
 - The shared `Arculator` scheme includes both test targets in its test action
 
 ### Target verification after Phase 1
@@ -239,7 +237,7 @@ Run whichever command matches the shared scheme that is actually created, for ex
 
 ```sh
 xcodebuild test \
-  -project Arculator.xcodeproj \
+  -project macos/Arculator.xcodeproj \
   -scheme Arculator \
   -configuration Debug \
   CODE_SIGNING_ALLOWED=NO
@@ -249,8 +247,9 @@ or:
 
 ```sh
 xcodebuild test \
-  -project Arculator.xcodeproj \
-  -scheme ArculatorUITests \
+  -project macos/Arculator.xcodeproj \
+  -scheme Arculator \
+  -only-testing:ArculatorUITests \
   -configuration Debug \
   CODE_SIGNING_ALLOWED=NO
 ```
@@ -261,7 +260,7 @@ Core tests only:
 
 ```sh
 xcodebuild test \
-  -project Arculator.xcodeproj \
+  -project macos/Arculator.xcodeproj \
   -scheme Arculator \
   -only-testing ArculatorCoreTests \
   -configuration Debug \

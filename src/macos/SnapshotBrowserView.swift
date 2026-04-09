@@ -33,6 +33,7 @@ struct SnapshotBrowserView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onExitCommand { onClose() }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("snapshotBrowserPage")
     }
 

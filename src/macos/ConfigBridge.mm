@@ -193,7 +193,7 @@ NSString *const ARCSetting5thColumnROM    = @"5th_column_rom";
 		fdctype = FDC_WD1793_A500;
 	else
 		fdctype = (self.io >= IO_NEW) ? 1 : 0;
-	st506_present = (fdctype == FDC_WD1770 || fdctype == FDC_WD1793_A500) ? 1 : 0;
+	st506_present = (self.io == IO_OLD_ST506) ? 1 : 0;
 
 	// Memory
 	switch (self.mem)

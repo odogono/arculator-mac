@@ -16,9 +16,9 @@ final class PreselectedConfigUITests: ArculatorUITestCase {
 
         waitForRunning(timeout: 15)
 
-        let configName = app.staticTexts["activeConfigName"]
+        let configName = identifiedElement("activeConfigName")
         XCTAssertTrue(configName.waitForExistence(timeout: 5))
-        XCTAssertEqual(configName.label, fixtureConfigName)
+        XCTAssertEqual(textValue(of: configName), fixtureConfigName)
 
         waitForStatus("Running", timeout: 5)
     }

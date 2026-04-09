@@ -882,7 +882,7 @@ void ConfigDialog::OnOK(wxCommandEvent &event)
 		fdctype = FDC_WD1793_A500;
 	else
 		fdctype = (config_io >= IO_NEW) ? 1 : 0;
-	st506_present = (fdctype == FDC_WD1770 || fdctype == FDC_WD1793_A500) ? 1 : 0;
+	st506_present = (config_io == IO_OLD_ST506) ? 1 : 0;
 
 	switch (config_mem)
 	{

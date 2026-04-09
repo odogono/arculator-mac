@@ -124,7 +124,8 @@ extern int soundena;
 - (void)testConfigLoadsCPUType
 {
 	loadconfig();
-	XCTAssertEqual(arm_cpu_type, 0, @"Expected cpu_type 0, got %d", arm_cpu_type);
+	/* Test Machine.cfg: a3010 uses ARM250 (1) */
+	XCTAssertEqual(arm_cpu_type, 1, @"Expected cpu_type 1, got %d", arm_cpu_type);
 }
 
 - (void)testConfigLoadsDoubleScan

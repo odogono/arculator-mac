@@ -428,7 +428,6 @@ void video_renderer_present(int src_x, int src_y, int src_w, int src_h, int dbls
 {
 	@autoreleasepool {
 		LOG_VIDEO_FRAMES("video_renderer_present: %d,%d + %d,%d\n", src_x, src_y, src_w, src_h);
-
 		if (renderer_closing)
 			return;
 

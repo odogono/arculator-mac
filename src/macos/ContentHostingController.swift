@@ -75,6 +75,21 @@ private struct IdleContentView: View {
     }
 }
 
+#if DEBUG
+private struct RecentSnapshotsDebugValueView: View {
+    @ObservedObject var settings = AppSettings.shared
+
+    var body: some View {
+        Text(settings.recentSnapshotPaths.joined(separator: "\n"))
+            .font(.caption2)
+            .foregroundStyle(.clear)
+            .frame(width: 1, height: 1, alignment: .topLeading)
+            .clipped()
+            .accessibilityIdentifier("recentSnapshotsDebugValue")
+    }
+}
+#endif
+
 @objc class ContentHostingController: NSViewController {
 
     private let configList: ConfigListModel
@@ -88,6 +103,9 @@ private struct IdleContentView: View {
     private var configModel: MachineConfigModel?
     private let emulatorState = EmulatorState.shared
     private var stateSubscription: AnyCancellable?
+#if DEBUG
+    private var recentSnapshotsDebugHost: NSHostingView<RecentSnapshotsDebugValueView>?
+#endif
 
     init(configList: ConfigListModel) {
         self.configList = configList
@@ -105,6 +123,9 @@ private struct IdleContentView: View {
     override func viewDidLoad() {
         super.viewDidLoad()
         showIdleContent()
+#if DEBUG
+        installRecentSnapshotsDebugHost()
+#endif
 
         stateSubscription = emulatorState.$sessionState
             .removeDuplicates()
@@ -120,6 +141,24 @@ private struct IdleContentView: View {
                 }
             }
     }
+
+#if DEBUG
+    private func installRecentSnapshotsDebugHost() {
+        guard recentSnapshotsDebugHost == nil else { return }
+
+        let host = NSHostingView(rootView: RecentSnapshotsDebugValueView())
+        host.translatesAutoresizingMaskIntoConstraints = false
+        host.alphaValue = 0.01
+        view.addSubview(host)
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            host.topAnchor.constraint(equalTo: view.topAnchor),
+            host.widthAnchor.constraint(equalToConstant: 1),
+            host.heightAnchor.constraint(equalToConstant: 1),
+        ])
+        recentSnapshotsDebugHost = host
+    }
+#endif
 
     // MARK: - Emulator View Lifecycle
 

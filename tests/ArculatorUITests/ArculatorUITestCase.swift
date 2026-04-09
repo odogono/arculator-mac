@@ -24,8 +24,16 @@ class ArculatorUITestCase: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
 
-        let tempBase = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ArculatorUITest-\(UUID().uuidString)")
+        // Avoid the runner's container tmp/cache directories. RunningBoard can
+        // reap the xctrunner while cache cleanup is in flight, which shows up
+        // as a spurious "signal kill" during longer UI interactions.
+        let testRoot = try FileManager.default
+            .url(for: .applicationSupportDirectory,
+                 in: .userDomainMask,
+                 appropriateFor: nil,
+                 create: true)
+            .appendingPathComponent("ArculatorUITests", isDirectory: true)
+        let tempBase = testRoot.appendingPathComponent("ArculatorUITest-\(UUID().uuidString)")
         tempSupportDir = tempBase
 
         let fixturesDir = URL(fileURLWithPath: #filePath)
@@ -96,16 +104,21 @@ class ArculatorUITestCase: XCTestCase {
 
     @discardableResult
     func waitForRunning(timeout: TimeInterval = 10) -> XCUIElement {
-        let element = app.otherElements["runningControls"]
+        let element = identifiedElement("runningControls")
         XCTAssertTrue(element.waitForExistence(timeout: timeout), "Running controls should appear")
         return element
     }
 
     func waitForStatus(_ status: String, timeout: TimeInterval = 10) {
-        let statusText = app.staticTexts["emulatorStatus"]
-        let predicate = NSPredicate(format: "label == %@", status)
-        expectation(for: predicate, evaluatedWith: statusText, handler: nil)
-        waitForExpectations(timeout: timeout, handler: nil)
+        let statusText = identifiedElement("emulatorStatus")
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            if textValue(of: statusText) == status {
+                return
+            }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
+        }
+        XCTFail("Timed out waiting for emulator status '\(status)'")
     }
 
     @discardableResult
@@ -125,6 +138,18 @@ class ArculatorUITestCase: XCTestCase {
         let menuBar = app.menuBars.firstMatch
         menuBar.menuBarItems[menuTitle].click()
         menuBar.menuItems[itemTitle].click()
+    }
+
+    func identifiedElement(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    func textValue(of element: XCUIElement) -> String? {
+        if let value = element.value as? String, !value.isEmpty {
+            return value
+        }
+        let label = element.label
+        return label.isEmpty ? nil : label
     }
 
     /// Select the fixture config and wait for the config editor to appear.
@@ -158,5 +183,16 @@ class ArculatorUITestCase: XCTestCase {
                 )
             }
         }
+    }
+
+    func waitForFile(atPath path: String, timeout: TimeInterval = 10) {
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            if FileManager.default.fileExists(atPath: path) {
+                return
+            }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
+        }
+        XCTFail("Timed out waiting for file at \(path)")
     }
 }
