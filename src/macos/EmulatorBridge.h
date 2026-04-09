@@ -56,6 +56,10 @@ typedef NS_ENUM(NSInteger, ARCSessionState) {
 // Returns nil on success, or an error string on failure.
 + (nullable NSString *)captureScreenshotToPath:(NSString *)path;
 
+// Capture a screenshot of the emulation view to the system clipboard.
+// Returns nil on success, or an error string on failure.
++ (nullable NSString *)copyScreenshotToPasteboard;
+
 // Snapshot save: queue a save-snapshot command for the emulation
 // thread. Returns YES if the queue accepted the command; errors from
 // the actual save are delivered asynchronously via arc_print_error().

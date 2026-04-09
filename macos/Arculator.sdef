@@ -184,6 +184,10 @@
             <direct-parameter type="text" description="Destination file path (PNG)."/>
         </command>
 
+        <command name="copy emulation screenshot" code="ARCuSSCP" description="Copy a screenshot of the emulation view to the system clipboard.">
+            <cocoa class="CopyEmulationScreenshotCommand"/>
+        </command>
+
         <!-- Internal hard-drive commands -->
         <command name="internal drive info" code="ARCuHDIF" description="Get info for an internal hard drive slot.">
             <cocoa class="InternalDriveInfoCommand"/>

@@ -11,6 +11,7 @@
 //    - Paused  → Save enabled (if snapshot_can_save OKs it), Load disabled
 //
 
+import AppKit
 import XCTest
 
 final class SnapshotMenuUITests: ArculatorUITestCase {
@@ -30,9 +31,14 @@ final class SnapshotMenuUITests: ArculatorUITestCase {
     }
 
     /// Reach into the File menu and return the menu items for Save
-    /// Snapshot… and Load Snapshot… without actually clicking them.
+    /// Snapshot…, Load Snapshot…, and Copy Screenshot without
+    /// actually clicking them.
     /// Opens the menu, captures state, then dismisses the menu.
-    private func snapshotMenuState() -> (saveEnabled: Bool, loadEnabled: Bool) {
+    private func snapshotMenuState() -> (
+        saveEnabled: Bool,
+        loadEnabled: Bool,
+        screenshotEnabled: Bool
+    ) {
         let menuBar = app.menuBars.firstMatch
         let fileMenu = menuBar.menuBarItems["File"]
         XCTAssertTrue(fileMenu.waitForExistence(timeout: 5), "File menu should exist")
@@ -43,20 +49,27 @@ final class SnapshotMenuUITests: ArculatorUITestCase {
         // test is robust to the exact punctuation.
         let savePredicate = NSPredicate(format: "title BEGINSWITH 'Save Snapshot'")
         let loadPredicate = NSPredicate(format: "title BEGINSWITH 'Load Snapshot'")
+        let screenshotPredicate = NSPredicate(format: "title BEGINSWITH 'Copy Screenshot'")
 
         let saveItem = menuBar.menuItems.element(matching: savePredicate)
         let loadItem = menuBar.menuItems.element(matching: loadPredicate)
+        let screenshotItem = menuBar.menuItems.element(matching: screenshotPredicate)
 
         XCTAssertTrue(saveItem.waitForExistence(timeout: 3), "Save Snapshot menu item should exist")
         XCTAssertTrue(loadItem.waitForExistence(timeout: 3), "Load Snapshot menu item should exist")
+        XCTAssertTrue(
+            screenshotItem.waitForExistence(timeout: 3),
+            "Copy Screenshot menu item should exist"
+        )
 
         let saveEnabled = saveItem.isEnabled
         let loadEnabled = loadItem.isEnabled
+        let screenshotEnabled = screenshotItem.isEnabled
 
         // Dismiss the menu so subsequent interactions aren't blocked.
         app.typeKey(.escape, modifierFlags: [])
 
-        return (saveEnabled, loadEnabled)
+        return (saveEnabled, loadEnabled, screenshotEnabled)
     }
 
     private func waitForSaveSnapshotEnabled(timeout: TimeInterval = 15) {
@@ -68,6 +81,18 @@ final class SnapshotMenuUITests: ArculatorUITestCase {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
         }
         XCTFail("Timed out waiting for Save Snapshot to become enabled")
+    }
+
+    private func waitForClipboardImage(timeout: TimeInterval = 5) -> Bool {
+        let pasteboard = NSPasteboard.general
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            if pasteboard.canReadObject(forClasses: [NSImage.self], options: nil) {
+                return true
+            }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
+        }
+        return false
     }
 
     private func openRecentSnapshotsMenu() {
@@ -118,6 +143,10 @@ final class SnapshotMenuUITests: ArculatorUITestCase {
             state.loadEnabled,
             "Load Snapshot should be enabled when the session is idle"
         )
+        XCTAssertFalse(
+            state.screenshotEnabled,
+            "Copy Screenshot should be disabled with no running session"
+        )
     }
 
     func testRunningSessionBlocksBothSnapshotItems() throws {
@@ -134,6 +163,10 @@ final class SnapshotMenuUITests: ArculatorUITestCase {
         XCTAssertFalse(
             state.loadEnabled,
             "Load Snapshot should be disabled while a session is active"
+        )
+        XCTAssertTrue(
+            state.screenshotEnabled,
+            "Copy Screenshot should be enabled while the emulation is running"
         )
     }
 
@@ -154,6 +187,25 @@ final class SnapshotMenuUITests: ArculatorUITestCase {
         XCTAssertFalse(
             state.loadEnabled,
             "Load Snapshot should remain disabled while a session is active"
+        )
+        XCTAssertTrue(
+            state.screenshotEnabled,
+            "Copy Screenshot should remain enabled while the session is paused"
+        )
+    }
+
+    func testRunningSessionCopyScreenshotWritesImageToClipboard() throws {
+        NSPasteboard.general.clearContents()
+        launchApp()
+        selectFixtureConfigAndRun()
+        waitForRunning(timeout: 10)
+        waitForStatus("Running", timeout: 5)
+
+        clickFileMenuItem(prefix: "Copy Screenshot")
+
+        XCTAssertTrue(
+            waitForClipboardImage(),
+            "Copy Screenshot should place an image on the clipboard"
         )
     }
 

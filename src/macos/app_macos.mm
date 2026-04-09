@@ -52,6 +52,7 @@ enum
 	MENU_FILE_RESET = 1000,
 	MENU_FILE_SAVE_SNAPSHOT,
 	MENU_FILE_LOAD_SNAPSHOT,
+	MENU_FILE_TAKE_SCREENSHOT,
 	MENU_FILE_LOAD_RECENT_SNAPSHOT_BASE,
 	MENU_FILE_EXIT = MENU_FILE_LOAD_RECENT_SNAPSHOT_BASE + MENU_FILE_LOAD_RECENT_SNAPSHOT_MAX,
 	MENU_DISC_CHANGE_0,
@@ -326,6 +327,7 @@ static NSMenu *shell_create_file_menu(void)
 	[menu addItem:[NSMenuItem separatorItem]];
 	shell_add_item(menu, @"Save Snapshot\u2026", MENU_FILE_SAVE_SNAPSHOT, @selector(handleMenuCommand:));
 	shell_add_item(menu, @"Load Snapshot\u2026", MENU_FILE_LOAD_SNAPSHOT, @selector(handleMenuCommand:));
+	shell_add_item(menu, @"Copy Screenshot", MENU_FILE_TAKE_SCREENSHOT, @selector(handleMenuCommand:));
 
 	shell_recent_snapshots_menu = [[NSMenu alloc] initWithTitle:@"Open Recent Snapshot"];
 	shell_recent_snapshots_item = [[NSMenuItem alloc] initWithTitle:@"Open Recent Snapshot"
@@ -573,8 +575,10 @@ static void shell_update_menu_state(void)
 	{
 		BOOL can_save = (shell_session_active && arc_is_paused() && snapshot_can_save(NULL, 0));
 		BOOL can_load = !shell_session_active;
+		BOOL can_screenshot = shell_session_active;
 		shell_set_menu_enabled(MENU_FILE_SAVE_SNAPSHOT, can_save);
 		shell_set_menu_enabled(MENU_FILE_LOAD_SNAPSHOT, can_load);
+		shell_set_menu_enabled(MENU_FILE_TAKE_SCREENSHOT, can_screenshot);
 
 		/* Disabling the parent item is enough — Cocoa won't let the
 		 * user open the submenu, so the per-entry items don't need
@@ -1254,6 +1258,20 @@ static void shell_request_app_termination(void)
 			 * handling for failed loads happens inside the
 			 * MainSplitViewController selection callback. */
 			[NewWindowBridge navigateToSnapshotBrowserInWindow:shell_window];
+		}
+		break;
+
+		case MENU_FILE_TAKE_SCREENSHOT:
+		{
+			if (!shell_session_active)
+				break;
+
+			NSString *error = [EmulatorBridge copyScreenshotToPasteboard];
+			if (error)
+			{
+				shell_show_alert(@"Cannot Copy Screenshot",
+						 error ?: @"Failed to copy emulator screenshot.");
+			}
 		}
 		break;
 

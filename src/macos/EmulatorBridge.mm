@@ -23,6 +23,7 @@ extern "C" {
 extern void arc_set_video_view(MTKView *view);
 extern MTKView *arc_get_video_view(void);
 extern "C" NSString *video_renderer_capture_screenshot(NSString *path);
+extern "C" NSString *video_renderer_copy_screenshot_to_pasteboard(void);
 
 static NSString *sLastStartError = nil;
 
@@ -331,7 +332,7 @@ static arcsnap_meta_t *build_save_meta(void)
     return snapshot_can_save(NULL, 0) != 0;
 }
 
-+ (NSString *)captureScreenshotToPath:(NSString *)path
++ (NSString *)performOnVideoView:(NSString *(^)(void))block
 {
     __block NSString *error = nil;
 
@@ -349,10 +350,20 @@ static arcsnap_meta_t *build_save_meta(void)
             return;
         }
 
-        error = video_renderer_capture_screenshot(path);
+        error = block();
     });
 
     return error;
+}
+
++ (NSString *)captureScreenshotToPath:(NSString *)path
+{
+    return [self performOnVideoView:^{ return video_renderer_capture_screenshot(path); }];
+}
+
++ (NSString *)copyScreenshotToPasteboard
+{
+    return [self performOnVideoView:^{ return video_renderer_copy_screenshot_to_pasteboard(); }];
 }
 
 @end

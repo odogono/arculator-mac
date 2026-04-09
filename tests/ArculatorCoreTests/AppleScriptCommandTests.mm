@@ -69,6 +69,8 @@ static int gLastMouseAbsY = 0;
 static BOOL gClearAllInjectedInputCalled = NO;
 static NSString *gCaptureScreenshotError = nil;
 static NSString *gLastScreenshotPath = nil;
+static NSString *gCopyScreenshotError = nil;
+static BOOL gCopyScreenshotCalled = NO;
 
 static void ResetAppleScriptTestState(void)
 {
@@ -126,6 +128,8 @@ static void ResetAppleScriptTestState(void)
     gClearAllInjectedInputCalled = NO;
     gCaptureScreenshotError = nil;
     gLastScreenshotPath = nil;
+    gCopyScreenshotError = nil;
+    gCopyScreenshotCalled = NO;
 }
 
 static NSDictionary<NSString *, id> *UserRecordFieldsFromDescriptor(NSAppleEventDescriptor *descriptor)
@@ -213,6 +217,12 @@ static NSDictionary<NSString *, id> *UserRecordFieldsFromDescriptor(NSAppleEvent
 {
     gLastScreenshotPath = [path copy];
     return gCaptureScreenshotError;
+}
+
++ (NSString *)copyScreenshotToPasteboard
+{
+    gCopyScreenshotCalled = YES;
+    return gCopyScreenshotError;
 }
 
 + (BOOL)ensureVideoViewInstalled
@@ -859,7 +869,7 @@ static NSDictionary<NSString *, id> *UserRecordFieldsFromDescriptor(NSAppleEvent
     XCTAssertTrue(gClearAllInjectedInputCalled);
 }
 
-- (void)testCaptureScreenshotRequiresRunningAndPath
+- (void)testCaptureScreenshotRequiresActiveSessionAndPath
 {
     NSScriptCommand *command = [self commandNamed:@"CaptureEmulationScreenshotCommand"
                                    directParameter:@"/tmp/screenshot.png"
@@ -881,6 +891,34 @@ static NSDictionary<NSString *, id> *UserRecordFieldsFromDescriptor(NSAppleEvent
     XCTAssertEqual(command.scriptErrorNumber, 0);
     XCTAssertEqualObjects(gLastScreenshotPath, @"/tmp/screenshot.png");
     XCTAssertEqualObjects(result, @"/tmp/screenshot.png");
+
+    gSessionState = ARCSessionStatePaused;
+    command = [self commandNamed:@"CaptureEmulationScreenshotCommand"
+                  directParameter:@"/tmp/paused-screenshot.png"
+                        arguments:nil];
+    result = [command performDefaultImplementation];
+    XCTAssertEqual(command.scriptErrorNumber, 0);
+    XCTAssertEqualObjects(gLastScreenshotPath, @"/tmp/paused-screenshot.png");
+    XCTAssertEqualObjects(result, @"/tmp/paused-screenshot.png");
+}
+
+- (void)testCopyScreenshotRequiresActiveSession
+{
+    NSScriptCommand *command = [self commandNamed:@"CopyEmulationScreenshotCommand"
+                                   directParameter:nil
+                                         arguments:nil];
+    [command performDefaultImplementation];
+    XCTAssertEqual(command.scriptErrorNumber, 1100);
+    XCTAssertFalse(gCopyScreenshotCalled);
+
+    gSessionState = ARCSessionStatePaused;
+    command = [self commandNamed:@"CopyEmulationScreenshotCommand"
+                  directParameter:nil
+                        arguments:nil];
+    id result = [command performDefaultImplementation];
+    XCTAssertEqual(command.scriptErrorNumber, 0);
+    XCTAssertTrue(gCopyScreenshotCalled);
+    XCTAssertNil(result);
 }
 
 @end

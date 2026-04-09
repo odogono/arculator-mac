@@ -36,6 +36,7 @@ static int last_present_src_x;
 static int last_present_src_y;
 static int last_present_src_w;
 static int last_present_src_h;
+static int last_present_dblscan;
 
 static void release_capture_buffer(void *info, const void *data, size_t size)
 {
@@ -264,6 +265,7 @@ void video_renderer_close()
 		last_present_src_y = 0;
 		last_present_src_w = 0;
 		last_present_src_h = 0;
+		last_present_dblscan = 0;
 		renderer_closing = 0;
 	}
 }
@@ -438,6 +440,7 @@ void video_renderer_present(int src_x, int src_y, int src_w, int src_h, int dbls
 		last_present_src_y = src_y;
 		last_present_src_w = src_w;
 		last_present_src_h = src_h;
+		last_present_dblscan = dblscan;
 
 		CGFloat scale = cached_backing_scale;
 		int win_w = cached_view_w;
@@ -506,11 +509,14 @@ void video_renderer_present(int src_x, int src_y, int src_w, int src_h, int dbls
 	}
 }
 
-NSString *video_renderer_capture_screenshot(NSString *path)
+static CGImageRef video_renderer_capture_screenshot_image(NSString **error_out)
 {
 	@autoreleasepool {
 		if (!metal_texture)
-			return @"Metal texture is unavailable";
+		{
+			if (error_out) *error_out = @"Metal texture is unavailable";
+			return nil;
+		}
 
 		int capture_x = last_present_src_x;
 		int capture_y = last_present_src_y;
@@ -518,7 +524,10 @@ NSString *video_renderer_capture_screenshot(NSString *path)
 		int capture_h = last_present_src_h;
 
 		if (capture_w <= 0 || capture_h <= 0)
-			return @"No emulation frame has been presented yet";
+		{
+			if (error_out) *error_out = @"No emulation frame has been presented yet";
+			return nil;
+		}
 
 		if (capture_x < 0) capture_x = 0;
 		if (capture_y < 0) capture_y = 0;
@@ -528,13 +537,19 @@ NSString *video_renderer_capture_screenshot(NSString *path)
 			capture_h = TEXTURE_SIZE - capture_y;
 
 		if (capture_w <= 0 || capture_h <= 0)
-			return @"Computed capture region is invalid";
+		{
+			if (error_out) *error_out = @"Computed capture region is invalid";
+			return nil;
+		}
 
 		NSUInteger bytesPerRow = (NSUInteger)capture_w * 4;
 		NSUInteger dataSize = bytesPerRow * (NSUInteger)capture_h;
 		void *raw = calloc(1, dataSize);
 		if (!raw)
-			return @"Failed to allocate screenshot buffer";
+		{
+			if (error_out) *error_out = @"Failed to allocate screenshot buffer";
+			return nil;
+		}
 
 		MTLRegion region = MTLRegionMake2D(capture_x, capture_y, capture_w, capture_h);
 		[metal_texture getBytes:raw bytesPerRow:bytesPerRow fromRegion:region mipmapLevel:0];
@@ -543,7 +558,8 @@ NSString *video_renderer_capture_screenshot(NSString *path)
 		if (!provider)
 		{
 			free(raw);
-			return @"Failed to create screenshot data provider";
+			if (error_out) *error_out = @"Failed to create screenshot data provider";
+			return nil;
 		}
 
 		CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
@@ -553,7 +569,7 @@ NSString *video_renderer_capture_screenshot(NSString *path)
 						     32,
 						     bytesPerRow,
 						     colorSpace,
-						     kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst,
+						     kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
 						     provider,
 						     NULL,
 						     NO,
@@ -562,21 +578,90 @@ NSString *video_renderer_capture_screenshot(NSString *path)
 		CGDataProviderRelease(provider);
 
 		if (!imageRef)
-			return @"Failed to create screenshot image";
+		{
+			if (error_out) *error_out = @"Failed to create screenshot image";
+			return nil;
+		}
 
-		NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithCGImage:imageRef];
-		CGImageRelease(imageRef);
-		NSData *pngData = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-		if (!pngData)
-			return @"Failed to encode screenshot PNG";
+		CGImageRef finalImageRef = imageRef;
+		if (last_present_dblscan)
+		{
+			size_t scaled_w = (size_t)capture_w;
+			size_t scaled_h = (size_t)capture_h * 2;
+			CGColorSpaceRef scaledColorSpace = CGColorSpaceCreateDeviceRGB();
+			CGContextRef scaledContext = CGBitmapContextCreate(NULL,
+			                                                  scaled_w,
+			                                                  scaled_h,
+			                                                  8,
+			                                                  scaled_w * 4,
+			                                                  scaledColorSpace,
+			                                                  kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst);
+			CGColorSpaceRelease(scaledColorSpace);
+			if (!scaledContext)
+			{
+				CGImageRelease(imageRef);
+				if (error_out) *error_out = @"Failed to scale screenshot image";
+				return nil;
+			}
 
-		NSError *writeError = nil;
-		if (![pngData writeToFile:path options:NSDataWritingAtomic error:&writeError])
-			return [NSString stringWithFormat:@"Failed to write file: %@",
-				writeError.localizedDescription ?: path];
+			CGContextSetInterpolationQuality(scaledContext, kCGInterpolationNone);
+			CGContextDrawImage(scaledContext,
+			                   CGRectMake(0, 0, scaled_w, scaled_h),
+			                   imageRef);
+			finalImageRef = CGBitmapContextCreateImage(scaledContext);
+			CGContextRelease(scaledContext);
+			CGImageRelease(imageRef);
+			if (!finalImageRef)
+			{
+				if (error_out) *error_out = @"Failed to scale screenshot image";
+				return nil;
+			}
+		}
 
-		return nil;
+		if (error_out) *error_out = nil;
+		return finalImageRef;
 	}
+}
+
+NSString *video_renderer_capture_screenshot(NSString *path)
+{
+	NSString *error = nil;
+	CGImageRef imageRef = video_renderer_capture_screenshot_image(&error);
+	if (!imageRef)
+		return error;
+
+	NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithCGImage:imageRef];
+	CGImageRelease(imageRef);
+	NSData *pngData = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
+	if (!pngData)
+		return @"Failed to encode screenshot PNG";
+
+	NSError *writeError = nil;
+	if (![pngData writeToFile:path options:NSDataWritingAtomic error:&writeError])
+		return [NSString stringWithFormat:@"Failed to write file: %@",
+			writeError.localizedDescription ?: path];
+
+	return nil;
+}
+
+NSString *video_renderer_copy_screenshot_to_pasteboard(void)
+{
+	NSString *error = nil;
+	CGImageRef imageRef = video_renderer_capture_screenshot_image(&error);
+	if (!imageRef)
+		return error;
+
+	NSImage *image = [[NSImage alloc] initWithCGImage:imageRef
+	                                             size:NSMakeSize(CGImageGetWidth(imageRef),
+	                                                             CGImageGetHeight(imageRef))];
+	CGImageRelease(imageRef);
+
+	NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+	[pasteboard clearContents];
+	if (![pasteboard writeObjects:@[image]])
+		return @"Failed to write screenshot to clipboard";
+
+	return nil;
 }
 
 int video_renderer_available(int id)

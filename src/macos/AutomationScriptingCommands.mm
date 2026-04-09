@@ -3,7 +3,7 @@
 //  Arculator
 //
 //  AppleScript commands: move guest mouse to, clear injected input,
-//  capture emulation screenshot.
+//  capture emulation screenshot, copy emulation screenshot.
 //
 
 #import <Foundation/Foundation.h>
@@ -52,6 +52,11 @@
 
 #pragma mark - capture emulation screenshot
 
+static BOOL ScriptingScreenshotSessionAvailable(void)
+{
+    return [EmulatorBridge sessionState] != ARCSessionStateIdle;
+}
+
 @interface CaptureEmulationScreenshotCommand : NSScriptCommand
 @end
 
@@ -63,14 +68,35 @@
     if (!path || ![path isKindOfClass:[NSString class]] || path.length == 0)
         return ScriptingError(self, 1000, @"Missing destination file path");
 
-    if ([EmulatorBridge sessionState] != ARCSessionStateRunning)
-        return ScriptingError(self, 1100, @"Cannot capture screenshot: emulation is not running");
+    if (!ScriptingScreenshotSessionAvailable())
+        return ScriptingError(self, 1100, @"Cannot capture screenshot: emulation is not active");
 
     NSString *error = [EmulatorBridge captureScreenshotToPath:path];
     if (error)
         return ScriptingError(self, 1200, error);
 
     return path;
+}
+
+@end
+
+#pragma mark - copy emulation screenshot
+
+@interface CopyEmulationScreenshotCommand : NSScriptCommand
+@end
+
+@implementation CopyEmulationScreenshotCommand
+
+- (id)performDefaultImplementation
+{
+    if (!ScriptingScreenshotSessionAvailable())
+        return ScriptingError(self, 1100, @"Cannot copy screenshot: emulation is not active");
+
+    NSString *error = [EmulatorBridge copyScreenshotToPasteboard];
+    if (error)
+        return ScriptingError(self, 1200, error);
+
+    return nil;
 }
 
 @end
