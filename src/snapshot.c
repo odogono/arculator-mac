@@ -316,9 +316,12 @@ int snapshot_writer_write_manifest(snapshot_writer_t *w, const arcsnap_manifest_
 
 	if (!w || !m)
 		return 0;
-	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_MNFT, ARCSNAP_MNFT_VERSION))
-		return 0;
-	if (!snapshot_writer_append_u32(w, m->version ? m->version : ARCSNAP_MNFT_VERSION)) goto fail;
+	{
+		uint32_t ver = m->version ? m->version : ARCSNAP_MNFT_VERSION;
+		if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_MNFT, ver))
+			return 0;
+		if (!snapshot_writer_append_u32(w, ver))                        goto fail;
+	}
 	if (!snapshot_writer_append_string(w, m->original_config_name)) goto fail;
 	if (!snapshot_writer_append_string(w, m->machine))              goto fail;
 	if (!snapshot_writer_append_i32   (w, m->fdctype))              goto fail;
@@ -337,6 +340,20 @@ int snapshot_writer_write_manifest(snapshot_writer_t *w, const arcsnap_manifest_
 		if (!snapshot_writer_append_u64   (w, f->file_size))        goto fail;
 		if (!snapshot_writer_append_i32   (w, f->write_protect))    goto fail;
 		if (!snapshot_writer_append_string(w, f->extension))        goto fail;
+	}
+	if (m->version >= ARCSNAP_MNFT_VERSION_HD)
+	{
+		if (!snapshot_writer_append_u32(w, (uint32_t)m->hd_count))  goto fail;
+		for (i = 0; i < m->hd_count && i < ARCSNAP_MNFT_MAX_HDS; i++)
+		{
+			const arcsnap_manifest_hd_t *h = &m->hds[i];
+			if (!snapshot_writer_append_i32   (w, h->drive_index))  goto fail;
+			if (!snapshot_writer_append_string(w, h->original_path)) goto fail;
+			if (!snapshot_writer_append_u64   (w, h->file_size))    goto fail;
+			if (!snapshot_writer_append_i32   (w, h->spt))          goto fail;
+			if (!snapshot_writer_append_i32   (w, h->hpc))          goto fail;
+			if (!snapshot_writer_append_i32   (w, h->cyl))          goto fail;
+		}
 	}
 	return snapshot_writer_end_chunk(w);
 
@@ -856,11 +873,14 @@ int snapshot_decode_manifest(const uint8_t *payload, uint64_t size,
 
 	if (!mnft_read_u32(&d, &out->version))
 		goto truncated;
-	if (out->version != ARCSNAP_MNFT_VERSION)
+	if (out->version != ARCSNAP_MNFT_VERSION &&
+	    out->version != ARCSNAP_MNFT_VERSION_HD)
 	{
 		set_errorf(err, err_size,
-		           "unsupported manifest version %u (expected %u)",
-		           out->version, (unsigned)ARCSNAP_MNFT_VERSION);
+		           "unsupported manifest version %u (expected %u or %u)",
+		           out->version,
+		           (unsigned)ARCSNAP_MNFT_VERSION,
+		           (unsigned)ARCSNAP_MNFT_VERSION_HD);
 		return 0;
 	}
 	if (!mnft_read_string(&d, out->original_config_name, sizeof(out->original_config_name))) goto truncated;
@@ -890,6 +910,29 @@ int snapshot_decode_manifest(const uint8_t *payload, uint64_t size,
 		if (!mnft_read_u64(&d, &f->file_size)) goto truncated;
 		if (!mnft_read_i32(&d, &i32)) goto truncated; f->write_protect = (int)i32;
 		if (!mnft_read_string(&d, f->extension, sizeof(f->extension))) goto truncated;
+	}
+	if (out->version >= ARCSNAP_MNFT_VERSION_HD)
+	{
+		uint32_t hd_count;
+		if (!mnft_read_u32(&d, &hd_count)) goto truncated;
+		if (hd_count > ARCSNAP_MNFT_MAX_HDS)
+		{
+			set_errorf(err, err_size,
+			           "manifest declares %u hard discs (max %u)",
+			           hd_count, (unsigned)ARCSNAP_MNFT_MAX_HDS);
+			return 0;
+		}
+		out->hd_count = (int)hd_count;
+		for (i = 0; i < (int)hd_count; i++)
+		{
+			arcsnap_manifest_hd_t *h = &out->hds[i];
+			if (!mnft_read_i32(&d, &i32)) goto truncated; h->drive_index = (int)i32;
+			if (!mnft_read_string(&d, h->original_path, sizeof(h->original_path))) goto truncated;
+			if (!mnft_read_u64(&d, &h->file_size)) goto truncated;
+			if (!mnft_read_i32(&d, &i32)) goto truncated; h->spt = (int)i32;
+			if (!mnft_read_i32(&d, &i32)) goto truncated; h->hpc = (int)i32;
+			if (!mnft_read_i32(&d, &i32)) goto truncated; h->cyl = (int)i32;
+		}
 	}
 	if (d.cursor != d.size)
 	{
@@ -1035,6 +1078,7 @@ extern char joystick_if[16];
 extern char _5th_column_fn[512];
 extern int  arc_is_paused(void);
 extern int  floppy_is_idle(void);
+extern int  ide_internal_is_idle(void);
 
 static int snapshot_internal_hd_is_configured(void)
 {
@@ -1067,9 +1111,21 @@ int snapshot_can_save(char *err, size_t err_size)
 	}
 	if (snapshot_internal_hd_is_configured())
 	{
-		set_errorf(err, err_size,
-		           "internal hard disc configured (snapshots are floppy-only in v1)");
-		return 0;
+		if (fdctype == FDC_82C711)
+		{
+			if (!ide_internal_is_idle())
+			{
+				set_errorf(err, err_size,
+				           "IDE hard disc controller is busy; wait and try again");
+				return 0;
+			}
+		}
+		else if (st506_present)
+		{
+			set_errorf(err, err_size,
+			           "ST506 hard disc not yet supported in snapshots");
+			return 0;
+		}
 	}
 	for (i = 0; i < 4; i++)
 	{
@@ -1161,8 +1217,7 @@ snapshot_load_ctx_t *snapshot_open(const char *path, char *err, size_t err_size)
 	{
 		uint32_t bad = ctx->manifest.scope_flags & ARCSNAP_SCOPE_UNSUPPORTED_MASK;
 		const char *what = "unsupported subsystem";
-		if      (bad & ARCSNAP_SCOPE_HAS_HD)         what = "hard disc";
-		else if (bad & ARCSNAP_SCOPE_HAS_PODULE)     what = "podule";
+		if      (bad & ARCSNAP_SCOPE_HAS_PODULE)     what = "podule";
 		else if (bad & ARCSNAP_SCOPE_HAS_5TH_COLUMN) what = "5th-column ROM";
 		else if (bad & ARCSNAP_SCOPE_HAS_JOYSTICK)   what = "joystick interface";
 		set_errorf(err, err_size,

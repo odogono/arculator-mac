@@ -114,6 +114,13 @@ int c82c711_fdc_load_state(snapshot_payload_reader_t *r, uint32_t version);
 int disc_save_state(snapshot_writer_t *w);
 int disc_load_state(snapshot_payload_reader_t *r, uint32_t version);
 
+/* IDE hard disc controller (src/ide.c). Only emitted when
+ * fdctype == FDC_82C711 and an HD image is configured. The file
+ * handles and IRQ callbacks are re-established by c82c711_init()
+ * during arc_init() before the snapshot state is applied. */
+int ide_internal_save_state(snapshot_writer_t *w);
+int ide_internal_load_state(snapshot_payload_reader_t *r, uint32_t version);
+
 #ifdef __cplusplus
 }
 #endif

@@ -48,11 +48,15 @@ extern "C" {
 #define ARCSNAP_CHUNK_FDCW ARCSNAP_FOURCC('F','D','C','W') /* WD1770 */
 #define ARCSNAP_CHUNK_FDCS ARCSNAP_FOURCC('F','D','C','S') /* 82C711 SuperIO */
 #define ARCSNAP_CHUNK_DISC ARCSNAP_FOURCC('D','I','S','C')
+#define ARCSNAP_CHUNK_HDIE ARCSNAP_FOURCC('H','D','I','E') /* IDE controller state */
+#define ARCSNAP_CHUNK_MHDA ARCSNAP_FOURCC('M','H','D','A') /* Compressed HD media */
 #define ARCSNAP_CHUNK_TIMR ARCSNAP_FOURCC('T','I','M','R')
 #define ARCSNAP_CHUNK_END  ARCSNAP_FOURCC('E','N','D',' ')
 
-#define ARCSNAP_MNFT_VERSION 1u
+#define ARCSNAP_MNFT_VERSION    1u
+#define ARCSNAP_MNFT_VERSION_HD 2u
 #define ARCSNAP_MNFT_MAX_FLOPPIES 4
+#define ARCSNAP_MNFT_MAX_HDS      2
 
 #define ARCSNAP_META_VERSION 1u
 
@@ -73,8 +77,7 @@ extern "C" {
 #define ARCSNAP_SCOPE_HAS_5TH_COLUMN  (1u << 7)
 #define ARCSNAP_SCOPE_HAS_JOYSTICK    (1u << 8)
 
-#define ARCSNAP_SCOPE_UNSUPPORTED_MASK (ARCSNAP_SCOPE_HAS_HD         | \
-                                        ARCSNAP_SCOPE_HAS_PODULE     | \
+#define ARCSNAP_SCOPE_UNSUPPORTED_MASK (ARCSNAP_SCOPE_HAS_PODULE     | \
                                         ARCSNAP_SCOPE_HAS_5TH_COLUMN | \
                                         ARCSNAP_SCOPE_HAS_JOYSTICK)
 

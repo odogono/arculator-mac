@@ -103,17 +103,18 @@ Grouped by tier, ordered within each tier by dependency. Each item lists scope +
 
 ### Tier 4 — Scope expansion (large, unblocks more users)
 
-**4.1 Hard-disc support** *(large)*
-This is the single biggest user-visible expansion. Breaks into sub-problems:
-- **Controller state serialization**: ST506 (`src/st506.c`), IDE, SCSI. Each needs a save_state/load_state pair plus a busy/idle check added to the scope guards.
-- **Media bundling strategy** — needs a product decision:
-  - *Inline bundling*: write full HD image into `MEDA` chunk. Simple, self-contained, but snapshots become hundreds of MB.
-  - *Reference by path + hash*: manifest records absolute path and SHA-256 of the source HD image. Loader verifies hash matches before mounting. Small snapshot files, but snapshots break if the user moves the disc image.
-  - *Copy-on-write overlay*: on save, snapshot captures only the delta against a base image referenced by hash. Best of both but needs an overlay layer in the disc backend that doesn't currently exist.
-  - *Recommendation*: start with reference+hash; add overlays as 4.1b if demand exists.
-- **Scope guards**: relax `snapshot_can_save()` to allow hard discs when media strategy is satisfied. Bump `ARCSNAP_SCOPE_HAS_HD` from "reject" to "accept if strategy supported."
-- **Quiescence**: HD controllers need their own `_is_idle()` helpers alongside `floppy_is_idle()`.
-- Files: `src/st506.c`, `src/ide.c`, `src/scsi.c`, `src/snapshot.c`, `src/snapshot_chunks.h`, `src/snapshot_subsystems.h`.
+**4.1 Hard-disc support** *(large)* — **IDE done; ST506/SCSI deferred**
+IDE hard-disc support has been implemented:
+- **IDE controller serialization**: `ide_internal_save_state` / `ide_internal_load_state` (`src/ide.c`) with `HDIE` chunk and `ide_internal_is_idle()` quiescence check.
+- **Media bundling**: inline bundling with zlib compression via new `MHDA` chunk (compressed HD media data). HD images are bundled into the snapshot, then decompressed on load.
+- **Manifest v2**: `MNFT` version 2 extends v1 with HD records (drive index, path, file size, geometry). Floppy-only snapshots remain v1 for backward compatibility.
+- **Scope guards**: `ARCSNAP_SCOPE_HAS_HD` removed from `ARCSNAP_SCOPE_UNSUPPORTED_MASK`. `snapshot_can_save()` allows IDE HD when the controller is idle; ST506 HD remains rejected.
+- Files: `src/ide.c`, `src/snapshot.c`, `src/snapshot_load.c`, `src/snapshot_chunks.h`, `src/snapshot.h`, `src/snapshot_subsystems.h`.
+
+Remaining sub-problems for future work:
+- **ST506 controller serialization** (`src/st506.c`): needs save_state/load_state pair and `st506_internal_is_idle()`.
+- **SCSI**: typically podule-based, deferred to 4.2 (podule framework).
+- **Copy-on-write overlay**: deferrable optimisation to avoid bundling unchanged sectors.
 
 **4.2 Generic podule save/load framework** *(large)*
 - Add a `podule_ops_t` function-pointer block with optional `save_state` / `load_state` / `is_idle` / `snapshot_scope_flags` entries. Podules that leave these NULL continue to be rejected by `snapshot_can_save()`.
@@ -155,19 +156,19 @@ Items 1.1, 1.2, 1.3, 2.2, and 3.1 have all landed. Only 3.2 (fixture corpus + ro
 
 ## Next milestone candidates
 
-After 3.2, the remaining short tasks form a tight "automation" bundle suitable for v1.2:
+Tier 4.1 IDE hard-disc support has landed. The remaining short tasks form a tight "automation" bundle suitable for v1.2:
 - Tier 1.4 (CLI flags)
 - Tier 1.5 (AppleScript)
 - Tier 1.6 (`arcsnap-verify` tool)
 
-Then evaluate whether Tier 4.1 (hard-disc support) or Tier 5.1 (wx shell) is the bigger ask from users, and go wide from there.
+Then evaluate Tier 4.1 ST506 completion, Tier 4.2 (podule framework), or Tier 5.1 (wx shell) based on user demand.
 
 ## Critical files referenced
 
 Current snapshot surface area the roadmap touches:
 
 - **Core format & API**: `src/snapshot.h`, `src/snapshot.c`, `src/snapshot_load.c`, `src/snapshot_chunks.h`, `src/snapshot_subsystems.h`, `src/snapshot_internal.h`
-- **Subsystem serializers**: `src/arm.c`, `src/cp15.c`, `src/fpa.c`, `src/mem.c`, `src/memc.c`, `src/ioc.c`, `src/vidc.c`, `src/keyboard.c`, `src/cmos.c`, `src/ds2401.c`, `src/sound.c`, `src/ioeb.c`, `src/lc.c`, `src/wd1770.c`, `src/82c711_fdc.c`, `src/disc.c`, `src/timer.c`
+- **Subsystem serializers**: `src/arm.c`, `src/cp15.c`, `src/fpa.c`, `src/mem.c`, `src/memc.c`, `src/ioc.c`, `src/vidc.c`, `src/keyboard.c`, `src/cmos.c`, `src/ds2401.c`, `src/sound.c`, `src/ioeb.c`, `src/lc.c`, `src/wd1770.c`, `src/82c711_fdc.c`, `src/disc.c`, `src/ide.c`, `src/timer.c`
 - **Entry points**: `src/main.c:241` (`arc_init_from_snapshot`), `src/arc.h`
 - **Platform paths**: `src/platform_paths.c:358–373`
 - **macOS shell**: `src/macos/app_macos.mm` (menus: lines 51–52, 232–233, 463–464, 919–966; `arc_save_snapshot` at 1466; `arc_start_snapshot_session` at 1479; cleanup at 735), `src/macos/EmulatorBridge.{h,mm}` (lines 148–228), `src/macos/EmulatorState.swift` (lines 21, 83–85), `src/macos/AutomationScriptingCommands.mm`

@@ -30,7 +30,16 @@ typedef struct {
 } arcsnap_manifest_floppy_t;
 
 typedef struct {
-	uint32_t                 version;            /* ARCSNAP_MNFT_VERSION */
+	int      drive_index;
+	char     original_path[512];
+	uint64_t file_size;
+	int      spt;
+	int      hpc;
+	int      cyl;
+} arcsnap_manifest_hd_t;
+
+typedef struct {
+	uint32_t                 version;            /* ARCSNAP_MNFT_VERSION or ARCSNAP_MNFT_VERSION_HD */
 	char                     original_config_name[256];
 	char                     machine[16];
 	int                      fdctype;
@@ -42,6 +51,8 @@ typedef struct {
 	int                      preview_height;
 	int                      floppy_count;
 	arcsnap_manifest_floppy_t floppies[4];
+	int                      hd_count;
+	arcsnap_manifest_hd_t    hds[2];             /* ARCSNAP_MNFT_MAX_HDS */
 } arcsnap_manifest_t;
 
 /* ----- META (optional descriptive metadata) -------------------------- *

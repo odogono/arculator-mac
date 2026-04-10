@@ -2,6 +2,13 @@
 
 ## (unreleased)
 
+- core: Add IDE hard disc snapshot support with zlib-compressed media bundling
+- core: Add IDE controller state serialization (HDIE chunk) and idle detection
+- core: Add MHDA chunk for compressed hard disc image storage in snapshots
+- core: Extend snapshot manifest to v2 with hard disc geometry and metadata
+- core: Relax snapshot scope guards to allow IDE hard discs when controller is idle
+- testing: Add MNFT v2 round-trip, backward-compat, and IDE scope tests
+
 - macOS: Show configured floppy drive count in sidebar instead of hardware default
 
 - macOS: Add `Copy Screenshot` menu item to capture the current emulator frame to the system clipboard

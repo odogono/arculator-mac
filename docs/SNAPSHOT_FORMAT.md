@@ -99,6 +99,7 @@ Rules:
 | `MNFT` | yes | Load-critical manifest: machine/config/media summary and scope flags |
 | `CFG ` | yes | Original machine config file bytes |
 | `MEDA` | conditional | One per mounted floppy, containing drive index plus raw media bytes |
+| `MHDA` | conditional | One per mounted IDE hard disc, containing drive index, uncompressed size, and zlib-compressed media bytes |
 | `PREV` | no | Encoded PNG preview used for snapshot browsing UI |
 | `META` | no | Descriptive metadata: name, description, creation timestamp, host properties |
 
@@ -122,6 +123,7 @@ Rules:
 | `FDCW` | conditional | WD1770 FDC state |
 | `FDCS` | conditional | 82C711 FDC state |
 | `DISC` | yes | Disc subsystem runtime state |
+| `HDIE` | conditional | IDE hard disc controller state (when fdctype == FDC_82C711 and HD configured) |
 | `TIMR` | yes | Global timer state |
 | `END ` | yes | End-of-stream sentinel; current payload is empty |
 
@@ -132,7 +134,7 @@ Rules:
 Current payload order:
 
 ```text
-u32    manifest_version
+u32    manifest_version            /* 1 = floppy-only, 2 = floppy + HD */
 str    original_config_name
 str    machine
 i32    fdctype
@@ -149,15 +151,25 @@ repeat floppy_count times:
   u64  file_size
   i32  write_protect
   str  extension
+/* v2 extension (only present when manifest_version >= 2): */
+u32    hd_count
+repeat hd_count times:
+  i32  drive_index
+  str  original_path
+  u64  file_size
+  i32  spt                         /* sectors per track */
+  i32  hpc                         /* heads per cylinder */
+  i32  cyl                         /* cylinders */
 ```
 
 Current rules:
 
 - `MNFT` must be the first chunk
-- `manifest_version` is currently `1`
-- The decoder rejects unsupported manifest versions
-- The decoder also rejects trailing bytes
-- Because of that, appending extra fields to `MNFT` is a breaking change unless the reader grows explicit fallback logic
+- `manifest_version` is `1` (floppy-only) or `2` (floppy + HD)
+- The decoder accepts versions 1 and 2; version 3+ is rejected
+- The decoder rejects trailing bytes after the expected fields for the version
+- Floppy-only snapshots use version 1 for backward compatibility with older readers
+- Snapshots with HD images use version 2, which appends HD records after the floppy section
 
 ### `MNFT` responsibilities
 
@@ -181,7 +193,7 @@ Current scope flag bits:
 | 2 | `ARCSNAP_SCOPE_HAS_IOEB` | Snapshot includes IOEB state |
 | 3 | `ARCSNAP_SCOPE_HAS_LC` | Snapshot includes A4 LC state |
 | 4 | `ARCSNAP_SCOPE_HAS_PREV` | Snapshot includes a `PREV` chunk |
-| 5 | `ARCSNAP_SCOPE_HAS_HD` | Hard-disc state present; unsupported in current v1 loader |
+| 5 | `ARCSNAP_SCOPE_HAS_HD` | Hard-disc state present; supported for IDE (82C711) in MNFT v2 |
 | 6 | `ARCSNAP_SCOPE_HAS_PODULE` | Podule state present; unsupported in current v1 loader |
 | 7 | `ARCSNAP_SCOPE_HAS_5TH_COLUMN` | 5th-column ROM state present; unsupported in current v1 loader |
 | 8 | `ARCSNAP_SCOPE_HAS_JOYSTICK` | Joystick state present; unsupported in current v1 loader |
@@ -249,6 +261,29 @@ Tooling is free to read these, ignore them, or record additional keys.
 - Duplicate `META` chunks are treated as malformed input
 - Trailing bytes inside a `META` payload are rejected; extending `META` requires a version bump (`meta_version`)
 
+## `MHDA` chunk
+
+`MHDA` carries a compressed hard disc image for IDE-based machines. One `MHDA` chunk per mounted HD (up to 2). The media bytes are zlib-compressed to keep snapshot files manageable.
+
+### Payload shape
+
+```text
+i32    drive_index              /* 0 or 1 */
+u64    uncompressed_size        /* original HD image size in bytes */
+u8[]   zlib_compressed_data     /* remainder of chunk payload */
+```
+
+### `MHDA` rules
+
+- Drive index must be 0 or 1; values outside this range are rejected
+- Duplicate `MHDA` chunks for the same drive index are rejected
+- On load, the payload is decompressed with zlib `uncompress()` and written to the runtime directory as `hd<N>.hdf`
+- The runtime config is rewritten to point `hd4_fn`/`hd5_fn` at the extracted files, with geometry from the MNFT v2 HD records
+
+## `HDIE` chunk
+
+`HDIE` carries IDE controller state (the 82C711 internal IDE). Only present when `fdctype == FDC_82C711` and at least one HD image is configured. Version 1 serializes all `ide_t` fields except file handles and IRQ callbacks (which are re-established by `c82c711_init()` during `arc_init()`).
+
 ## Reader behavior
 
 ### Current behavior in code
@@ -256,7 +291,7 @@ Tooling is free to read these, ignore them, or record additional keys.
 - File open validates header magic, file-format version, and header CRC
 - Chunk iteration validates each chunk payload CRC before exposing it
 - `snapshot_open()` requires `MNFT` to be the first chunk
-- Runtime-preparation code extracts `CFG ` and `MEDA`, skips `PREV`, then stops at the first non-summary chunk
+- Runtime-preparation code extracts `CFG `, `MEDA`, and `MHDA`, skips `PREV` and `META`, then stops at the first non-summary chunk
 - Machine-state application ignores unknown state chunk IDs as no-ops
 
 ### Required behavior going forward

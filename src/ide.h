@@ -40,3 +40,5 @@ void resetide(ide_t *ide,
 		void (*irq_raise)(ide_t *ide), void (*irq_clear)(ide_t *ide));
 void resetide_drive(ide_t *ide);
 void closeide(ide_t *ide);
+
+int ide_internal_is_idle(void);

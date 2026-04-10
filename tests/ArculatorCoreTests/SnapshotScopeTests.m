@@ -17,6 +17,7 @@ extern char _5th_column_fn[512];
 /* Test-controllable gates from core_test_stubs.c. */
 extern int g_test_arc_is_paused;
 extern int g_test_floppy_is_idle;
+extern int g_test_ide_is_idle;
 
 @interface SnapshotScopeTests : XCTestCase
 {
@@ -31,7 +32,9 @@ extern int g_test_floppy_is_idle;
 	/* Baseline: clean, floppy-only, paused, idle. */
 	g_test_arc_is_paused  = 1;
 	g_test_floppy_is_idle = 1;
+	g_test_ide_is_idle    = 1;
 	st506_present         = 0;
+	fdctype               = FDC_WD1770;
 	hd_fn[0][0]           = 0;
 	hd_fn[1][0]           = 0;
 	for (int i = 0; i < 4; i++)
@@ -90,15 +93,40 @@ extern int g_test_floppy_is_idle;
 		@"empty ST506 controller should still be savable, got err='%s'", err);
 }
 
-- (void)testRejectsInternalHardDiscViaHDFn
+- (void)testAllowsIDEHardDiscWhenIdle
 {
 	fdctype = FDC_82C711;
+	snprintf(hd_fn[0], sizeof(hd_fn[0]), "/tmp/drive0.hdf");
+	g_test_ide_is_idle = 1;
+
+	char err[256] = {0};
+	XCTAssertEqual(snapshot_can_save(err, sizeof(err)), 1,
+		@"IDE HD should be allowed when idle, got err='%s'", err);
+}
+
+- (void)testRejectsBusyIDEHardDisc
+{
+	fdctype = FDC_82C711;
+	snprintf(hd_fn[0], sizeof(hd_fn[0]), "/tmp/drive0.hdf");
+	g_test_ide_is_idle = 0;
+
+	char err[256] = {0};
+	XCTAssertEqual(snapshot_can_save(err, sizeof(err)), 0);
+	XCTAssertTrue(strstr(err, "IDE") != NULL,
+		@"expected an 'IDE' rejection, got '%s'", err);
+	XCTAssertTrue(strstr(err, "busy") != NULL,
+		@"expected a 'busy' rejection, got '%s'", err);
+}
+
+- (void)testRejectsST506HardDisc
+{
+	st506_present = 1;
 	snprintf(hd_fn[0], sizeof(hd_fn[0]), "/tmp/drive0.hdf");
 
 	char err[256] = {0};
 	XCTAssertEqual(snapshot_can_save(err, sizeof(err)), 0);
-	XCTAssertTrue(strstr(err, "hard disc") != NULL,
-		@"expected a 'hard disc' rejection, got '%s'", err);
+	XCTAssertTrue(strstr(err, "ST506") != NULL,
+		@"expected an 'ST506' rejection, got '%s'", err);
 }
 
 - (void)testRejectsUnknownPodule
@@ -173,7 +201,7 @@ extern int g_test_floppy_is_idle;
 	}
 }
 
-- (void)testOpenRejectsHardDiscScope
+- (void)testOpenAcceptsHardDiscScope
 {
 	char path[512];
 	snprintf(path, sizeof(path), "%s/hd.arcsnap", _tmpDir);
@@ -182,9 +210,9 @@ extern int g_test_floppy_is_idle;
 
 	char err[256] = {0};
 	snapshot_load_ctx_t *ctx = snapshot_open(path, err, sizeof(err));
-	XCTAssertTrue(ctx == NULL, @"hard-disc scope flag should be rejected by loader");
-	XCTAssertTrue(strstr(err, "hard disc") != NULL,
-		@"expected a 'hard disc' rejection, got '%s'", err);
+	XCTAssertTrue(ctx != NULL, @"hard-disc scope flag should be accepted, got err='%s'", err);
+	if (ctx)
+		snapshot_close(ctx);
 }
 
 - (void)testOpenRejectsPoduleScope

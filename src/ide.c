@@ -8,6 +8,9 @@
 #include "ide.h"
 #include "ioc.h"
 #include "timer.h"
+#include "snapshot.h"
+#include "snapshot_chunks.h"
+#include "snapshot_subsystems.h"
 
 /* Bits of 'atastat' */
 #define ERR_STAT		0x01
@@ -519,5 +522,130 @@ void callbackide(void *p)
 		return;
 	}
 }
+/* ----- Quiescence check ------------------------------------------------ */
+
+int ide_internal_is_idle(void)
+{
+	if (ide_internal.atastat & BUSY_STAT)
+		return 0;
+	if (ide_internal.atastat & DRQ_STAT)
+		return 0;
+	if (timer_is_enabled(&ide_internal.timer))
+		return 0;
+	return 1;
+}
+
+/* ----- Snapshot save/load ---------------------------------------------- */
+
+#define IDE_STATE_VERSION 1u
+
+int ide_internal_save_state(snapshot_writer_t *w)
+{
+	ide_t *ide = &ide_internal;
+	int c;
+
+	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_HDIE, IDE_STATE_VERSION))
+		return 0;
+
+	snapshot_writer_append_u8 (w, ide->atastat);
+	snapshot_writer_append_u8 (w, ide->error);
+	snapshot_writer_append_u8 (w, ide->status);
+	snapshot_writer_append_i32(w, ide->secount);
+	snapshot_writer_append_i32(w, ide->sector);
+	snapshot_writer_append_i32(w, ide->cylinder);
+	snapshot_writer_append_i32(w, ide->head);
+	snapshot_writer_append_i32(w, ide->drive);
+	snapshot_writer_append_i32(w, ide->cylprecomp);
+	snapshot_writer_append_u8 (w, ide->command);
+	snapshot_writer_append_u8 (w, ide->fdisk);
+	snapshot_writer_append_i32(w, ide->pos);
+	for (c = 0; c < 2; c++) snapshot_writer_append_i32(w, ide->def_spt[c]);
+	for (c = 0; c < 2; c++) snapshot_writer_append_i32(w, ide->def_hpc[c]);
+	for (c = 0; c < 2; c++) snapshot_writer_append_i32(w, ide->def_cyl[c]);
+	for (c = 0; c < 2; c++) snapshot_writer_append_i32(w, ide->spt[c]);
+	for (c = 0; c < 2; c++) snapshot_writer_append_i32(w, ide->hpc[c]);
+	for (c = 0; c < 2; c++) snapshot_writer_append_i32(w, ide->cyl[c]);
+	for (c = 0; c < 2; c++) snapshot_writer_append_u32(w, ide->max_sector[c]);
+	snapshot_writer_append_i32(w, ide->reset);
+	snapshot_writer_append(w, ide->idebuffer, sizeof(ide->idebuffer));
+	for (c = 0; c < 2; c++) snapshot_writer_append_i32(w, ide->skip512[c]);
+	timer_save(w, &ide->timer);
+	for (c = 0; c < 2; c++) snapshot_writer_append_i32(w, ide->irq_active[c]);
+	snapshot_writer_append_i32(w, ide->irq_enabled);
+
+	return snapshot_writer_end_chunk(w);
+}
+
+int ide_internal_load_state(snapshot_payload_reader_t *r, uint32_t version)
+{
+	ide_t *ide = &ide_internal;
+	uint8_t  atastat, error_r, status_r, command, fdisk;
+	int32_t  secount, sector, cylinder, head, drive, cylprecomp;
+	int32_t  pos, reset;
+	int32_t  def_spt[2], def_hpc[2], def_cyl[2];
+	int32_t  spt[2], hpc[2], cyl[2];
+	uint32_t max_sector[2];
+	uint16_t idebuffer[256];
+	int32_t  skip512[2];
+	int32_t  irq_active[2], irq_enabled;
+	int c;
+
+	(void)version;
+
+	if (!snapshot_payload_reader_read_u8 (r, &atastat))    return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &error_r))    return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &status_r))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &secount))    return 0;
+	if (!snapshot_payload_reader_read_i32(r, &sector))     return 0;
+	if (!snapshot_payload_reader_read_i32(r, &cylinder))   return 0;
+	if (!snapshot_payload_reader_read_i32(r, &head))       return 0;
+	if (!snapshot_payload_reader_read_i32(r, &drive))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &cylprecomp)) return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &command))    return 0;
+	if (!snapshot_payload_reader_read_u8 (r, &fdisk))      return 0;
+	if (!snapshot_payload_reader_read_i32(r, &pos))        return 0;
+	for (c = 0; c < 2; c++) if (!snapshot_payload_reader_read_i32(r, &def_spt[c])) return 0;
+	for (c = 0; c < 2; c++) if (!snapshot_payload_reader_read_i32(r, &def_hpc[c])) return 0;
+	for (c = 0; c < 2; c++) if (!snapshot_payload_reader_read_i32(r, &def_cyl[c])) return 0;
+	for (c = 0; c < 2; c++) if (!snapshot_payload_reader_read_i32(r, &spt[c]))     return 0;
+	for (c = 0; c < 2; c++) if (!snapshot_payload_reader_read_i32(r, &hpc[c]))     return 0;
+	for (c = 0; c < 2; c++) if (!snapshot_payload_reader_read_i32(r, &cyl[c]))     return 0;
+	for (c = 0; c < 2; c++) if (!snapshot_payload_reader_read_u32(r, &max_sector[c])) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &reset))      return 0;
+	if (!snapshot_payload_reader_read(r, idebuffer, sizeof(idebuffer))) return 0;
+	for (c = 0; c < 2; c++) if (!snapshot_payload_reader_read_i32(r, &skip512[c])) return 0;
+	if (!timer_load_restore(r, &ide->timer))               return 0;
+	for (c = 0; c < 2; c++) if (!snapshot_payload_reader_read_i32(r, &irq_active[c])) return 0;
+	if (!snapshot_payload_reader_read_i32(r, &irq_enabled)) return 0;
+
+	ide->atastat    = atastat;
+	ide->error      = error_r;
+	ide->status     = status_r;
+	ide->secount    = (int)secount;
+	ide->sector     = (int)sector;
+	ide->cylinder   = (int)cylinder;
+	ide->head       = (int)head;
+	ide->drive      = (int)drive;
+	ide->cylprecomp = (int)cylprecomp;
+	ide->command    = command;
+	ide->fdisk      = fdisk;
+	ide->pos        = (int)pos;
+	for (c = 0; c < 2; c++) ide->def_spt[c] = (int)def_spt[c];
+	for (c = 0; c < 2; c++) ide->def_hpc[c] = (int)def_hpc[c];
+	for (c = 0; c < 2; c++) ide->def_cyl[c] = (int)def_cyl[c];
+	for (c = 0; c < 2; c++) ide->spt[c]     = (int)spt[c];
+	for (c = 0; c < 2; c++) ide->hpc[c]     = (int)hpc[c];
+	for (c = 0; c < 2; c++) ide->cyl[c]     = (int)cyl[c];
+	for (c = 0; c < 2; c++) ide->max_sector[c] = max_sector[c];
+	ide->reset      = (int)reset;
+	memcpy(ide->idebuffer, idebuffer, sizeof(idebuffer));
+	ide->idebufferb = (uint8_t *)ide->idebuffer;
+	for (c = 0; c < 2; c++) ide->skip512[c]    = (int)skip512[c];
+	for (c = 0; c < 2; c++) ide->irq_active[c] = (int)irq_active[c];
+	ide->irq_enabled = (int)irq_enabled;
+
+	return 1;
+}
+
 /*Read 1F1*/
 /*Error &108A1 - parameters not recognised*/

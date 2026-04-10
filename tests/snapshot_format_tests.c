@@ -68,15 +68,18 @@ char _5th_column_fn[512] = {0};
 
 static int g_test_paused      = 1;
 static int g_test_floppy_idle = 1;
+static int g_test_ide_idle    = 1;
 
 int arc_is_paused(void) { return g_test_paused; }
 int floppy_is_idle(void) { return g_test_floppy_idle; }
+int ide_internal_is_idle(void) { return g_test_ide_idle; }
 
 static void scope_reset_fixture(void)
 {
 	int i;
 	g_test_paused      = 1;
 	g_test_floppy_idle = 1;
+	g_test_ide_idle    = 1;
 	st506_present      = 0;
 	fdctype            = FDC_WD1770;
 	hd_fn[0][0]        = 0;
@@ -776,17 +779,46 @@ static void test_can_save_allows_st506_without_drive_image(void)
 	EXPECT_EQ_INT(err[0], 0, "no error message on success");
 }
 
-static void test_can_save_rejects_hd_fn_on_new_io(void)
+static void test_can_save_allows_ide_hd_when_idle(void)
 {
 	char err[256] = {0};
 
-	g_current_test = "can_save_rejects_hd_fn_on_new_io";
+	g_current_test = "can_save_allows_ide_hd_when_idle";
 	scope_reset_fixture();
 	fdctype = FDC_82C711;
 	snprintf(hd_fn[0], sizeof(hd_fn[0]), "/tmp/foo.hdf");
+	g_test_ide_idle = 1;
 
-	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "new-IO internal drive should be rejected");
-	EXPECT_TRUE(strstr(err, "hard disc") != NULL, "error should mention hard disc");
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 1, "IDE HD should be allowed when idle");
+	EXPECT_EQ_INT(err[0], 0, "no error message on success");
+}
+
+static void test_can_save_rejects_busy_ide_hd(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_rejects_busy_ide_hd";
+	scope_reset_fixture();
+	fdctype = FDC_82C711;
+	snprintf(hd_fn[0], sizeof(hd_fn[0]), "/tmp/foo.hdf");
+	g_test_ide_idle = 0;
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "IDE HD should be rejected when busy");
+	EXPECT_TRUE(strstr(err, "IDE") != NULL, "error should mention IDE");
+	EXPECT_TRUE(strstr(err, "busy") != NULL, "error should mention busy");
+}
+
+static void test_can_save_rejects_st506_hd(void)
+{
+	char err[256] = {0};
+
+	g_current_test = "can_save_rejects_st506_hd";
+	scope_reset_fixture();
+	st506_present = 1;
+	snprintf(hd_fn[0], sizeof(hd_fn[0]), "/tmp/foo.hdf");
+
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "ST506 HD should still be rejected");
+	EXPECT_TRUE(strstr(err, "ST506") != NULL, "error should mention ST506");
 }
 
 static void test_can_save_allows_joystick_none_literal(void)
@@ -911,11 +943,11 @@ static void test_open_accepts_clean_manifest(void)
 	                    ARCSNAP_SCOPE_HAS_PREV, 1, NULL);
 }
 
-static void test_open_rejects_hd_scope(void)
+static void test_open_accepts_hd_scope(void)
 {
-	run_open_scope_case("open_rejects_hd_scope",
+	run_open_scope_case("open_accepts_hd_scope",
 	                    "snapshot_format_tests_open_hd.arcsnap",
-	                    ARCSNAP_SCOPE_HAS_HD, 0, "hard disc");
+	                    ARCSNAP_SCOPE_HAS_HD, 1, NULL);
 }
 
 static void test_open_rejects_podule_scope(void)
@@ -923,6 +955,174 @@ static void test_open_rejects_podule_scope(void)
 	run_open_scope_case("open_rejects_podule_scope",
 	                    "snapshot_format_tests_open_podule.arcsnap",
 	                    ARCSNAP_SCOPE_HAS_PODULE, 0, "podule");
+}
+
+/* ----- MNFT v2 (HD) round-trip --------------------------------------- */
+
+static void fill_test_manifest_v2(arcsnap_manifest_t *m)
+{
+	fill_test_manifest(m);
+	m->version = ARCSNAP_MNFT_VERSION_HD;
+	m->scope_flags |= ARCSNAP_SCOPE_HAS_HD;
+	m->hd_count = 2;
+
+	m->hds[0].drive_index = 0;
+	snprintf(m->hds[0].original_path, sizeof(m->hds[0].original_path),
+	         "/Users/test/system.hdf");
+	m->hds[0].file_size = 52428800;
+	m->hds[0].spt = 63;
+	m->hds[0].hpc = 16;
+	m->hds[0].cyl = 100;
+
+	m->hds[1].drive_index = 1;
+	snprintf(m->hds[1].original_path, sizeof(m->hds[1].original_path),
+	         "/Users/test/data.hdf");
+	m->hds[1].file_size = 104857600;
+	m->hds[1].spt = 63;
+	m->hds[1].hpc = 16;
+	m->hds[1].cyl = 200;
+}
+
+static void test_manifest_v2_hd_round_trip(void)
+{
+	snapshot_writer_t *w;
+	snapshot_reader_t *r;
+	arcsnap_manifest_t in, out;
+	uint32_t id, version;
+	const uint8_t *payload;
+	uint64_t payload_size;
+	int rc;
+	char err[256] = {0};
+
+	g_current_test = "manifest_v2_hd_round_trip";
+
+	fill_test_manifest_v2(&in);
+
+	w = make_writer_with_header();
+	EXPECT_TRUE(snapshot_writer_write_manifest(w, &in), "write v2 manifest");
+
+	r = snapshot_reader_open_mem(snapshot_writer_data(w), snapshot_writer_size(w),
+	                             err, sizeof(err));
+	EXPECT_TRUE(r != NULL, err);
+
+	rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+	                                err, sizeof(err));
+	EXPECT_EQ_INT(rc, 1, "manifest chunk read");
+	EXPECT_EQ_INT(id, ARCSNAP_CHUNK_MNFT, "chunk id is MNFT");
+	EXPECT_EQ_INT(version, ARCSNAP_MNFT_VERSION_HD, "chunk version is MNFT v2");
+
+	memset(&out, 0xcc, sizeof(out));
+	EXPECT_TRUE(snapshot_decode_manifest(payload, payload_size, &out, err, sizeof(err)),
+	            "decode v2 manifest");
+
+	EXPECT_EQ_INT(out.version, ARCSNAP_MNFT_VERSION_HD, "version is v2");
+	EXPECT_EQ_INT(out.floppy_count, in.floppy_count, "floppy_count preserved");
+	EXPECT_EQ_INT(out.hd_count, 2, "hd_count is 2");
+	EXPECT_TRUE(out.scope_flags & ARCSNAP_SCOPE_HAS_HD, "HD scope flag set");
+
+	{
+		int i;
+		for (i = 0; i < in.hd_count; i++)
+		{
+			char where[64];
+			snprintf(where, sizeof(where), "hd[%d].drive_index", i);
+			EXPECT_EQ_INT(out.hds[i].drive_index, in.hds[i].drive_index, where);
+
+			snprintf(where, sizeof(where), "hd[%d].original_path", i);
+			EXPECT_EQ_STR(out.hds[i].original_path, in.hds[i].original_path, where);
+
+			snprintf(where, sizeof(where), "hd[%d].file_size", i);
+			EXPECT_EQ_INT((int)out.hds[i].file_size, (int)in.hds[i].file_size, where);
+
+			snprintf(where, sizeof(where), "hd[%d].spt", i);
+			EXPECT_EQ_INT(out.hds[i].spt, in.hds[i].spt, where);
+
+			snprintf(where, sizeof(where), "hd[%d].hpc", i);
+			EXPECT_EQ_INT(out.hds[i].hpc, in.hds[i].hpc, where);
+
+			snprintf(where, sizeof(where), "hd[%d].cyl", i);
+			EXPECT_EQ_INT(out.hds[i].cyl, in.hds[i].cyl, where);
+		}
+	}
+
+	snapshot_reader_close(r);
+	snapshot_writer_destroy(w);
+}
+
+static void test_manifest_v1_still_works_after_v2(void)
+{
+	snapshot_writer_t *w;
+	snapshot_reader_t *r;
+	arcsnap_manifest_t in, out;
+	uint32_t id, version;
+	const uint8_t *payload;
+	uint64_t payload_size;
+	int rc;
+	char err[256] = {0};
+
+	g_current_test = "manifest_v1_still_works_after_v2";
+
+	fill_test_manifest(&in);
+
+	w = make_writer_with_header();
+	EXPECT_TRUE(snapshot_writer_write_manifest(w, &in), "write v1 manifest");
+
+	r = snapshot_reader_open_mem(snapshot_writer_data(w), snapshot_writer_size(w),
+	                             err, sizeof(err));
+	EXPECT_TRUE(r != NULL, err);
+
+	rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+	                                err, sizeof(err));
+	EXPECT_EQ_INT(rc, 1, "manifest chunk read");
+	EXPECT_EQ_INT(version, ARCSNAP_MNFT_VERSION, "chunk version is v1");
+
+	memset(&out, 0, sizeof(out));
+	EXPECT_TRUE(snapshot_decode_manifest(payload, payload_size, &out, err, sizeof(err)),
+	            "decode v1 manifest still works");
+
+	EXPECT_EQ_INT(out.version, ARCSNAP_MNFT_VERSION, "version is v1");
+	EXPECT_EQ_INT(out.hd_count, 0, "hd_count is 0 for v1");
+	EXPECT_EQ_INT(out.floppy_count, in.floppy_count, "floppy_count preserved");
+
+	snapshot_reader_close(r);
+	snapshot_writer_destroy(w);
+}
+
+static void test_manifest_rejects_v3(void)
+{
+	snapshot_writer_t *w;
+	snapshot_reader_t *r;
+	arcsnap_manifest_t in, out;
+	uint32_t id, version;
+	const uint8_t *payload;
+	uint64_t payload_size;
+	int rc;
+	char err[256] = {0};
+
+	g_current_test = "manifest_rejects_v3";
+
+	fill_test_manifest(&in);
+	in.version = 3;
+
+	w = make_writer_with_header();
+	EXPECT_TRUE(snapshot_writer_write_manifest(w, &in), "write v3 manifest");
+
+	r = snapshot_reader_open_mem(snapshot_writer_data(w), snapshot_writer_size(w),
+	                             err, sizeof(err));
+	EXPECT_TRUE(r != NULL, err);
+
+	rc = snapshot_reader_next_chunk(r, &id, &version, &payload, &payload_size,
+	                                err, sizeof(err));
+	EXPECT_EQ_INT(rc, 1, "manifest chunk read");
+
+	memset(&out, 0, sizeof(out));
+	EXPECT_EQ_INT(snapshot_decode_manifest(payload, payload_size, &out, err, sizeof(err)),
+	              0, "v3 manifest should be rejected");
+	EXPECT_TRUE(strstr(err, "unsupported manifest version") != NULL,
+	            "error should mention unsupported version");
+
+	snapshot_reader_close(r);
+	snapshot_writer_destroy(w);
 }
 
 /* ----- META writer round-trip ----------------------------------------- */
@@ -1086,7 +1286,9 @@ int main(void)
 	test_can_save_allows_arculator_rom();
 	test_can_save_rejects_unpaused();
 	test_can_save_allows_st506_without_drive_image();
-	test_can_save_rejects_hd_fn_on_new_io();
+	test_can_save_allows_ide_hd_when_idle();
+	test_can_save_rejects_busy_ide_hd();
+	test_can_save_rejects_st506_hd();
 	test_can_save_rejects_unknown_podule();
 	test_can_save_rejects_5th_column();
 	test_can_save_allows_joystick_none_literal();
@@ -1094,8 +1296,12 @@ int main(void)
 	test_can_save_rejects_busy_floppy();
 
 	test_open_accepts_clean_manifest();
-	test_open_rejects_hd_scope();
+	test_open_accepts_hd_scope();
 	test_open_rejects_podule_scope();
+
+	test_manifest_v2_hd_round_trip();
+	test_manifest_v1_still_works_after_v2();
+	test_manifest_rejects_v3();
 
 	test_meta_round_trip();
 	test_meta_rejects_unknown_version();

@@ -22,6 +22,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include "arc.h"
 #include "arm.h"
@@ -138,6 +139,18 @@ floppy_for_drive(const arcsnap_manifest_t *manifest, int drive_index)
 	return NULL;
 }
 
+static const arcsnap_manifest_hd_t *
+hd_for_drive(const arcsnap_manifest_t *manifest, int drive_index)
+{
+	int i;
+	for (i = 0; i < manifest->hd_count; i++)
+	{
+		if (manifest->hds[i].drive_index == drive_index)
+			return &manifest->hds[i];
+	}
+	return NULL;
+}
+
 /* ----- prepare_runtime ------------------------------------------------ */
 
 int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
@@ -152,6 +165,8 @@ int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
 	char id_hex[17];
 	char disc_paths[4][PATH_MAX];
 	int  drive_has_media[4] = {0};
+	char hd_paths[2][PATH_MAX];
+	int  hd_has_media[2] = {0};
 	int cfg_extracted = 0;
 	size_t cursor_before_chunk;
 	uint32_t id_cc, version;
@@ -246,6 +261,79 @@ int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
 				return 0;
 			drive_has_media[drive_index] = 1;
 		}
+		else if (id_cc == ARCSNAP_CHUNK_MHDA)
+		{
+			snapshot_payload_reader_t pr;
+			int32_t  hd_drive_index;
+			uint64_t hd_uncompressed_size;
+			const uint8_t *compressed_data;
+			size_t   compressed_size;
+			uint8_t *decomp_buf;
+			uLongf   decomp_len;
+
+			snapshot_payload_reader_init(&pr, payload,
+			                             (size_t)payload_size);
+			if (!snapshot_payload_reader_read_i32(&pr, &hd_drive_index))
+			{
+				set_error(err, err_size,
+				          "snapshot MHDA chunk is truncated");
+				return 0;
+			}
+			if (!snapshot_payload_reader_read_u64(&pr, &hd_uncompressed_size))
+			{
+				set_error(err, err_size,
+				          "snapshot MHDA chunk is truncated");
+				return 0;
+			}
+			if (hd_drive_index < 0 || hd_drive_index >= 2)
+			{
+				set_errorf(err, err_size,
+				           "snapshot MHDA chunk has invalid drive index %d",
+				           (int)hd_drive_index);
+				return 0;
+			}
+			if (hd_has_media[hd_drive_index])
+			{
+				set_errorf(err, err_size,
+				           "snapshot has duplicate MHDA chunk for drive %d",
+				           (int)hd_drive_index);
+				return 0;
+			}
+
+			compressed_data = payload + pr.cursor;
+			compressed_size = (size_t)payload_size - pr.cursor;
+			decomp_buf = (uint8_t *)malloc((size_t)hd_uncompressed_size);
+			if (!decomp_buf)
+			{
+				set_errorf(err, err_size,
+				           "out of memory decompressing HD drive %d (%llu bytes)",
+				           (int)hd_drive_index,
+				           (unsigned long long)hd_uncompressed_size);
+				return 0;
+			}
+			decomp_len = (uLongf)hd_uncompressed_size;
+			if (uncompress(decomp_buf, &decomp_len,
+			               compressed_data, (uLong)compressed_size) != Z_OK)
+			{
+				free(decomp_buf);
+				set_errorf(err, err_size,
+				           "zlib decompress failed for HD drive %d",
+				           (int)hd_drive_index);
+				return 0;
+			}
+
+			snprintf(hd_paths[hd_drive_index], PATH_MAX,
+			         "%s/hd%d.hdf", runtime_dir, (int)hd_drive_index);
+			if (!write_file(hd_paths[hd_drive_index],
+			                decomp_buf, (size_t)decomp_len,
+			                err, err_size))
+			{
+				free(decomp_buf);
+				return 0;
+			}
+			free(decomp_buf);
+			hd_has_media[hd_drive_index] = 1;
+		}
 		else if (id_cc == ARCSNAP_CHUNK_PREV)
 		{
 			/* Screenshot preview: not needed by the loader. */
@@ -278,6 +366,37 @@ int snapshot_prepare_runtime(snapshot_load_ctx_t *ctx,
 		snprintf(disc_key, sizeof(disc_key), "disc_name_%d", c);
 		config_set_string(CFG_MACHINE, NULL, disc_key,
 		                  drive_has_media[c] ? disc_paths[c] : "");
+	}
+
+	/* Rewrite hd4_fn/hd5_fn in the extracted config so arc_init()
+	 * opens the snapshot-extracted HD images rather than the
+	 * paths stored in the original config file. */
+	for (c = 0; c < 2; c++)
+	{
+		char hd_key[32];
+		if (hd_has_media[c])
+		{
+			const arcsnap_manifest_hd_t *h =
+				hd_for_drive(&ctx->manifest, c);
+
+			snprintf(hd_key, sizeof(hd_key), "hd%d_fn", c + 4);
+			config_set_string(CFG_MACHINE, NULL, hd_key,
+			                  hd_paths[c]);
+			if (h)
+			{
+				snprintf(hd_key, sizeof(hd_key), "hd%d_sectors", c + 4);
+				config_set_int(CFG_MACHINE, NULL, hd_key, h->spt);
+				snprintf(hd_key, sizeof(hd_key), "hd%d_heads", c + 4);
+				config_set_int(CFG_MACHINE, NULL, hd_key, h->hpc);
+				snprintf(hd_key, sizeof(hd_key), "hd%d_cylinders", c + 4);
+				config_set_int(CFG_MACHINE, NULL, hd_key, h->cyl);
+			}
+		}
+		else
+		{
+			snprintf(hd_key, sizeof(hd_key), "hd%d_fn", c + 4);
+			config_set_string(CFG_MACHINE, NULL, hd_key, "");
+		}
 	}
 	config_save(CFG_MACHINE, runtime_config);
 
@@ -325,6 +444,7 @@ static int dispatch_chunk(uint32_t id, uint32_t version,
 	case ARCSNAP_CHUNK_FDCW: return (fdctype != FDC_82C711) ? wd1770_load_state(&pr, version) : 1;
 	case ARCSNAP_CHUNK_FDCS: return (fdctype == FDC_82C711) ? c82c711_fdc_load_state(&pr, version) : 1;
 	case ARCSNAP_CHUNK_DISC: return disc_load_state(&pr, version);
+	case ARCSNAP_CHUNK_HDIE: return (fdctype == FDC_82C711) ? ide_internal_load_state(&pr, version) : 1;
 	case ARCSNAP_CHUNK_TIMR: return timer_load_global(&pr, version);
 	default:                 return 1;
 	}
@@ -479,6 +599,43 @@ static int write_meda_chunk(snapshot_writer_t *w, int drive,
 	return snapshot_writer_end_chunk(w);
 }
 
+/* Writes a compressed HD media chunk (MHDA). The payload contains
+ * the drive index, the uncompressed size, and zlib-compressed image
+ * data. Returns 1 on success, 0 on failure. */
+static int write_mhda_chunk(snapshot_writer_t *w, int drive,
+                            const uint8_t *bytes, size_t size,
+                            char *err, size_t err_size)
+{
+	uLongf comp_bound = compressBound((uLong)size);
+	uint8_t *comp_buf = (uint8_t *)malloc(comp_bound);
+	uLongf comp_size = comp_bound;
+	int ok;
+
+	if (!comp_buf)
+	{
+		set_errorf(err, err_size, "out of memory for HD compression (drive %d)", drive);
+		return 0;
+	}
+	if (compress2(comp_buf, &comp_size, bytes, (uLong)size,
+	              Z_DEFAULT_COMPRESSION) != Z_OK)
+	{
+		set_errorf(err, err_size, "zlib compress failed for HD drive %d", drive);
+		free(comp_buf);
+		return 0;
+	}
+
+	ok = snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_MHDA, 1u);
+	if (ok) ok = snapshot_writer_append_i32(w, (int32_t)drive);
+	if (ok) ok = snapshot_writer_append_u64(w, (uint64_t)size);
+	if (ok && comp_size) ok = snapshot_writer_append(w, comp_buf, (size_t)comp_size);
+	if (ok) ok = snapshot_writer_end_chunk(w);
+
+	free(comp_buf);
+	if (!ok)
+		set_errorf(err, err_size, "writer failed (MHDA drive %d)", drive);
+	return ok;
+}
+
 /* Writes a chunk whose payload is a single contiguous byte buffer.
  * On failure sets `err` to "writer failed (<label> <stage>)" and
  * returns 0. */
@@ -529,6 +686,10 @@ static int save_subsystem_chunks(snapshot_writer_t *w)
 		if (!c82c711_fdc_save_state(w)) return 0;
 	}
 	if (!disc_save_state(w)) return 0;
+	if (fdctype == FDC_82C711 && (hd_fn[0][0] || hd_fn[1][0]))
+	{
+		if (!ide_internal_save_state(w)) return 0;
+	}
 	if (!timer_save_global(w)) return 0;
 
 	if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_END, 1u)) return 0;
@@ -583,6 +744,35 @@ static void fill_manifest(arcsnap_manifest_t *m,
 			f->file_size = (uint64_t)st.st_size;
 		f->write_protect = writeprot[i];
 		extract_extension(discname[i], f->extension, sizeof(f->extension));
+	}
+
+	m->hd_count = 0;
+	if (fdctype == FDC_82C711)
+	{
+		for (i = 0; i < 2 && m->hd_count < ARCSNAP_MNFT_MAX_HDS; i++)
+		{
+			arcsnap_manifest_hd_t *h;
+			struct stat st;
+
+			if (!hd_fn[i][0])
+				continue;
+
+			h = &m->hds[m->hd_count++];
+			h->drive_index = i;
+			snprintf(h->original_path, sizeof(h->original_path),
+			         "%s", hd_fn[i]);
+			h->file_size = 0;
+			if (stat(hd_fn[i], &st) == 0)
+				h->file_size = (uint64_t)st.st_size;
+			h->spt = hd_spt[i];
+			h->hpc = hd_hpc[i];
+			h->cyl = hd_cyl[i];
+		}
+	}
+	if (m->hd_count > 0)
+	{
+		m->version = ARCSNAP_MNFT_VERSION_HD;
+		m->scope_flags |= ARCSNAP_SCOPE_HAS_HD;
 	}
 }
 
@@ -667,6 +857,26 @@ int snapshot_save(const char *path,
 			           "writer failed (MEDA drive %d)", i);
 			goto out;
 		}
+	}
+
+	for (i = 0; i < 2; i++)
+	{
+		uint8_t *hd_bytes = NULL;
+		size_t   hd_size  = 0;
+
+		if (!hd_fn[i][0])
+			continue;
+		if (fdctype != FDC_82C711)
+			continue;
+		if (!read_file_contents(hd_fn[i], &hd_bytes, &hd_size,
+		                        err, err_size))
+			goto out;
+		if (!write_mhda_chunk(w, i, hd_bytes, hd_size, err, err_size))
+		{
+			free(hd_bytes);
+			goto out;
+		}
+		free(hd_bytes);
 	}
 
 	if (preview_png && preview_png_size)

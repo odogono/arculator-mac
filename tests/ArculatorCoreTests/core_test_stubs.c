@@ -56,8 +56,10 @@ char discname[4][512];
  * so scope-guard tests can toggle one input at a time. */
 int g_test_floppy_is_idle = 1;
 int g_test_arc_is_paused  = 1;
-int floppy_is_idle(void) { return g_test_floppy_is_idle; }
-int arc_is_paused(void)  { return g_test_arc_is_paused; }
+int g_test_ide_is_idle    = 1;
+int floppy_is_idle(void)        { return g_test_floppy_is_idle; }
+int arc_is_paused(void)         { return g_test_arc_is_paused; }
+int ide_internal_is_idle(void)  { return g_test_ide_is_idle; }
 
 /* --- globals from st506.c --- */
 int st506_present = 0;
