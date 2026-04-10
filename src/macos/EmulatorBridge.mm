@@ -255,13 +255,6 @@ static arcsnap_meta_t *build_save_meta(void)
             *error = @"No active emulation session";
         return NO;
     }
-    if (!arc_is_paused())
-    {
-        if (error)
-            *error = @"Pause emulation before saving a snapshot";
-        return NO;
-    }
-
     char err_buf[256];
     if (!snapshot_can_save(err_buf, sizeof(err_buf)))
     {
@@ -539,7 +532,6 @@ static arcsnap_meta_t *build_save_meta(void)
 
     /* Encode preview image if updating it. */
     NSData *pngData = nil;
-    int pw = 0, ph = 0;
 
     if (updatePreview && preview)
     {
@@ -560,8 +552,6 @@ static arcsnap_meta_t *build_save_meta(void)
             if (error) *error = @"PNG encoding failed";
             return NO;
         }
-        pw = (int)rep.pixelsWide;
-        ph = (int)rep.pixelsHigh;
     }
 
     err_buf[0] = 0;
@@ -570,7 +560,6 @@ static arcsnap_meta_t *build_save_meta(void)
                                    updatePreview ? 1 : 0,
                                    pngData ? (const uint8_t *)pngData.bytes : NULL,
                                    pngData ? pngData.length : 0,
-                                   pw, ph,
                                    err_buf, sizeof(err_buf)))
     {
         if (error)

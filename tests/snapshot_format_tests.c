@@ -755,16 +755,16 @@ static void test_can_save_allows_arculator_rom(void)
 	EXPECT_EQ_INT(err[0], 0, "no error message on success");
 }
 
-static void test_can_save_rejects_unpaused(void)
+static void test_can_save_allows_unpaused(void)
 {
 	char err[256] = {0};
 
-	g_current_test = "can_save_rejects_unpaused";
+	g_current_test = "can_save_allows_unpaused";
 	scope_reset_fixture();
 	g_test_paused = 0;
 
-	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 0, "running session should be rejected");
-	EXPECT_TRUE(strstr(err, "paused") != NULL, "error should mention paused");
+	EXPECT_EQ_INT(snapshot_can_save(err, sizeof(err)), 1, "running session should be allowed (live save)");
+	EXPECT_EQ_INT(err[0], 0, "no error message on success");
 }
 
 static void test_can_save_allows_st506_without_drive_image(void)
@@ -1284,7 +1284,7 @@ int main(void)
 
 	test_can_save_clean_floppy_only();
 	test_can_save_allows_arculator_rom();
-	test_can_save_rejects_unpaused();
+	test_can_save_allows_unpaused();
 	test_can_save_allows_st506_without_drive_image();
 	test_can_save_allows_ide_hd_when_idle();
 	test_can_save_rejects_busy_ide_hd();

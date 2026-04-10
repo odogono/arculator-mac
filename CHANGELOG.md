@@ -2,6 +2,9 @@
 
 ## (unreleased)
 
+- core: Allow saving snapshots while the emulator is running (live save) — no pause required
+- macOS: Enable Save Snapshot menu item during running sessions, not just when paused
+
 - macOS: Add snapshot editing — right-click a snapshot in the browser to edit name, description, preview image, show in Finder, or delete
 - macOS: Add interactive preview image editor with Cmd+C/Cmd+V copy/paste support in the snapshot edit sheet
 - core: Add `snapshot_rewrite_metadata()` for atomic in-place update of META and PREV chunks in .arcsnap files

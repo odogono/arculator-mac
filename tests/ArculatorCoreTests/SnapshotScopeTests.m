@@ -74,14 +74,15 @@ extern int g_test_ide_is_idle;
 		@"arculator_rom podule should be allowed, got err='%s'", err);
 }
 
-- (void)testRejectsWhenNotPaused
+- (void)testAllowsWhenNotPaused
 {
 	g_test_arc_is_paused = 0;
 
 	char err[256] = {0};
-	XCTAssertEqual(snapshot_can_save(err, sizeof(err)), 0);
-	XCTAssertTrue(strstr(err, "paused") != NULL,
-		@"expected a 'paused' rejection, got '%s'", err);
+	XCTAssertEqual(snapshot_can_save(err, sizeof(err)), 1,
+		@"running session should be savable (live save), got err='%s'", err);
+	XCTAssertEqual(err[0], 0,
+		@"no error message expected on success, got '%s'", err);
 }
 
 - (void)testRejectsInternalHardDiscViaST506

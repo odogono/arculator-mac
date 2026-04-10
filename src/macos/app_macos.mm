@@ -577,7 +577,7 @@ static void shell_update_menu_state(void)
 	shell_set_menu_state(MENU_DEBUGGER_ENABLE, debug ? NSControlStateValueOn : NSControlStateValueOff);
 
 	{
-		BOOL can_save = (shell_session_active && arc_is_paused() && snapshot_can_save(NULL, 0));
+		BOOL can_save = (shell_session_active && snapshot_can_save(NULL, 0));
 		BOOL can_load = !shell_session_active;
 		BOOL can_screenshot = shell_session_active;
 		shell_set_menu_enabled(MENU_FILE_SAVE_SNAPSHOT, can_save);
@@ -1359,7 +1359,7 @@ static void shell_request_app_termination(void)
 			if (![EmulatorBridge canSaveSnapshotWithError:&save_error])
 			{
 				shell_show_alert(@"Cannot Save Snapshot",
-						 save_error ?: @"Snapshots require a paused floppy-only session.");
+						 save_error ?: @"Snapshot is not available for this session configuration.");
 				break;
 			}
 

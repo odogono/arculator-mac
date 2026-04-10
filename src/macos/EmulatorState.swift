@@ -86,7 +86,7 @@ class EmulatorState: ObservableObject {
             floppyDriveCount = newFloppyCount
         }
 
-        let newCanSave = (sessionState == .paused) && EmulatorBridge.canSaveSnapshot()
+        let newCanSave = (sessionState == .running || sessionState == .paused) && EmulatorBridge.canSaveSnapshot()
         if newCanSave != canSaveSnapshot {
             canSaveSnapshot = newCanSave
         }

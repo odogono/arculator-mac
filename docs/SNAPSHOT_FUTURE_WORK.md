@@ -141,10 +141,11 @@ Remaining sub-problems for future work:
 - Memory budget: 10 slots × ~5MB = 50MB, acceptable.
 - UX: "Rewind 5s" hotkey that pauses, loads the most recent pre-cursor snapshot, resumes.
 
-**6.2 Live save (save while running)** *(large, architectural)*
-- Drop the "must be paused" requirement. Requires an atomic quiescence point during emulation: either a short pause (few ms, invisible to user) or a lock-free serialization scheme.
-- The cleanest route is to make the save command behave like "pause, save, resume" atomically on the emulation thread — which is already essentially free since `arc_save_snapshot` runs on that thread.
-- Real live save (no pause at all) would require snapshotting while instructions execute, which is harder and not obviously worth it.
+**6.2 Live save (save while running)** *(large, architectural)* — ✅ **Done**
+- The "must be paused" requirement has been removed. `snapshot_save()` already runs on the emulation thread between `arc_run()` cycles, so the CPU and all subsystems are at a natural cycle boundary — functionally equivalent to being paused.
+- The save command blocks the emulation thread for its duration (a few hundred ms for floppy-only, ~1s for HD), then the loop resumes. No explicit pause/resume is needed.
+- Quiescence checks (floppy idle, IDE idle) remain enforced — if a controller is mid-operation, the save fails with a "busy" error and the user can retry.
+- Changes: removed `arc_is_paused()` gate from `snapshot_can_save()` (`src/snapshot.c`), `saveSnapshotToPath:error:` (`src/macos/EmulatorBridge.mm`), menu enablement (`src/macos/app_macos.mm`), and `canSaveSnapshot` polling (`src/macos/EmulatorState.swift`).
 
 **6.3 Deterministic replay / TAS infrastructure** *(large)*
 - Record input events alongside save states; replay them deterministically on load. Enables tool-assisted speedruns and regression tests ("play this input trace against this snapshot, assert the final frame hash").

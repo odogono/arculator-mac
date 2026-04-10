@@ -1104,11 +1104,6 @@ int snapshot_can_save(char *err, size_t err_size)
 	if (err && err_size)
 		err[0] = 0;
 
-	if (!arc_is_paused())
-	{
-		set_errorf(err, err_size, "save snapshot only while paused");
-		return 0;
-	}
 	if (snapshot_internal_hd_is_configured())
 	{
 		if (fdctype == FDC_82C711)
@@ -1427,7 +1422,6 @@ int snapshot_rewrite_metadata(const char *path,
                               int update_preview,
                               const uint8_t *new_preview_png,
                               size_t new_preview_png_size,
-                              int new_preview_w, int new_preview_h,
                               char *error_buf, size_t error_buf_len)
 {
 	snapshot_reader_t *r = NULL;

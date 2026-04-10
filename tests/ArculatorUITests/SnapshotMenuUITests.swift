@@ -7,7 +7,7 @@
 //
 //  Gating rules (see shell_update_menu_state in src/macos/app_macos.mm):
 //    - Idle    → Save disabled, Load enabled
-//    - Running → Save disabled (must be paused), Load disabled
+//    - Running → Save enabled (live save), Load disabled
 //    - Paused  → Save enabled (if snapshot_can_save OKs it), Load disabled
 //
 
@@ -149,16 +149,16 @@ final class SnapshotMenuUITests: ArculatorUITestCase {
         )
     }
 
-    func testRunningSessionBlocksBothSnapshotItems() throws {
+    func testRunningSessionAllowsSaveBlocksLoad() throws {
         launchApp()
         selectFixtureConfigAndRun()
         waitForRunning(timeout: 10)
         waitForStatus("Running", timeout: 5)
 
         let state = snapshotMenuState()
-        XCTAssertFalse(
+        XCTAssertTrue(
             state.saveEnabled,
-            "Save Snapshot should be disabled while the emulation is running (pause required)"
+            "Save Snapshot should be enabled while the emulation is running (live save)"
         )
         XCTAssertFalse(
             state.loadEnabled,

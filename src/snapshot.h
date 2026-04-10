@@ -161,7 +161,6 @@ int snapshot_rewrite_metadata(const char *path,
                               int update_preview,
                               const uint8_t *new_preview_png,
                               size_t new_preview_png_size,
-                              int new_preview_w, int new_preview_h,
                               char *error_buf, size_t error_buf_len);
 
 /* Opaque load context, lifecycle owned by snapshot_open / snapshot_close. */
