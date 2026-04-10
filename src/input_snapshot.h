@@ -10,6 +10,8 @@ typedef struct input_snapshot_state_t
 	int pending_mouse_buttons;
 	int pending_mouse_x;
 	int pending_mouse_y;
+	int suppressed_key_active[INPUT_MAX_KEYCODES];
+	int suppression_active;
 
 	/* Injection overlay — merged on top of host state in apply() */
 	int injected_key_state[INPUT_MAX_KEYCODES];
@@ -27,7 +29,9 @@ void input_snapshot_state_init(input_snapshot_state_t *state);
 void input_snapshot_capture_keys(input_snapshot_state_t *state, const int *keys, int key_count);
 void input_snapshot_capture_mouse(input_snapshot_state_t *state, int captured, int delta_x, int delta_y, int buttons);
 int input_snapshot_get_host_key_state(const input_snapshot_state_t *state, int code);
+int input_snapshot_is_host_key_suppressed(const input_snapshot_state_t *state, int code);
 void input_snapshot_apply(input_snapshot_state_t *state, int *keys, int key_count, int *mouse_buttons, int *mouse_x, int *mouse_y);
+void input_snapshot_begin_host_key_suppression(input_snapshot_state_t *state, const int *keys, int key_count);
 
 /* Injection functions — called from platform wrappers under mutex */
 void input_snapshot_inject_key(input_snapshot_state_t *state, int code, int down);

@@ -41,6 +41,7 @@ extern "C"
 }
 
 #include "wx-console.h"
+#include "macos/release_shortcut_logic.h"
 
 #import "NewWindowBridge.h"
 #import "EmulatorBridge.h"
@@ -125,6 +126,9 @@ static NSTimer *shell_timer = nil;
 static NSMenu *shell_context_menu = nil;
 static NSMutableDictionary<NSNumber *, NSMutableArray<NSMenuItem *> *> *shell_menu_items = nil;
 
+static void shell_enable_mouse_capture(void);
+static void shell_disable_mouse_capture(void);
+
 static pthread_mutex_t shell_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t shell_cond = PTHREAD_COND_INITIALIZER;
 static emulation_command_queue_t shell_command_queue;
@@ -151,7 +155,7 @@ static int shell_fullscreen_shortcut_down = 0;
 // shell_release_main_keycode is biased by KEYCODE_MACOS() so it can be
 // passed straight to input_get_host_key_state. Defaults match the
 // historical hardcoded behaviour: CMD-Backspace.
-static NSEventModifierFlags shell_release_modifier_flags = NSEventModifierFlagCommand;
+static uint32_t shell_release_modifier_mask = ARC_RELEASE_MODIFIER_COMMAND;
 static int  shell_release_main_keycode  = KEYCODE_MACOS(kVK_Delete);
 static char shell_release_subtitle[64]  = "CMD-BACKSPACE";
 // Start at the polling threshold so the first main-loop tick triggers an
@@ -724,10 +728,11 @@ static void shell_load_release_combo(void)
 		CFRelease(value);
 
 	int new_biased = KEYCODE_MACOS(new_keycode);
-	if (new_flags != shell_release_modifier_flags
+	uint32_t new_mask = arc_release_shortcut_modifier_mask_from_flags((uint64_t)new_flags);
+	if (new_mask != shell_release_modifier_mask
 	 || new_biased != shell_release_main_keycode)
 	{
-		shell_release_modifier_flags = new_flags;
+		shell_release_modifier_mask  = new_mask;
 		shell_release_main_keycode   = new_biased;
 		shell_format_release_subtitle(shell_release_subtitle, sizeof(shell_release_subtitle),
 		                              new_flags, new_biased);
@@ -735,18 +740,85 @@ static void shell_load_release_combo(void)
 	}
 }
 
-// Returns non-zero if every modifier required by `flags` is currently held.
-static int shell_release_modifier_held(NSEventModifierFlags flags)
+// Returns non-zero if every modifier required by `mask` is currently held.
+static int shell_release_modifier_held(uint32_t mask)
 {
-	if ((flags & NSEventModifierFlagCommand) && !(input_get_host_key_state(KEY_LWIN) || input_get_host_key_state(KEY_RWIN)))
+	if ((mask & ARC_RELEASE_MODIFIER_COMMAND) && !(input_get_host_key_state(KEY_LWIN) || input_get_host_key_state(KEY_RWIN)))
 		return 0;
-	if ((flags & NSEventModifierFlagControl) && !(input_get_host_key_state(KEY_LCONTROL) || input_get_host_key_state(KEY_RCONTROL)))
+	if ((mask & ARC_RELEASE_MODIFIER_CONTROL) && !(input_get_host_key_state(KEY_LCONTROL) || input_get_host_key_state(KEY_RCONTROL)))
 		return 0;
-	if ((flags & NSEventModifierFlagOption) && !(input_get_host_key_state(KEY_ALT) || input_get_host_key_state(KEY_ALTGR)))
+	if ((mask & ARC_RELEASE_MODIFIER_OPTION) && !(input_get_host_key_state(KEY_ALT) || input_get_host_key_state(KEY_ALTGR)))
 		return 0;
-	if ((flags & NSEventModifierFlagShift) && !(input_get_host_key_state(KEY_LSHIFT) || input_get_host_key_state(KEY_RSHIFT)))
+	if ((mask & ARC_RELEASE_MODIFIER_SHIFT) && !(input_get_host_key_state(KEY_LSHIFT) || input_get_host_key_state(KEY_RSHIFT)))
 		return 0;
 	return 1;
+}
+
+static void shell_begin_release_shortcut_suppression(void)
+{
+	int suppressed_keys[9];
+	const int max_keys = (int)(sizeof(suppressed_keys) / sizeof(suppressed_keys[0]));
+	int suppressed_count = arc_release_shortcut_fill_suppressed_keys(
+		shell_release_modifier_mask,
+		shell_release_main_keycode,
+		suppressed_keys,
+		max_keys);
+
+	if (suppressed_count > max_keys)
+		suppressed_count = max_keys;
+
+	input_begin_host_key_suppression(suppressed_keys, suppressed_count);
+}
+
+static void shell_trigger_release_shortcut(void)
+{
+	if (!mousecapture && !fullscreen)
+		return;
+
+	shell_release_shortcut_down = 1;
+	shell_begin_release_shortcut_suppression();
+
+	if (mousecapture)
+		shell_disable_mouse_capture();
+
+	if (fullscreen)
+		[shell_window toggleFullScreen:nil];
+}
+
+static uint32_t shell_modifier_mask_for_event(NSEvent *event)
+{
+	NSEventModifierFlags flags = [event modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask;
+	return arc_release_shortcut_modifier_mask_from_flags((uint64_t)flags);
+}
+
+static int shell_event_matches_release_shortcut(NSEvent *event)
+{
+	if (!event || event.type != NSEventTypeKeyDown)
+		return 0;
+	if (!mousecapture && !fullscreen)
+		return 0;
+
+	return arc_release_shortcut_matches(
+		shell_modifier_mask_for_event(event),
+		KEYCODE_MACOS((int)event.keyCode),
+		shell_release_modifier_mask,
+		shell_release_main_keycode);
+}
+
+static int shell_should_consume_suppressed_key_event(NSEvent *event)
+{
+	if (!event)
+		return 0;
+
+	switch (event.type)
+	{
+	case NSEventTypeKeyDown:
+	case NSEventTypeKeyUp:
+	case NSEventTypeFlagsChanged:
+		return input_is_host_key_suppressed(KEYCODE_MACOS((int)event.keyCode));
+	default:
+		return 0;
+	}
 }
 
 static void shell_set_window_title(void)
@@ -1140,6 +1212,11 @@ static void shell_request_app_termination(void)
 	return YES;
 }
 
+- (BOOL)canBecomeKeyView
+{
+	return YES;
+}
+
 - (BOOL)acceptsFirstMouse:(NSEvent *)event
 {
 	(void)event;
@@ -1151,7 +1228,56 @@ static void shell_request_app_termination(void)
 	[super mouseUp:event];
 
 	if (event.buttonNumber == 0 && !mousecapture)
+	{
+		[[self window] makeFirstResponder:self];
 		shell_enable_mouse_capture();
+	}
+}
+
+- (void)keyDown:(NSEvent *)event
+{
+	if (shell_event_matches_release_shortcut(event))
+	{
+		if (!shell_release_shortcut_down)
+			shell_trigger_release_shortcut();
+		return;
+	}
+
+	if (shell_should_consume_suppressed_key_event(event))
+		return;
+
+	if (!shell_session_active)
+		[super keyDown:event];
+}
+
+- (BOOL)performKeyEquivalent:(NSEvent *)event
+{
+	if (shell_event_matches_release_shortcut(event))
+	{
+		if (!shell_release_shortcut_down)
+			shell_trigger_release_shortcut();
+		return YES;
+	}
+
+	return [super performKeyEquivalent:event];
+}
+
+- (void)keyUp:(NSEvent *)event
+{
+	if (shell_should_consume_suppressed_key_event(event))
+		return;
+
+	if (!shell_session_active)
+		[super keyUp:event];
+}
+
+- (void)flagsChanged:(NSEvent *)event
+{
+	if (shell_should_consume_suppressed_key_event(event))
+		return;
+
+	if (!shell_session_active)
+		[super flagsChanged:event];
 }
 
 - (NSMenu *)menuForEvent:(NSEvent *)event
@@ -1589,7 +1715,7 @@ static void shell_handle_shortcuts(void)
 	}
 
 	int command_down = input_get_host_key_state(KEY_LWIN) || input_get_host_key_state(KEY_RWIN);
-	int release_down = shell_release_modifier_held(shell_release_modifier_flags)
+	int release_down = shell_release_modifier_held(shell_release_modifier_mask)
 	                && input_get_host_key_state(shell_release_main_keycode);
 	int fullscreen_down = command_down && input_get_host_key_state(KEY_ENTER);
 
@@ -1599,14 +1725,7 @@ static void shell_handle_shortcuts(void)
 		shell_fullscreen_shortcut_down = 0;
 
 	if (release_down && !shell_release_shortcut_down)
-	{
-		shell_release_shortcut_down = 1;
-		if (mousecapture)
-			shell_disable_mouse_capture();
-
-		if (fullscreen)
-			[shell_window toggleFullScreen:nil];
-	}
+		shell_trigger_release_shortcut();
 
 	if (fullscreen_down && !shell_fullscreen_shortcut_down)
 	{

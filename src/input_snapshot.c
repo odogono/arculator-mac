@@ -2,6 +2,37 @@
 
 #include "input_snapshot.h"
 
+static void input_snapshot_apply_host_suppression(input_snapshot_state_t *state, int key_count)
+{
+	int any_still_down = 0;
+
+	if (!state->suppression_active)
+		return;
+
+	for (int i = 0; i < key_count; i++)
+	{
+		if (!state->suppressed_key_active[i])
+			continue;
+		if (state->host_key_state[i])
+			any_still_down = 1;
+	}
+
+	if (!any_still_down)
+	{
+		memset(state->suppressed_key_active, 0, sizeof(state->suppressed_key_active));
+		state->suppression_active = 0;
+		return;
+	}
+
+	for (int i = 0; i < key_count; i++)
+	{
+		if (!state->suppressed_key_active[i])
+			continue;
+		state->host_key_state[i] = 0;
+		state->pending_key_state[i] = 0;
+	}
+}
+
 void input_snapshot_state_init(input_snapshot_state_t *state)
 {
 	memset(state, 0, sizeof(*state));
@@ -14,6 +45,7 @@ void input_snapshot_capture_keys(input_snapshot_state_t *state, const int *keys,
 
 	memcpy(state->host_key_state, keys, key_count * sizeof(int));
 	memcpy(state->pending_key_state, keys, key_count * sizeof(int));
+	input_snapshot_apply_host_suppression(state, key_count);
 }
 
 void input_snapshot_capture_mouse(input_snapshot_state_t *state, int captured, int delta_x, int delta_y, int buttons)
@@ -35,6 +67,14 @@ int input_snapshot_get_host_key_state(const input_snapshot_state_t *state, int c
 		return 0;
 
 	return state->host_key_state[code];
+}
+
+int input_snapshot_is_host_key_suppressed(const input_snapshot_state_t *state, int code)
+{
+	if (code < 0 || code >= INPUT_MAX_KEYCODES)
+		return 0;
+
+	return state->suppressed_key_active[code];
 }
 
 void input_snapshot_apply(input_snapshot_state_t *state, int *keys, int key_count, int *mouse_buttons, int *mouse_x, int *mouse_y)
@@ -76,6 +116,29 @@ void input_snapshot_apply(input_snapshot_state_t *state, int *keys, int key_coun
 	state->pending_mouse_y = 0;
 	state->injected_mouse_dx = 0;
 	state->injected_mouse_dy = 0;
+}
+
+void input_snapshot_begin_host_key_suppression(input_snapshot_state_t *state, const int *keys, int key_count)
+{
+	int suppressed_any = 0;
+
+	if (!keys || key_count <= 0)
+		return;
+
+	for (int i = 0; i < key_count; i++)
+	{
+		int code = keys[i];
+		if (code < 0 || code >= INPUT_MAX_KEYCODES)
+			continue;
+
+		state->suppressed_key_active[code] = 1;
+		state->host_key_state[code] = 0;
+		state->pending_key_state[code] = 0;
+		suppressed_any = 1;
+	}
+
+	if (suppressed_any)
+		state->suppression_active = 1;
 }
 
 void input_snapshot_inject_key(input_snapshot_state_t *state, int code, int down)

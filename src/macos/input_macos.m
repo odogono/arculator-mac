@@ -290,6 +290,30 @@ int input_get_host_key_state(int code)
 	return value;
 }
 
+int input_is_host_key_suppressed(int code)
+{
+	int value = 0;
+
+	if (!input_mutex_ready || code < 0 || code >= INPUT_MAX_KEYCODES)
+		return 0;
+
+	pthread_mutex_lock(&input_mutex);
+	value = input_snapshot_is_host_key_suppressed(&input_snapshot, code);
+	pthread_mutex_unlock(&input_mutex);
+
+	return value;
+}
+
+void input_begin_host_key_suppression(const int *codes, int count)
+{
+	if (!input_mutex_ready || !codes || count <= 0)
+		return;
+
+	pthread_mutex_lock(&input_mutex);
+	input_snapshot_begin_host_key_suppression(&input_snapshot, codes, count);
+	pthread_mutex_unlock(&input_mutex);
+}
+
 void input_init(void)
 {
 	if (input_mutex_ready)

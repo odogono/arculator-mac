@@ -9,6 +9,8 @@ void input_close();
 void input_capture_host_snapshot();
 void input_apply_host_snapshot();
 int input_get_host_key_state(int code);
+int input_is_host_key_suppressed(int code);
+void input_begin_host_key_suppression(const int *codes, int count);
 
 void mouse_get_mickeys(int *x, int *y);
 int mouse_get_buttons();

@@ -4,6 +4,7 @@
 
 #include "emulation_control.h"
 #include "input_snapshot.h"
+#include "plat_input.h"
 
 static void expect_true(int condition, const char *message)
 {
@@ -94,11 +95,51 @@ static void test_input_snapshot_uncaptured_mouse_clears_buttons(void)
 	expect_true(input_snapshot_get_host_key_state(&state, 42) == 1, "host key state lookup should reflect last capture");
 }
 
+static void test_input_snapshot_suppresses_combo_until_all_keys_release(void)
+{
+	input_snapshot_state_t state;
+	int host_keys[512] = {0};
+	int runtime_keys[512] = {0};
+	int suppressed_keys[] = { KEY_LWIN, KEY_RWIN, KEY_BACKSPACE };
+	int mouse_buttons = 0;
+	int mouse_x = 0;
+	int mouse_y = 0;
+
+	input_snapshot_state_init(&state);
+
+	host_keys[KEY_LWIN] = 1;
+	host_keys[KEY_BACKSPACE] = 1;
+	input_snapshot_capture_keys(&state, host_keys, 512);
+	input_snapshot_begin_host_key_suppression(&state, suppressed_keys, 3);
+	input_snapshot_apply(&state, runtime_keys, 512, &mouse_buttons, &mouse_x, &mouse_y);
+
+	expect_true(runtime_keys[KEY_LWIN] == 0, "suppressed modifier should be hidden from runtime state");
+	expect_true(runtime_keys[KEY_BACKSPACE] == 0, "suppressed main key should be hidden from runtime state");
+	expect_true(input_snapshot_get_host_key_state(&state, KEY_LWIN) == 0, "suppressed modifier should be hidden from host state");
+	expect_true(input_snapshot_is_host_key_suppressed(&state, KEY_LWIN) == 1, "suppression should remain active while keys are still held");
+
+	memset(host_keys, 0, sizeof(host_keys));
+	host_keys[KEY_LWIN] = 1;
+	input_snapshot_capture_keys(&state, host_keys, 512);
+	input_snapshot_apply(&state, runtime_keys, 512, &mouse_buttons, &mouse_x, &mouse_y);
+
+	expect_true(runtime_keys[KEY_LWIN] == 0, "suppression should continue while any combo key is still held");
+	expect_true(input_snapshot_is_host_key_suppressed(&state, KEY_LWIN) == 1, "suppression should not clear until every combo key is released");
+
+	memset(host_keys, 0, sizeof(host_keys));
+	input_snapshot_capture_keys(&state, host_keys, 512);
+	input_snapshot_apply(&state, runtime_keys, 512, &mouse_buttons, &mouse_x, &mouse_y);
+
+	expect_true(input_snapshot_is_host_key_suppressed(&state, KEY_LWIN) == 0, "suppression should clear after all combo keys are released");
+	expect_true(runtime_keys[KEY_LWIN] == 0, "released combo key should remain up after suppression clears");
+}
+
 int main(void)
 {
 	test_command_queue_fifo();
 	test_command_queue_capacity();
 	test_input_snapshot_apply_consumes_mouse_delta_once();
 	test_input_snapshot_uncaptured_mouse_clears_buttons();
+	test_input_snapshot_suppresses_combo_until_all_keys_release();
 	return 0;
 }
