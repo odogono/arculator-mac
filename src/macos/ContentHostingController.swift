@@ -270,13 +270,20 @@ private struct RecentSnapshotsDebugValueView: View {
     /// content area. `onOpenSnapshot` is invoked with the selected path
     /// when the user picks a snapshot; `onClose` is invoked when the
     /// user dismisses the browser via Back or Escape.
-    func showSnapshotBrowser(onClose: @escaping () -> Void,
+    ///
+    /// When `preserveEmulatorView` is true the Metal view is kept in the
+    /// view hierarchy (behind the browser) so that a paused session can
+    /// be resumed if the user dismisses without selecting a snapshot.
+    func showSnapshotBrowser(preserveEmulatorView: Bool = false,
+                             onClose: @escaping () -> Void,
                              onOpenSnapshot: @escaping (String) -> Void) {
         removeTransitionSnapshot()
         removeHostingView(&idleContentHost)
         removeHostingView(&configEditorHost)
         removeHostingView(&appSettingsHost)
-        removeEmulatorViewOnly()
+        if !preserveEmulatorView {
+            removeEmulatorViewOnly()
+        }
         guard snapshotBrowserHost == nil else { return }
 
         snapshotBrowserModel.refresh()
@@ -292,11 +299,16 @@ private struct RecentSnapshotsDebugValueView: View {
         snapshotBrowserHost = host
     }
 
-    /// Dismiss the snapshot browser and restore the previous content
-    /// (config editor if a config is loaded, otherwise idle placeholder).
+    /// Dismiss the snapshot browser and restore the previous content.
+    /// If the emulator view was preserved (session paused for browsing)
+    /// it is already visible behind the browser — no navigation needed.
+    /// Otherwise restore the config editor or idle placeholder.
     func clearSnapshotBrowser() {
         guard snapshotBrowserHost != nil else { return }
         removeHostingView(&snapshotBrowserHost)
+        if emulatorView != nil {
+            return
+        }
         if let model = configModel {
             showConfigEditorView(model: model)
         } else {

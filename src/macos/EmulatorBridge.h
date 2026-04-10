@@ -67,8 +67,8 @@ typedef NS_ENUM(NSInteger, ARCSessionState) {
 + (BOOL)saveSnapshotToPath:(NSString *)path error:(NSString * _Nullable * _Nullable)error;
 
 // Snapshot load: open a .arcsnap file and start a fresh emulation
-// session from it. Session must be idle. Returns YES on success, NO
-// on failure with `error` populated.
+// session from it. If a session is already active it is stopped first.
+// Returns YES on success, NO on failure with `error` populated.
 + (BOOL)startSnapshotSessionFromPath:(NSString *)path error:(NSString * _Nullable * _Nullable)error;
 
 // Returns YES if the currently paused session is in a state where a

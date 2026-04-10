@@ -147,6 +147,13 @@ Remaining sub-problems for future work:
 - Quiescence checks (floppy idle, IDE idle) remain enforced — if a controller is mid-operation, the save fails with a "busy" error and the user can retry.
 - Changes: removed `arc_is_paused()` gate from `snapshot_can_save()` (`src/snapshot.c`), `saveSnapshotToPath:error:` (`src/macos/EmulatorBridge.mm`), menu enablement (`src/macos/app_macos.mm`), and `canSaveSnapshot` polling (`src/macos/EmulatorState.swift`).
 
+**6.2b Live load (load while running)** *(small)* — ✅ **Done**
+- "Load Snapshot…" and "Open Recent Snapshot" menu items are now enabled while a session is active. Loading a snapshot stops the current session first, then starts the new one.
+- `arc_start_snapshot_session()` calls `arc_stop_main_thread()` when `shell_session_active` is true, which cleanly tears down the emulation thread, renderer, and snapshot runtime before proceeding with the new session.
+- For the snapshot browser path, the session is **paused** (not stopped) when the menu item is clicked. The Metal view is preserved behind the browser. If the user dismisses the browser without picking a snapshot, the session resumes. If they pick a snapshot, the old session is stopped and the new one starts.
+- For the recent snapshot path, `arc_start_snapshot_session()` handles the stop-and-reload directly.
+- Changes: `arc_start_snapshot_session()` and `MENU_FILE_LOAD_SNAPSHOT` handler (`src/macos/app_macos.mm`), menu enablement (`shell_update_menu_state`, `shell_rebuild_recent_snapshots_menu`), `handleRecentSnapshotCommand:` guard removal, `navigateToSnapshotBrowser()` / `dismissSnapshotBrowser()` / `handleSnapshotBrowserSelection()` pause/resume flow (`src/macos/MainSplitViewController.swift`), `showSnapshotBrowser(preserveEmulatorView:)` / `clearSnapshotBrowser()` (`src/macos/ContentHostingController.swift`), `resumeEmulation` bridge (`src/macos/NewWindowBridge.{h,mm}`).
+
 **6.3 Deterministic replay / TAS infrastructure** *(large)*
 - Record input events alongside save states; replay them deterministically on load. Enables tool-assisted speedruns and regression tests ("play this input trace against this snapshot, assert the final frame hash").
 - Builds on 3.3.

@@ -312,7 +312,7 @@ static void shell_rebuild_recent_snapshots_menu(void)
 		                                       keyEquivalent:@""];
 		item.target = shell_delegate;
 		item.tag = MENU_FILE_LOAD_RECENT_SNAPSHOT_BASE + (NSInteger)idx;
-		item.enabled = !shell_session_active;
+		item.enabled = YES;
 		item.toolTip = path;
 		[shell_recent_snapshots_menu addItem:item];
 		idx++;
@@ -320,7 +320,7 @@ static void shell_rebuild_recent_snapshots_menu(void)
 	}
 
 	if (shell_recent_snapshots_item)
-		shell_recent_snapshots_item.enabled = !shell_session_active;
+		shell_recent_snapshots_item.enabled = YES;
 }
 
 static NSMenu *shell_create_file_menu(void)
@@ -578,10 +578,9 @@ static void shell_update_menu_state(void)
 
 	{
 		BOOL can_save = (shell_session_active && snapshot_can_save(NULL, 0));
-		BOOL can_load = !shell_session_active;
 		BOOL can_screenshot = shell_session_active;
 		shell_set_menu_enabled(MENU_FILE_SAVE_SNAPSHOT, can_save);
-		shell_set_menu_enabled(MENU_FILE_LOAD_SNAPSHOT, can_load);
+		shell_set_menu_enabled(MENU_FILE_LOAD_SNAPSHOT, YES);
 		shell_set_menu_enabled(MENU_FILE_TAKE_SCREENSHOT, can_screenshot);
 
 		/* Disabling the parent item is enough — Cocoa won't let the
@@ -589,7 +588,7 @@ static void shell_update_menu_state(void)
 		 * to be touched here. They are enabled/disabled in
 		 * shell_rebuild_recent_snapshots_menu() at build time. */
 		if (shell_recent_snapshots_item)
-			shell_recent_snapshots_item.enabled = can_load;
+			shell_recent_snapshots_item.enabled = YES;
 	}
 }
 
@@ -1309,9 +1308,6 @@ static void shell_request_app_termination(void)
 	if (!path.length)
 		return;
 
-	if (shell_session_active)
-		return;
-
 	if (![[NSFileManager defaultManager] fileExistsAtPath:path])
 	{
 		[NewWindowBridge removeRecentSnapshot:path];
@@ -1378,10 +1374,8 @@ static void shell_request_app_termination(void)
 
 		case MENU_FILE_LOAD_SNAPSHOT:
 		{
-			if (shell_session_active)
-				break;
-			/* Browser handles the file selection + load; alert
-			 * handling for failed loads happens inside the
+			/* Browser handles pause/resume, file selection + load;
+			 * alert handling for failed loads happens inside the
 			 * MainSplitViewController selection callback. */
 			[NewWindowBridge navigateToSnapshotBrowserInWindow:shell_window];
 		}
@@ -1939,12 +1933,7 @@ int arc_start_snapshot_session(const char *path, char *err_out, size_t n)
 		err_out[0] = 0;
 
 	if (shell_session_active)
-	{
-		if (err_out && n)
-			snprintf(err_out, n,
-			         "cannot load snapshot while an emulation session is active");
-		return 0;
-	}
+		arc_stop_main_thread();
 
 	/* Check up-front that a video view is (or can be made) available.
 	 * Doing this before snapshot_prepare_runtime() keeps the error

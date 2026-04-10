@@ -2,6 +2,9 @@
 
 ## (unreleased)
 
+- macOS: Allow loading snapshots while the emulator is running (live load) — Load Snapshot and Open Recent Snapshot menus now work during active sessions
+- macOS: Pause emulation when browsing for a snapshot; resume automatically if the browser is dismissed without selecting one
+
 - core: Allow saving snapshots while the emulator is running (live save) — no pause required
 - macOS: Enable Save Snapshot menu item during running sessions, not just when paused
 

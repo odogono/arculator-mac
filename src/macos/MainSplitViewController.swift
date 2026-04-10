@@ -26,6 +26,7 @@ import Combine
     private var stateSubscription: AnyCancellable?
     private var restoredSidebarWidth = false
     private var sidebarWidthSaveTimer: Timer?
+    private var pausedForSnapshotBrowse = false
 
     @objc var configListModel: ConfigListModel { configList }
 
@@ -121,11 +122,13 @@ import Combine
     }
 
     @objc func navigateToSnapshotBrowser() {
-        // Only meaningful when idle. If a session is active the File
-        // menu gating should have prevented the call, but defend here
-        // in case the path is reached via some other route.
-        guard EmulatorState.shared.isIdle else { return }
+        let sessionWasActive = EmulatorState.shared.isActive
+        if sessionWasActive {
+            EmulatorBridge.pauseEmulation()
+        }
+        pausedForSnapshotBrowse = sessionWasActive
         contentController.showSnapshotBrowser(
+            preserveEmulatorView: sessionWasActive,
             onClose: { [weak self] in
                 self?.dismissSnapshotBrowser()
             },
@@ -140,9 +143,15 @@ import Combine
 
     @objc func dismissSnapshotBrowser() {
         contentController.clearSnapshotBrowser()
+        if pausedForSnapshotBrowse {
+            pausedForSnapshotBrowse = false
+            EmulatorBridge.resumeEmulation()
+        }
     }
 
     private func handleSnapshotBrowserSelection(path: String) {
+        let wasPausedForBrowse = pausedForSnapshotBrowse
+        pausedForSnapshotBrowse = false
         var startError: NSString?
         let ok = EmulatorBridge.startSnapshotSession(fromPath: path, error: &startError)
         if ok {
@@ -151,6 +160,7 @@ import Combine
             contentController.clearSnapshotBrowser()
             AppSettings.shared.recordRecentSnapshot(path)
         } else {
+            pausedForSnapshotBrowse = wasPausedForBrowse
             let alert = NSAlert()
             alert.messageText = "Cannot Load Snapshot"
             alert.informativeText = (startError as String?)
