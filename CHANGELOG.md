@@ -2,6 +2,11 @@
 
 ## (unreleased)
 
+- macOS: Add snapshot editing — right-click a snapshot in the browser to edit name, description, preview image, show in Finder, or delete
+- macOS: Add interactive preview image editor with Cmd+C/Cmd+V copy/paste support in the snapshot edit sheet
+- core: Add `snapshot_rewrite_metadata()` for atomic in-place update of META and PREV chunks in .arcsnap files
+- core: Fix `snapshot_peek_summary()` to recognise MHDA as a pre-state chunk so HD snapshots show metadata correctly
+
 - macOS: Fix system alert sound playing on key presses while emulator is running
 
 - core: Add IDE hard disc snapshot support with zlib-compressed media bundling

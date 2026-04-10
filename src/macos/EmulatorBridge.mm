@@ -476,4 +476,110 @@ static arcsnap_meta_t *build_save_meta(void)
     return data;
 }
 
++ (BOOL)updateSnapshotAtPath:(NSString *)path
+                         name:(NSString *)name
+                  description:(NSString *)description
+                updatePreview:(BOOL)updatePreview
+                      preview:(nullable NSImage *)preview
+                        error:(NSString **)error
+{
+    if (error)
+        *error = nil;
+    if (path.length == 0)
+    {
+        if (error) *error = @"No snapshot path";
+        return NO;
+    }
+
+    /* Peek the existing summary to preserve created_at and properties. */
+    arcsnap_summary_t summary;
+    memset(&summary, 0, sizeof(summary));
+    char err_buf[512] = {0};
+
+    if (!snapshot_peek_summary([path fileSystemRepresentation],
+                               &summary, err_buf, sizeof(err_buf)))
+    {
+        if (error)
+            *error = err_buf[0]
+                ? [NSString stringWithUTF8String:err_buf]
+                : @"Failed to read snapshot";
+        snapshot_summary_dispose(&summary);
+        return NO;
+    }
+
+    /* Build the new META, preserving timestamp and properties. */
+    arcsnap_meta_t meta;
+    memset(&meta, 0, sizeof(meta));
+    meta.version = ARCSNAP_META_VERSION;
+
+    if (summary.has_meta)
+    {
+        meta.created_at_unix_ms_utc = summary.meta.created_at_unix_ms_utc;
+        meta.property_count = summary.meta.property_count;
+        memcpy(meta.properties, summary.meta.properties,
+               sizeof(meta.properties));
+    }
+    else
+    {
+        /* No existing timestamp — use file modification date. */
+        NSDictionary *attrs = [[NSFileManager defaultManager]
+            attributesOfItemAtPath:path error:nil];
+        NSDate *mtime = attrs.fileModificationDate;
+        if (mtime)
+            meta.created_at_unix_ms_utc =
+                (uint64_t)(mtime.timeIntervalSince1970 * 1000.0);
+    }
+
+    strlcpy(meta.name, name.UTF8String ?: "",
+            sizeof(meta.name));
+    strlcpy(meta.description, description.UTF8String ?: "",
+            sizeof(meta.description));
+
+    snapshot_summary_dispose(&summary);
+
+    /* Encode preview image if updating it. */
+    NSData *pngData = nil;
+    int pw = 0, ph = 0;
+
+    if (updatePreview && preview)
+    {
+        CGImageRef cgRef = [preview CGImageForProposedRect:NULL
+                                                  context:nil
+                                                    hints:nil];
+        if (!cgRef)
+        {
+            if (error) *error = @"Cannot convert image to PNG";
+            return NO;
+        }
+        NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
+            initWithCGImage:cgRef];
+        pngData = [rep representationUsingType:NSBitmapImageFileTypePNG
+                                    properties:@{}];
+        if (!pngData || pngData.length == 0)
+        {
+            if (error) *error = @"PNG encoding failed";
+            return NO;
+        }
+        pw = (int)rep.pixelsWide;
+        ph = (int)rep.pixelsHigh;
+    }
+
+    err_buf[0] = 0;
+    if (!snapshot_rewrite_metadata([path fileSystemRepresentation],
+                                   1, &meta,   /* update meta */
+                                   updatePreview ? 1 : 0,
+                                   pngData ? (const uint8_t *)pngData.bytes : NULL,
+                                   pngData ? pngData.length : 0,
+                                   pw, ph,
+                                   err_buf, sizeof(err_buf)))
+    {
+        if (error)
+            *error = err_buf[0]
+                ? [NSString stringWithUTF8String:err_buf]
+                : @"Failed to update snapshot";
+        return NO;
+    }
+    return YES;
+}
+
 @end

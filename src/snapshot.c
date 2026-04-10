@@ -1376,7 +1376,9 @@ int snapshot_peek_summary(const char *path,
 			out->preview_height   = out->manifest.preview_height;
 			out->has_preview      = 1;
 		}
-		else if (id == ARCSNAP_CHUNK_CFG || id == ARCSNAP_CHUNK_MEDA)
+		else if (id == ARCSNAP_CHUNK_CFG  ||
+		         id == ARCSNAP_CHUNK_MEDA ||
+		         id == ARCSNAP_CHUNK_MHDA)
 		{
 			/* Pre-state chunks that peek does not care about —
 			 * skipping them cleanly keeps peek tolerant of the
@@ -1396,5 +1398,187 @@ int snapshot_peek_summary(const char *path,
 fail:
 	snapshot_reader_close(r);
 	snapshot_summary_dispose(out);
+	return 0;
+}
+
+/* ----- snapshot_rewrite_metadata --------------------------------------- *
+ *
+ * Opens an existing .arcsnap, copies all chunks to a new writer while
+ * selectively replacing META and/or PREV, then atomically overwrites
+ * the original file. Non-summary chunks (state, END) are preserved
+ * byte-for-byte.
+ */
+
+/* Helper: is this chunk a "pre-state" chunk that precedes machine
+ * state data in the canonical save order? */
+static int is_pre_state_chunk(uint32_t id)
+{
+	return id == ARCSNAP_CHUNK_MNFT ||
+	       id == ARCSNAP_CHUNK_CFG  ||
+	       id == ARCSNAP_CHUNK_MEDA ||
+	       id == ARCSNAP_CHUNK_MHDA ||
+	       id == ARCSNAP_CHUNK_META ||
+	       id == ARCSNAP_CHUNK_PREV;
+}
+
+int snapshot_rewrite_metadata(const char *path,
+                              int update_meta,
+                              const arcsnap_meta_t *new_meta,
+                              int update_preview,
+                              const uint8_t *new_preview_png,
+                              size_t new_preview_png_size,
+                              int new_preview_w, int new_preview_h,
+                              char *error_buf, size_t error_buf_len)
+{
+	snapshot_reader_t *r = NULL;
+	snapshot_writer_t *w = NULL;
+	uint32_t id, version;
+	const uint8_t *payload;
+	uint64_t payload_size;
+	int rc;
+	int new_chunks_emitted = 0;
+
+	if (error_buf && error_buf_len)
+		error_buf[0] = 0;
+
+	if (!path || !path[0])
+	{
+		set_error(error_buf, error_buf_len, "no snapshot path");
+		return 0;
+	}
+
+	r = snapshot_reader_open(path, error_buf, error_buf_len);
+	if (!r)
+		return 0;
+
+	w = snapshot_writer_create();
+	if (!w)
+	{
+		set_error(error_buf, error_buf_len, "out of memory");
+		goto fail;
+	}
+	if (!snapshot_writer_write_header(w))
+	{
+		set_error(error_buf, error_buf_len, "writer failed (header)");
+		goto fail;
+	}
+
+	for (;;)
+	{
+		rc = snapshot_reader_next_chunk(r, &id, &version, &payload,
+		                               &payload_size, error_buf, error_buf_len);
+		if (rc < 0)
+			goto fail;
+		if (rc == 0)
+			break;
+
+		/* Skip META/PREV when they are being replaced. */
+		if (id == ARCSNAP_CHUNK_META && update_meta)
+			continue;
+		if (id == ARCSNAP_CHUNK_PREV && update_preview)
+			continue;
+
+		/* Before the first non-pre-state chunk, emit the new META
+		 * and PREV so they appear in the canonical position (after
+		 * CFG/MEDA/MHDA, before state chunks). This ensures
+		 * snapshot_peek_summary() can find them. */
+		if (!new_chunks_emitted && !is_pre_state_chunk(id))
+		{
+			if (update_preview && new_preview_png && new_preview_png_size)
+			{
+				if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_PREV, 1u))
+				{
+					set_error(error_buf, error_buf_len,
+					          "writer failed (PREV begin)");
+					goto fail;
+				}
+				if (!snapshot_writer_append(w, new_preview_png,
+				                           new_preview_png_size))
+				{
+					set_error(error_buf, error_buf_len,
+					          "writer failed (PREV payload)");
+					goto fail;
+				}
+				if (!snapshot_writer_end_chunk(w))
+				{
+					set_error(error_buf, error_buf_len,
+					          "writer failed (PREV end)");
+					goto fail;
+				}
+			}
+			if (update_meta && new_meta)
+			{
+				if (!snapshot_writer_write_meta(w, new_meta))
+				{
+					set_error(error_buf, error_buf_len,
+					          "writer failed (META)");
+					goto fail;
+				}
+			}
+			new_chunks_emitted = 1;
+		}
+
+		/* Copy this chunk verbatim. */
+		if (!snapshot_writer_begin_chunk(w, id, version))
+		{
+			set_errorf(error_buf, error_buf_len,
+			           "writer failed (copy chunk 0x%08x begin)", id);
+			goto fail;
+		}
+		if (payload_size &&
+		    !snapshot_writer_append(w, payload, (size_t)payload_size))
+		{
+			set_errorf(error_buf, error_buf_len,
+			           "writer failed (copy chunk 0x%08x payload)", id);
+			goto fail;
+		}
+		if (!snapshot_writer_end_chunk(w))
+		{
+			set_errorf(error_buf, error_buf_len,
+			           "writer failed (copy chunk 0x%08x end)", id);
+			goto fail;
+		}
+	}
+
+	/* Edge case: file had only pre-state chunks and no state/END. */
+	if (!new_chunks_emitted)
+	{
+		if (update_preview && new_preview_png && new_preview_png_size)
+		{
+			if (!snapshot_writer_begin_chunk(w, ARCSNAP_CHUNK_PREV, 1u) ||
+			    !snapshot_writer_append(w, new_preview_png,
+			                           new_preview_png_size) ||
+			    !snapshot_writer_end_chunk(w))
+			{
+				set_error(error_buf, error_buf_len,
+				          "writer failed (trailing PREV)");
+				goto fail;
+			}
+		}
+		if (update_meta && new_meta)
+		{
+			if (!snapshot_writer_write_meta(w, new_meta))
+			{
+				set_error(error_buf, error_buf_len,
+				          "writer failed (trailing META)");
+				goto fail;
+			}
+		}
+	}
+
+	if (!snapshot_writer_save_to_file(w, path))
+	{
+		set_errorf(error_buf, error_buf_len,
+		           "failed to write '%s'", path);
+		goto fail;
+	}
+
+	snapshot_writer_destroy(w);
+	snapshot_reader_close(r);
+	return 1;
+
+fail:
+	snapshot_writer_destroy(w);
+	snapshot_reader_close(r);
 	return 0;
 }

@@ -142,6 +142,28 @@ int  snapshot_peek_summary(const char *path,
  * zeroed summary. Idempotent. */
 void snapshot_summary_dispose(arcsnap_summary_t *summary);
 
+/* Rewrites the META and/or PREV chunks inside an existing .arcsnap
+ * file. All other chunks (MNFT, CFG, state, etc.) are preserved
+ * verbatim. The rewrite is atomic (write to temp, then rename).
+ *
+ * When `update_meta` is non-zero, the existing META chunk (if any) is
+ * replaced by `new_meta`. Pass NULL for `new_meta` to remove the META
+ * chunk entirely.
+ *
+ * When `update_preview` is non-zero, the existing PREV chunk (if any)
+ * is replaced by the supplied PNG. Pass NULL for `new_preview_png` to
+ * remove the PREV chunk entirely.
+ *
+ * Returns 1 on success, 0 on failure with `error_buf` populated. */
+int snapshot_rewrite_metadata(const char *path,
+                              int update_meta,
+                              const arcsnap_meta_t *new_meta,
+                              int update_preview,
+                              const uint8_t *new_preview_png,
+                              size_t new_preview_png_size,
+                              int new_preview_w, int new_preview_h,
+                              char *error_buf, size_t error_buf_len);
+
 /* Opaque load context, lifecycle owned by snapshot_open / snapshot_close. */
 typedef struct snapshot_load_ctx_t snapshot_load_ctx_t;
 

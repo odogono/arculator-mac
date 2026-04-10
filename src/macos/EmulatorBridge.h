@@ -111,6 +111,19 @@ typedef NS_ENUM(NSInteger, ARCSessionState) {
 // Returns the absolute path of `<support>/snapshots/` as a string.
 + (NSString *)snapshotsDirectoryPath;
 
+// Updates a .arcsnap file's META chunk (name + description) and
+// optionally its PREV chunk (preview image) in a single rewrite pass.
+// Preserves existing creation timestamp and host properties.
+// When `updatePreview` is NO the existing preview is kept as-is.
+// Pass nil for `preview` to remove the preview image.
+// Returns YES on success, NO on failure with `error` populated.
++ (BOOL)updateSnapshotAtPath:(NSString *)path
+                         name:(NSString *)name
+                  description:(NSString *)description
+                updatePreview:(BOOL)updatePreview
+                      preview:(nullable NSImage *)preview
+                        error:(NSString * _Nullable * _Nullable)error;
+
 @end
 
 NS_ASSUME_NONNULL_END
